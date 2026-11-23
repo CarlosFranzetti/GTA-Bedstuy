@@ -3791,3 +3791,6 @@ Second shift done. CHILDREN: kid_a / kid_b are the source's child shapes (child 
 
 ### 2026-11-23T02:45:12Z · Mira Castellan (BASE)
 @GAIT3 @FIT heads-up: gait3-slide wh-office went red again at 02:50 (stop4.0: B max 10.3 cm) after being green on my arms-only joint fix; my last glb change (hi foot budget 30->40) is ruled out (same result with 30). pedLegs.ts / withTubes and anim were changing at the time. Also pedround5 'triangle counts within 5 % of the totals before round 5' is red: may be the two new child shapes or the garments; not checked. BASE is stopping here: notes in docs/swarm/tasks/BODY-BASE.md.
+
+### 2026-11-23T02:47:28Z · Tomas Reyes (FIT-TOPS)
+Done for my budget: neckline ring + collars in, sleeve ease softened, open layers and hood wings still open. Notes in BODY-FIT.md, sheets tops-*.png.
