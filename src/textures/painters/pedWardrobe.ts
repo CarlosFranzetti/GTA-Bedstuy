@@ -33,19 +33,19 @@ type Bottom = PedSpec['bottom'];
 
 const P = (s: string): string[] => s.split(' ');
 export const COLOURWAYS: Record<string, string[]> = {
-  tee: P('#b4b0a4 #9c9a94 #7c8088 #3a3f48 #1c1c20 #a8a290 #bdb49c #6a8098 #8a5a52 #4a5a48 #4a5a78 #7a5a42 #5a5448 #6f7f8c #c8bfae #8a7048 #34483a #7a4a32 #b0aca0 #8a9482 #5a2a34 #2a3248 #a89e88'),
+  tee: P('#b4b0a4 #c8bfae #9c9a94 #3a3f48 #1c1c20 #a8a290 #bdb49c #6a8098 #8a5a52 #4a5a48 #4a5a78 #7a5a42 #5a5448 #8a7048 #34483a #7a4a32 #8a9482 #5a2a34 #a89e88 #b4a0a2 #3a4a5a #6a6a50 #a0907a #7c8088'),
   smartShirt: P('#b8b8b0 #a8b4be #98a8b8 #b4a8a8 #b8b09a #98a4b0 #a8a8b4 #8c9ca4 #c8bfae #a8b0a0 #b0a48a #6a8098 #3a3f48 #7a5a42'),
-  knit: P('#a89e88 #2f3a58 #3a4a40 #5a2a34 #8a7048 #7c8088 #4a3a30 #b0aca0 #54424e #c8bfae #7a4a32 #34483a #1c1c20 #5a5448 #8a9482 #b4a0a2'),
+  knit: P('#a89e88 #2f3a58 #3a4a40 #5a2a34 #8a7048 #7c8088 #4a3a30 #b0aca0 #54424e #c8bfae #7a4a32 #34483a #1c1c20 #5a5448 #8a9482 #b4a0a2 #6a6a50 #a0907a'),
   denim: P('#4d6c98 #34506f #232b3b #1f2a3a #5a7494 #2e3848 #151a22 #667f9a #8aa0b8 #9aaec2 #7a90aa #34363e #6c7078 #3f5a80 #1c1c20'),
-  dark: P('#1c1c20 #2a2c32 #34363e #121216 #2f3442 #3a3e4a #3a3028 #34483a #4a4a40 #5a5348 #2a3248 #5a2a34 #6c7078'),
-  suit: P('#2f3442 #2d2638 #1c1c24 #3a3e4a #4a4a52 #243a52 #3a3028 #5a5348'),
+  dark: P('#1c1c20 #2a2c32 #34363e #121216 #3a3028 #34483a #4a4a40 #5a5348 #2a3248 #5a2a34 #6c7078 #3a2a22 #2a3a30 #4a3a34'),
+  suit: P('#2f3442 #2a2430 #1c1c20 #3a3e4a #5a5348 #243a52 #3a3028 #4a3a34 #34403a #6a5c4c #8a8478 #2a2c32 #4a4a52'),
   chino: P('#a89a78 #7a6a4a #3a4a3a #4a4a40 #6a5f48 #c8bca0 #2f3a48 #8a6a4a #b0a48a #5a5448 #34363e #a89e88 #7a7a72 #5a2a34'),
   work: P('#6a5f48 #4a4a40 #3a4a3a #5b4a30 #2f3442 #7a7a72 #8a6a2a #3a3f48 #a89e88 #7a4a32 #34483a #1c1c20'),
   bright: P('#8a4a52 #3a5078 #8a5a38 #3a5a46 #5a3a6a #9a8040 #3a6a7a #7a4a32 #3a6a68 #7a3a3a'),
   pastel: P('#b4a0a2 #a0aab4 #a8b0a0 #b4aa94 #a8a2b2 #a0b0aa #b8a898'),
   team: P('#8a3228 #2a4a7a #2d5a3a #9a5a2a #5a3a6a #b4b4b4 #14161a #9a8040 #3a5a88'),
-  coat: P('#7a6a4c #2f3442 #1c1c20 #3a4a5a #5a5a40 #6a5c4c #5a3434 #8a8478 #a89e88 #c8bfae #5a2a34 #3a3028 #6c7078 #34483a'),
-  puffer: P('#1c1c20 #3a4a30 #2f3a58 #7a3028 #a8582a #9a8040 #6c7078 #aaa69a #34586e #7a6a4c #a89e88 #5a5448 #34483a #c8bfae #5a2a34 #8a7048 #3a3f48'),
+  coat: P('#7a6a4c #2f3442 #1c1c20 #3a4a5a #5a5a40 #6a5c4c #5a3434 #8a8478 #a89e88 #c8bfae #5a2a34 #3a3028 #6c7078 #34483a #4a3a34 #8a7048 #5a5448'),
+  puffer: P('#1c1c20 #3a4a30 #2f3a58 #7a3028 #a8582a #9a8040 #6c7078 #aaa69a #34586e #7a6a4c #a89e88 #5a5448 #34483a #c8bfae #5a2a34 #8a7048 #4a3a34 #6a6a50 #3a3028'),
   scrub: P('#3a6a74 #2f3a58 #7a9ca8 #6a2a36 #4a6a4c #5a4a70 #3a7066'),
   floral: P('#8a4a58 #9a8040 #3a6074 #5a3a6a #3a5a46 #a8582a #aaa69a #7a4a32'),
   trackTrim: P('#aaa69a #a8582a #9a8040 #8a3228 #2a4a7a #14161a'),
@@ -111,11 +111,11 @@ const T0 = { print: 'none', printColor: '#ffffff' } as const;
 
 /** base tops: worn alone or under a layer (then only their colour shows) */
 export const BASE_TOPS: Record<string, G<Top>> = {
-  tee: top('s3 t3 p1 w1 n1 e1 u1', 0, 'tee', { kind: 'tee', sleeves: 'short', ...T0 }, { a: 'atok' }),
+  tee: top('s2 t2 p1 w1 n1 e1 u1', 0, 'tee', { kind: 'tee', sleeves: 'short', ...T0 }, { a: 'atok' }),
   pocketTee: top('s2 w3 e1 u1', 0, 'tee', { kind: 'tee', sleeves: 'short', style: 'pocket', ...T0 }),
   longTee: top('s2 t2 w1 n1 p1', 1, 'tee', { kind: 'tee', sleeves: 'long', ...T0 }, { a: 'atok' }),
-  polo: top('w2 m2 u2 e2 s1', 0, 'tee', { kind: 'tee', sleeves: 'short', style: 'polo', ...T0 }),
-  shirt: top('m2 w2 c3 e2 n1 s1', 1, 'smartShirt', { kind: 'blouse', sleeves: 'long', style: 'shirt', ...T0 }),
+  polo: top('w2 m2 u2 e2 s2', 0, 'tee', { kind: 'tee', sleeves: 'short', style: 'polo', ...T0 }),
+  shirt: top('m2 w2 c3 e2 n1 s2 t1', 1, 'smartShirt', { kind: 'blouse', sleeves: 'long', style: 'shirt', ...T0 }),
   dressShirt: top('m3 w1 c3 e1', 1, 'smartShirt', { kind: 'blouse', sleeves: 'long', style: 'shirt', ...T0 }, { sx: 'm', a: 'ato' }),
   blouse: top('m2 w2 c2 e2 n2 s1', 1, 'pastel', { kind: 'blouse', sleeves: 'short', ...T0 }, { sx: 'f' }),
   tank: top('p2 s1 n1 t1', 0, 'tee', { kind: 'tee', sleeves: 'none', ...T0 }, { a: 'at' }),
@@ -126,7 +126,7 @@ export const BASE_TOPS: Record<string, G<Top>> = {
   bballJersey: top('p2 t2 s1', 0, 'team', { kind: 'jersey', sleeves: 'none', ...T0 }, { sx: 'm', a: 'atk' }),
   footballShirt: top('p2 t2 s1', 0, 'team', { kind: 'jersey', sleeves: 'short', style: 'football', print: 'stripes', printColor: '#e8e8ec' }, { a: 'atk' }),
   crewSweat: top('s3 t3 p2 w1 e1', 1, 'tee', { kind: 'tee', sleeves: 'long', fabric: 'fleece', pattern: 'heather', ...T0 }, { a: 'atok' }),
-  campShirt: top('s2 e2 n1 m1', 0, 'camp', { kind: 'blouse', sleeves: 'short', style: 'shirt', pattern: 'stripe', ...T0 }, { sx: 'm', a: 'ato' }),
+  campShirt: top('s3 e2 n1 m1 w1', 0, 'camp', { kind: 'blouse', sleeves: 'short', style: 'shirt', pattern: 'stripe', ...T0 }, { sx: 'm', a: 'ato' }),
   flannel: top('s3 w3 t1', 1, 'flannel', { kind: 'blouse', sleeves: 'long', style: 'workshirt', fabric: 'canvas', pattern: 'plaid', ...T0 }, { tr: 'tee' }),
   knitPolo: top('m2 e3 c1', 1, 'knit', { kind: 'tee', sleeves: 'short', style: 'polo', fabric: 'knit', ...T0 }, { sx: 'm', a: 'ao' }),
   scrubs: top('u3', 0, 'scrub', { kind: 'scrubs', sleeves: 'short', ...T0 }, { only: 'scrubs' }),
@@ -144,20 +144,20 @@ export const LAYERS: Record<string, G<Top>> = {
   shirtOpen: top('s3 w3 t2', 1, 'tee', { kind: 'jacket', sleeves: 'long', open: true, fabric: 'canvas', style: 'workshirt', pattern: 'plaid', ...T0 }, { tr: 'tee' }),
   cardigan: top('e5 m2 w1 c3 s1', 1, 'knit', { kind: 'cardigan', sleeves: 'long', ...T0 }, { a: 'ato' }),
   cardiganOpen: top('e2 m1 s1 w1', 1, 'knit', { kind: 'cardigan', sleeves: 'long', open: true, ...T0 }),
-  trackJacket: top('p3 s1 t1 e1', 1, 'dark', { kind: 'tracksuit', sleeves: 'long', zip: true, style: 'track', ...T0 }, { tr: 'trackTrim', a: 'at' }),
+  trackJacket: top('p2 t1', 1, 'dark', { kind: 'tracksuit', sleeves: 'long', zip: true, style: 'track', ...T0 }, { tr: 'trackTrim', a: 'at' }),
   denimJacket: top('s3 t2 n1 w1', 1, 'denim', { kind: 'jacket', sleeves: 'long', open: true, fabric: 'denim', style: 'denim', ...T0 }),
   denimClosed: top('s2 t1 w1', 1, 'denim', { kind: 'jacket', sleeves: 'long', fabric: 'denim', style: 'denim', zip: true, ...T0 }),
   bomber: top('s3 t3 n2', 1, 'dark', { kind: 'jacket', sleeves: 'long', open: true, fabric: 'leather', style: 'bomber', ...T0 }),
   bomberNylon: top('s2 t3 p1', 1, 'puffer', { kind: 'jacket', sleeves: 'long', open: true, fabric: 'canvas', style: 'bomber', ...T0 }, { a: 'atk' }),
-  pufferShort: top('s3 t3 w2 p1', 2, 'puffer', { kind: 'puffer', sleeves: 'long', ...T0 }, { a: 'atk' }),
+  pufferShort: top('s2 t3 w2 p1', 2, 'puffer', { kind: 'puffer', sleeves: 'long', ...T0 }, { a: 'atk' }),
   pufferLong: top('s2 e2 m1 w1', 2, 'puffer', { kind: 'puffer', sleeves: 'long', long: true, ...T0 }, { wx: [1, 1.5] }),
   overcoat: top('m3 e2 c2 n1 w1', 2, 'coat', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'wool', style: 'overcoat', ...T0 }),
   trench: top('m2 s1 w1 e1', 1, 'coat', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'canvas', style: 'trench', ...T0 }, { wx: [1, 2] }),
   parka: top('s2 w2 t1 e1', 2, 'puffer', { kind: 'puffer', sleeves: 'long', long: true, style: 'parka', ...T0 }, { hat: 'hood', wx: [1, 2] }),
   blazer: top('m3 w1 c3 n2 s1 e3', 1, 'suit', { kind: 'jacket', sleeves: 'long', style: 'blazer', ...T0 }),
   workVest: top('w3 u2', 1, 'work', { kind: 'vest', sleeves: 'long', pattern: 'none', ...T0 }, { tr: 'trackTrim' }),
-  fleece: top('s2 w3 e2 p1', 1, 'fleece', { kind: 'jacket', sleeves: 'long', zip: true, fabric: 'fleece', style: 'track', ...T0 }, { wx: [1, 1] }),
-  windbreaker: top('p3 s2 t2 w1', 1, 'puffer', { kind: 'tracksuit', sleeves: 'long', zip: true, style: 'track', ...T0 }, { tr: 'tee', wx: [1, 2.2] }),
+  fleece: top('s1 w2 e1 p1', 1, 'fleece', { kind: 'jacket', sleeves: 'long', zip: true, fabric: 'fleece', style: 'track', ...T0 }, { wx: [1, 1] }),
+  windbreaker: top('p2 s1 t1 w1', 1, 'puffer', { kind: 'tracksuit', sleeves: 'long', zip: true, style: 'track', ...T0 }, { tr: 'tee', wx: [1, 2.2] }),
   varsity: top('t3 s2 p1', 1, 'varsity', { kind: 'jacket', sleeves: 'long', zip: true, fabric: 'wool', style: 'bomber', pattern: 'block', ...T0 }, { tr: 'white', a: 'atk' }),
   peacoat: top('m3 e2 c2 n2 s1', 2, 'coat', { kind: 'jacket', sleeves: 'long', fabric: 'wool', style: 'blazer', ...T0 }),
   leatherCoat: top('n3 s1 m1', 2, 'leather', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'leather', style: 'trench', ...T0 }, { sx: 'm', a: 'a' }),
@@ -178,7 +178,7 @@ export const ONE_PIECE: Record<string, OnePiece> = {
   wrapDress: { k: 'm2 n3 c1 s1', w: 1, c: 'bright', top: { kind: 'dress', sleeves: 'long', style: 'wrap' }, bottom: { kind: 'skirt', cut: 'wrap' }, a: 'at', sx: 'f' },
   kaftan: { k: 'c2 e2 s2 m1', w: 0, c: 'floral', top: { kind: 'dress', sleeves: 'short', style: 'kaftan', pattern: 'print' }, bottom: { kind: 'skirt', long: true, cut: 'maxi' }, a: 'ao', sx: 'f' },
   boilerSuit: { k: 'w3 u2', w: 1, c: 'work', top: { kind: 'uniform', sleeves: 'long', style: 'boiler', zip: true }, bottom: { kind: 'cargo', cut: 'patch' }, a: 'at' },
-  trackSet: { k: 'p3 s2 e2 t1', w: 1, c: 'dark', top: { kind: 'tracksuit', sleeves: 'long', zip: true, style: 'track' }, bottom: { kind: 'sweats', cut: 'stripe' }, tr: 'trackTrim' },
+  trackSet: { k: 'p2 e2', w: 1, c: 'dark', top: { kind: 'tracksuit', sleeves: 'long', zip: true, style: 'track' }, bottom: { kind: 'sweats', cut: 'stripe' }, tr: 'trackTrim' },
 };
 /** a long tunic over leggings or trousers (top.long on a non-dress top is the coat cut) */
 const TUNIC: G<Top> = top('c2 e2 s2 m1', 0, 'floral', { kind: 'blouse', sleeves: 'short', long: true, style: 'kaftan', pattern: 'print', ...T0 }, { sx: 'f', a: 'ato' });
@@ -513,7 +513,7 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
   if (sg.p.kind === 'sandal' || sg.p.kind === 'slide') { /* bare foot */ }
   // headwear, hair, face, bag
   const hc: HatCtx = { topId, layerId, botId: botId ?? '', shoeId: sId, season, look: lk, age, sex };
-  const hw = ID && ID.hat !== undefined && !(layerId && LAYERS[layerId]?.hat && ID.hat === 'none') ? { hat: ID.hat, color: WAY?.hat ?? '#222222' } : hatFor(rng, lk, season, sex, group, age, hatBrought, hc);
+  const hw = ID && ID.hat !== undefined && !(layerId && LAYERS[layerId]?.hat && ID.hat === 'none') ? { hat: ID.hat === 'beanie' && season === 'warm' ? ('none' as HatStyle) : ID.hat, color: WAY?.hat ?? '#222222' } : hatFor(rng, lk, season, sex, group, age, hatBrought, hc);
   const hair = hairFor(rng, group, sex, age, hw.hat);
   const hairColor = kidOld && rng.next() < (group === 'wh' ? 0.85 : 0.6) ? pickOf(rng, GREY) : hair === 'bald' ? pal.hair[0] : pickOf(rng, pal.hair);
   const gear = ID && ID.gear ? { gear: ID.gear, color: WAY?.gear ?? '#2a2c32' } : gearFor(rng, lk, sex, age, !!topSpec.long);
@@ -528,7 +528,7 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
   if (hw.hat === 'hood' && layerId === 'parka') spec.hatTrim = '#e8e4dc';
   // the colour pass (one accent, a lightness gap between top and bottom, shoes echoing the bag) runs on the random mix; whole outfits are authored and tested instead
   if (!OFT) colourPass(spec, { layerId, topId, botId: botId ?? '', onePiece: !!sets }, (slot) => slot === 'bottom' ? colour(rng, BOTTOMS[botId ?? 'jeansStraight']?.c ?? 'denim') : slot === 'under' ? colour(rng, 'tee') : slot === 'gear' ? pickOf(rng, ['#3a3a40', '#1c1c20', '#5b3a24']) : colour(rng, 'tee'), () => rng.next());
-  spec.id = specId(spec, topId, layerId, botId ?? '');
+  spec.id = specId(spec, topId, layerId, botId ?? '', sId);
   return spec;
 }
 function jitter(hex: string, rng: Rng): string {
@@ -537,9 +537,9 @@ function jitter(hex: string, rng: Rng): string {
 }
 const fnv = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 /** everything the eye can tell apart goes into the id, so equal combinations are one person (one texture bake) */
-function specId(s: PedSpec, topId: string, layerId: string, botId: string): string {
+function specId(s: PedSpec, topId: string, layerId: string, botId: string, shoeId: string): string {
   const key = JSON.stringify([s.group, s.sex, s.age, s.skin, s.hair, s.hairColor, s.hat, s.hatColor, s.face, s.top, s.bottom, s.shoes, s.gear, s.gearColor, s.body]);
-  return `g-${s.group}-${s.sex}${(s.age ?? 'a')[0]}-${[topId, layerId, botId].filter(Boolean).join('+')}-${fnv(key).toString(36)}`;
+  return `g-${s.group}-${s.sex}${(s.age ?? 'a')[0]}-${[topId, layerId || '_', botId, shoeId].join('+')}-${fnv(key).toString(36)}`;
 }
 
 // ---------------------------------------------------------------- the street: picking a variant for a pedestrian, with a cap on distinct bakes

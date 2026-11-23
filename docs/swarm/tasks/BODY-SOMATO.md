@@ -16,3 +16,7 @@ Status: in progress. Files I own: `src/entities/models/pedBodyTypes.ts`, `humanM
 
 ## Log
 - 00:20 UTC started, read the docs and code.
+- 00:30 DONE: pedBodyTypes.ts has the CAST (30 ids, 9 new), BMI_ANCHORS calibration, SAFE range, bodyBuildOf(spec), BODY_POOLS retuned, normCdf/normInv. tests/unit/entities/somato-cast.test.ts green (11 tests; 4,000 people). Measured adult BMI mix 34 / 34 / 32 percent (under 25 / 25-30 / 30+). Stature truncated at ANSUR P5/P95 per sex (asymmetric sd).
+- Legacy view (`BODY_TYPES`, `bodyTypeOf`) unchanged for the 21 old ids, neutral frame for the 9 new; new ids registered into pedMass.TYPE_BMI at load (interim line).
+- Posted the interface to BASE (00:21). Waiting for BASE: real shape BMI/waist at -1/0/+1, safe overshoot, OK for statureM in buildPerson, which frame fields they still apply.
+- Pictures: scratchpad/somato/before (today's deformers). After BASE's grid lands: bare and dressed line-ups of the cast, crowd of forty.

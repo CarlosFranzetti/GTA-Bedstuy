@@ -34,10 +34,16 @@ const I = Object.fromEntries(RIG.map((n, i) => [n, i]));
 
 /** Macro targets used (makehuman/data/targets/macrodetails/<name>.target): <race>-<sex>-<age> for the three MakeHuman races, plus weight / muscle. */
 const RACES = ['african', 'asian', 'caucasian'], SEXES = ['male', 'female'], AGES = ['child', 'young', 'old'];
+/**
+ * BASE (round 3): the muscle by weight grid. Keys 'mw' with m, w in 0 (min), 1 (average), 2 (max); '11' (average, average) is the base itself (its
+ * target file is empty). A shape ships one position delta per other key, at every level of detail, and the runtime blends them bilinearly.
+ */
+const MUS = ['minmuscle', 'averagemuscle', 'maxmuscle'], WGT = ['minweight', 'averageweight', 'maxweight'];
+export const GRID_KEYS = ['00', '01', '02', '10', '12', '20', '21', '22'];
+export const gridTarget = (sex, age, key) => `universal-${sex}-${age}-${MUS[+key[0]]}-${WGT[+key[1]]}`;
 export const TARGETS = [
   ...RACES.flatMap((r) => SEXES.flatMap((g) => AGES.map((a) => `${r}-${g}-${a}`))),
-  ...SEXES.flatMap((g) => ['minweight', 'maxweight'].map((w) => `universal-${g}-young-averagemuscle-${w}`)),
-  'universal-male-young-maxmuscle-averageweight', 'universal-female-young-maxmuscle-averageweight',
+  ...SEXES.flatMap((g) => AGES.flatMap((a) => GRID_KEYS.map((k) => gridTarget(g, a, k)))),
 ];
 
 /**

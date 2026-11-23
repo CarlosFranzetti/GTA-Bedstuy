@@ -257,11 +257,11 @@ export function colourPass(spec: PedSpec, parts: PassParts, redraw: (slot: 'unde
   if (spec.top.under) slots.splice(4, 0, ['under', () => spec.top.under!, (c) => { spec.top.under = c; }]);
   if (spec.gear === 'none') slots.shift();
   if (spec.hat === 'none' || spec.hat === 'hood' || spec.hat === 'hoodDown') slots.splice(slots.findIndex((s) => s[0] === 'hat'), 1);
-  let seen = false;
+  let kept: string | null = null;                                   // one accent COLOUR (a scrub top and its trousers are the same one)
   for (const [, get, set] of slots) {
     const c = get();
     if (!isAccent(c)) continue;
-    if (!seen) { seen = true; continue; }
+    if (kept === null || c === kept) { kept = c; continue; }
     set(mute(c));
   }
   if (!parts.onePiece) {
