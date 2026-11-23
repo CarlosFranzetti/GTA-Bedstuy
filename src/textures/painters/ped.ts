@@ -92,7 +92,7 @@ export interface PedSpec {
     fit?: 'skin' | 'oversized' | 'cropped'; neck?: 'roll' | 'band' | 'henley' | 'scoop' | 'wide';
   };
   bottom: { kind: BottomKind; color: string; trim: string; /** ankle-length skirt */ long?: boolean; /** the cut inside the kind, see BottomCut */ cut?: BottomCut; /** denim shorts / skirt (painted like jeans) */ denim?: boolean; /** WARDROBE (optional): a wide leg or a high rise, see pedMix.NEEDS_SHAPE */ fit?: 'wide' | 'highRise' };
-  shoes: { color: string; sole: string; accent: string; high?: boolean; /** explicit shoe (else picked from the outfit) */ kind?: ShoeKind; /** sock colour where it shows (slides, cropped legs) */ sock?: string };
+  shoes: { color: string; sole: string; accent: string; high?: boolean; /** explicit shoe (else picked from the outfit) */ kind?: ShoeKind; /** sock colour where it shows (slides, cropped legs) */ sock?: string; /** WARDROBE (optional): a platform sole, 4 cm heel, wide round toe: FIT finishes the shape (pedMix.NEEDS_SHAPE) */ chunky?: boolean };
   gear: 'none' | 'backpack' | 'bag' | 'tote' | 'messenger';
   gearColor: string;
   build: Build;

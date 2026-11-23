@@ -17,6 +17,7 @@ import { Rng } from '@/core/Rng';
 import { BODY_POOLS, type BodyTypeId } from '@/entities/models/pedBodyTypes';
 import { PED_SPECS, registerSpec, type BottomCut, type HairStyle, type HatStyle, type PedSpec, type PopGroup, type ShoeKind, type TopStyle } from './ped';
 import { PALETTE } from './pedRoster';
+import { colourPass, decadeW, hairFitsHat, hatScore, layerScore, shoeScore, topBottom, type HatCtx } from './pedMix';
 
 export type Look = 'work' | 'street' | 'smart' | 'sport' | 'church' | 'elder' | 'teen' | 'service' | 'night';
 export type Season = 'cold' | 'mild' | 'warm';
@@ -32,19 +33,19 @@ type Bottom = PedSpec['bottom'];
 
 const P = (s: string): string[] => s.split(' ');
 export const COLOURWAYS: Record<string, string[]> = {
-  tee: P('#b4b0a4 #9c9a94 #7c8088 #3a3f48 #1c1c20 #a8a290 #bdb49c #6a8098 #8a5a52 #4a5a48 #4a5a78 #7a5a42 #5a5448 #6f7f8c'),
-  smartShirt: P('#b8b8b0 #a8b4be #98a8b8 #b4a8a8 #b8b09a #98a4b0 #a8a8b4 #8c9ca4'),
-  knit: P('#a89e88 #2f3a58 #3a4a40 #5a2a34 #8a7048 #7c8088 #4a3a30 #b0aca0 #54424e'),
-  denim: P('#4d6c98 #34506f #232b3b #1f2a3a #5a7494 #2e3848 #151a22 #667f9a'),
-  dark: P('#1c1c20 #2a2c32 #34363e #121216 #2f3442 #3a3e4a'),
+  tee: P('#b4b0a4 #9c9a94 #7c8088 #3a3f48 #1c1c20 #a8a290 #bdb49c #6a8098 #8a5a52 #4a5a48 #4a5a78 #7a5a42 #5a5448 #6f7f8c #c8bfae #8a7048 #34483a #7a4a32 #b0aca0 #8a9482 #5a2a34 #2a3248 #a89e88'),
+  smartShirt: P('#b8b8b0 #a8b4be #98a8b8 #b4a8a8 #b8b09a #98a4b0 #a8a8b4 #8c9ca4 #c8bfae #a8b0a0 #b0a48a #6a8098 #3a3f48 #7a5a42'),
+  knit: P('#a89e88 #2f3a58 #3a4a40 #5a2a34 #8a7048 #7c8088 #4a3a30 #b0aca0 #54424e #c8bfae #7a4a32 #34483a #1c1c20 #5a5448 #8a9482 #b4a0a2'),
+  denim: P('#4d6c98 #34506f #232b3b #1f2a3a #5a7494 #2e3848 #151a22 #667f9a #8aa0b8 #9aaec2 #7a90aa #34363e #6c7078 #3f5a80 #1c1c20'),
+  dark: P('#1c1c20 #2a2c32 #34363e #121216 #2f3442 #3a3e4a #3a3028 #34483a #4a4a40 #5a5348 #2a3248 #5a2a34 #6c7078'),
   suit: P('#2f3442 #2d2638 #1c1c24 #3a3e4a #4a4a52 #243a52 #3a3028 #5a5348'),
-  chino: P('#a89a78 #7a6a4a #3a4a3a #4a4a40 #6a5f48 #c8bca0 #2f3a48 #8a6a4a'),
-  work: P('#6a5f48 #4a4a40 #3a4a3a #5b4a30 #2f3442 #7a7a72 #8a6a2a #3a3f48'),
+  chino: P('#a89a78 #7a6a4a #3a4a3a #4a4a40 #6a5f48 #c8bca0 #2f3a48 #8a6a4a #b0a48a #5a5448 #34363e #a89e88 #7a7a72 #5a2a34'),
+  work: P('#6a5f48 #4a4a40 #3a4a3a #5b4a30 #2f3442 #7a7a72 #8a6a2a #3a3f48 #a89e88 #7a4a32 #34483a #1c1c20'),
   bright: P('#8a4a52 #3a5078 #8a5a38 #3a5a46 #5a3a6a #9a8040 #3a6a7a #7a4a32 #3a6a68 #7a3a3a'),
   pastel: P('#b4a0a2 #a0aab4 #a8b0a0 #b4aa94 #a8a2b2 #a0b0aa #b8a898'),
   team: P('#8a3228 #2a4a7a #2d5a3a #9a5a2a #5a3a6a #b4b4b4 #14161a #9a8040 #3a5a88'),
-  coat: P('#7a6a4c #2f3442 #1c1c20 #3a4a5a #5a5a40 #6a5c4c #5a3434 #8a8478'),
-  puffer: P('#1c1c20 #3a4a30 #2f3a58 #7a3028 #a8582a #9a8040 #6c7078 #aaa69a #34586e'),
+  coat: P('#7a6a4c #2f3442 #1c1c20 #3a4a5a #5a5a40 #6a5c4c #5a3434 #8a8478 #a89e88 #c8bfae #5a2a34 #3a3028 #6c7078 #34483a'),
+  puffer: P('#1c1c20 #3a4a30 #2f3a58 #7a3028 #a8582a #9a8040 #6c7078 #aaa69a #34586e #7a6a4c #a89e88 #5a5448 #34483a #c8bfae #5a2a34 #8a7048 #3a3f48'),
   scrub: P('#3a6a74 #2f3a58 #7a9ca8 #6a2a36 #4a6a4c #5a4a70 #3a7066'),
   floral: P('#8a4a58 #9a8040 #3a6074 #5a3a6a #3a5a46 #a8582a #aaa69a #7a4a32'),
   trackTrim: P('#aaa69a #a8582a #9a8040 #8a3228 #2a4a7a #14161a'),
@@ -61,13 +62,24 @@ export const COLOURWAYS: Record<string, string[]> = {
   rainBoot: P('#a89228 #2d4a3a #1c1c20 #2f3a58 #7a3028 #3a3f48'),
   varsity: P('#2a3a5a #5a2030 #1f3a2c #1c1c20 #46285a #8a7040'),
   lab: P('#b8b8b2 #aaa8a2 #a8b4be #b0a894'),
-  fleece: P('#3a4a40 #2f3a58 #6a4e34 #6c7078 #8a7040 #7a3028 #1c1c20 #46607a'),
+  fleece: P('#3a4a40 #2f3a58 #6a4e34 #6c7078 #8a7040 #7a3028 #1c1c20 #46607a #a89e88 #5a5448'),
   leather: P('#1c1c20 #2a1c18 #4a2a1c #3a2a22 #5b3a24'),
   cord: P('#7a5a3a #4a5a3a #6a3a3a #a89a78 #3a3a48 #8a6a2a'),
   camp: P('#6a8098 #9a8040 #3a5a46 #8a4a58 #b0aa96 #3a6074 #7a4a32 #54406a'),
   flannel: P('#7a3028 #2f4a6a #34503a #8a6a2a #4a3228 #3a3f48 #5a2a34'),
   tennis: P('#b8b8b2 #2f3a58 #1c1c20 #34483a #8a4a58 #b0aa96'),
   workDark: P('#2f3442 #3a3f48 #4a4a40 #5b4a30 #1c1c20'),
+  // WARDROBE: the new parts
+  henley: P('#b0a894 #3a3f48 #2a3248 #4a5a48 #a89e88 #7a4a32 #5a5448'),
+  ribTank: P('#b4b0a4 #1c1c20 #8a9482 #7a5a42 #c8bfae #5a2a34 #6c7078'),
+  turtle: P('#1c1c20 #b0a894 #3a3f48 #7a4a32 #5a2a34 #34483a #8a7048 #5a5448'),
+  band: P('#b8b8b0 #b0a48a #6a6a50 #3a3f48 #a89e88 #34483a'),
+  dashiki: P('#8a6a2a #34503a #2f3a58 #c8bfae #7a3028 #5a2a34'),
+  uniform: P('#98a8b8 #243a52 #8a8a86 #b8b8b0 #3a3f48'),
+  velour: P('#243a52 #5a2a34 #2d4a3a #1c1c20 #3a3248 #5a5448'),
+  smock: P('#1c1c20 #3a3f48 #6c7078 #5a5448'),
+  cropJ: P('#4a4a40 #6a5f48 #1c1c20 #7a6a4c #34483a #5a5448 #a89e88 #2a3248'),
+  suitWide: P('#2f3442 #a89e88 #3a3e4a #1c1c20 #5a5448 #7a6a4c'),
 };
 const hex2 = (v: number): string => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
 const rgbOf = (h: string): [number, number, number] => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
@@ -118,6 +130,14 @@ export const BASE_TOPS: Record<string, G<Top>> = {
   flannel: top('s3 w3 t1', 1, 'flannel', { kind: 'blouse', sleeves: 'long', style: 'workshirt', fabric: 'canvas', pattern: 'plaid', ...T0 }, { tr: 'tee' }),
   knitPolo: top('m2 e3 c1', 1, 'knit', { kind: 'tee', sleeves: 'short', style: 'polo', fabric: 'knit', ...T0 }, { sx: 'm', a: 'ao' }),
   scrubs: top('u3', 0, 'scrub', { kind: 'scrubs', sleeves: 'short', ...T0 }, { only: 'scrubs' }),
+  // WARDROBE (wardrobe-60.md part 1): parts built from the nearest garment kind, finished by FIT through top.fit / top.neck (pedMix.NEEDS_SHAPE)
+  tallTee: top('s3 t2 p1 n1 e1', 0, 'tee', { kind: 'tee', sleeves: 'short', fit: 'oversized', ...T0 }, { sx: 'm', a: 'atok' }),
+  henley: top('s2 w2 e1 t1', 1, 'henley', { kind: 'tee', sleeves: 'long', neck: 'henley', ...T0 }, { sx: 'm', a: 'ato' }),
+  ribTank: top('s2 p2 n1 t1', 0, 'ribTank', { kind: 'tee', sleeves: 'none', fit: 'skin', neck: 'scoop', fabric: 'knit', ...T0 }, { sx: 'f', a: 'at' }),
+  turtleneck: top('m2 n2 s1 e1', 1, 'turtle', { kind: 'tee', sleeves: 'long', fabric: 'knit', neck: 'roll', ...T0 }, { a: 'ato' }),
+  bandShirt: top('c1 e2 s1 m1', 0, 'band', { kind: 'blouse', sleeves: 'long', long: true, style: 'kaftan', neck: 'band', ...T0 }, { sx: 'm', a: 'ato' }),
+  dashiki: top('s1 c1 e1', 0, 'dashiki', { kind: 'blouse', sleeves: 'short', long: true, style: 'kaftan', neck: 'wide', fit: 'oversized', ...T0 }, { a: 'ato' }),
+  uniformShirt: top('u4 w2 m1', 0, 'uniform', { kind: 'uniform', sleeves: 'short', style: 'shirt', ...T0 }, { a: 'ato' }),
 };
 /** layers: outer garments over a base top (the base shows in the opening, or in the collar) */
 export const LAYERS: Record<string, G<Top>> = {
@@ -145,6 +165,10 @@ export const LAYERS: Record<string, G<Top>> = {
   rainSlicker: top('s1 w2 u2 e1', 1, 'rain', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'canvas', style: 'trench', ...T0 }, { hat: 'hood', wx: [0.12, 7] }),
   labCoat: top('u2', 0, 'lab', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'canvas', style: 'trench', ...T0 }, { only: 'scrubs' }),
   apron: top('u3 w1', 0, 'work', { kind: 'apron', sleeves: 'short', ...T0 }),
+  velourTrack: top('e3 s1 p1', 1, 'velour', { kind: 'tracksuit', sleeves: 'long', zip: true, style: 'track', fabric: 'fleece', ...T0 }, { tr: 'trackTrim', a: 'ato' }),
+  chefJacket: top('u2 w1', 0, 'lab', { kind: 'jacket', sleeves: 'long', fabric: 'canvas', style: 'workshirt', ...T0 }, { a: 'at' }),
+  barberSmock: top('u2 s1', 0, 'smock', { kind: 'apron', sleeves: 'short', ...T0 }, { sx: 'm', a: 'at' }),
+  cropJacket: top('s3 t2 n1', 1, 'cropJ', { kind: 'jacket', sleeves: 'long', open: true, fabric: 'canvas', style: 'workshirt', fit: 'cropped', ...T0 }, { a: 'at' }),
 };
 /** one-piece garments (a dress, a tunic, a boiler suit, a tracksuit set): they fill the top and the bottom slot */
 export interface OnePiece { k: string; w: 0 | 1 | 2; c: string; top: Partial<Top>; bottom: Partial<Bottom>; a?: string; sx?: 'm' | 'f'; tr?: string }
@@ -190,6 +214,8 @@ export const BOTTOMS: Record<string, G<Bottom>> = {
   denimMaxi: bot('s2 c1 e1', 1, 'denim', { kind: 'skirt', long: true, cut: 'maxi', denim: true }, { sx: 'f', a: 'at' }),
   midiSkirt: bot('m2 c3 e2 n1 s1', 1, 'skirt', { kind: 'skirt', cut: 'knee' }, { sx: 'f', a: 'ato' }),
   maxiSkirt: bot('c2 e2 s2 m1', 1, 'skirt', { kind: 'skirt', long: true, cut: 'maxi' }, { sx: 'f', a: 'ato' }),
+  jeansWide: bot('s2 t3 n1', 1, 'denim', { kind: 'jeans', cut: 'baggy', fit: 'wide' }, { a: 'at' }),
+  trousersWide: bot('s1 m2 n2', 1, 'suitWide', { kind: 'trousers', cut: 'straight', fit: 'wide' }, { a: 'at' }),
 };
 
 const shoe = (k: string, w: 0 | 1 | 2, c: string, kind: ShoeKind, o: Partial<G<PedSpec['shoes']>> = {}): G<PedSpec['shoes']> => ({ k, w, c, p: { kind }, ...o });
@@ -211,6 +237,7 @@ export const SHOES: Record<string, G<PedSpec['shoes']>> = {
   flipFlop: shoe('s1 t2', 0, 'shoeBright', 'slide', { a: 'atk', wx: [1, 0.02] }),
   canvasLow: shoe('s2 t3 p1 u1', 1, 'shoeBright', 'sneakerLow', { a: 'atk' }),
   slide: shoe('s2 t3 p1', 0, 'shoeDark', 'slide', { a: 'atok', wx: [1, 0.05] }),
+  chunkySneaker: shoe('s2 t3 n1', 1, 'shoeWhite', 'sneakerLow', { a: 'at' }),
 };
 
 // ---------------------------------------------------------------- weights and the compatibility rules
@@ -236,18 +263,6 @@ function wpick<T>(rng: Rng, items: Array<[T, number]>): T | null {
   return items[items.length - 1][0];
 }
 const pickOf = <T,>(rng: Rng, a: readonly T[]): T => a[Math.floor(rng.next() * a.length)];
-/** a base top and a bottom that go together: a skirt needs a top that is not a hoodie or a jersey, a pencil skirt a smart top, shorts a light one ... */
-function goes(topId: string, botId: string): number {
-  const b = BOTTOMS[botId], t = BASE_TOPS[topId];
-  if (!t || !b) return 1;
-  const smartTop = ['shirt', 'dressShirt', 'blouse', 'polo', 'sweater'].includes(topId), sporty = ['bballJersey', 'footballShirt', 'tank', 'hoodieUp', 'hoodieDown', 'zipHoodie'].includes(topId);
-  const bc = b.p.cut;
-  if (b.p.kind === 'skirt') return bc === 'pencil' ? (smartTop ? 2 : 0.05) : sporty ? 0.15 : 1;
-  if (bc === 'long' || bc === 'run') return sporty || topId === 'tee' || topId === 'longTee' ? 2 : 0.4;       // basketball and running shorts: with a jersey or a tee
-  if (botId === 'suitTrousers') return smartTop ? 2.5 : topId === 'tee' || sporty ? 0.15 : 0.6;
-  if (botId === 'leggings') return smartTop && topId !== 'sweater' ? 0.3 : 1.6;
-  return 1;
-}
 /** a layer with a bottom and a base top: no blazer over a jersey, no puffer with shorts in cold weather, a tie only under a closed jacket */
 function layerOk(layerId: string, topId: string, botId: string): number {
   const b = BOTTOMS[botId], formal = ['blazer', 'overcoat', 'trench'].includes(layerId), sporty = ['bballJersey', 'footballShirt', 'tank'].includes(topId);
@@ -287,20 +302,19 @@ const HAIR_OLD_M: Array<[HairStyle, number]> = [['short', 2], ['thinning', 2], [
 const HAIR_OLD_F: Array<[HairStyle, number]> = [['bun', 2], ['short', 2], ['bob', 1.5], ['waves', 1.5], ['curly', 1]];
 const HAIR_KID_M: Array<[HairStyle, number]> = [['short', 2], ['fade', 2], ['crop', 1]];
 const HAIR_KID_F: Array<[HairStyle, number]> = [['ponytail', 2], ['bun', 1], ['long', 1.5], ['bob', 1]];
-const BIG_HAIR = new Set<HairStyle>(['afro', 'puff', 'locs', 'braids', 'twists', 'long', 'bun']);
-const HAT_STYLED = new Set<HatStyle>(['cap', 'snapback', 'beanie', 'hardhat', 'fedora', 'flat', 'church', 'durag', 'helmet', 'bucket', 'headwrap']);
 function hairFor(rng: Rng, g: PopGroup, sex: 'm' | 'f' | 'x', age: Age, hat: HatStyle): HairStyle {
   const nat = g === 'ba' || g === 'ca' || g === 'mx', f = sex === 'f' || (sex === 'x' && rng.next() < 0.5);
   let pool = age === 'kid' ? (f ? HAIR_KID_F : HAIR_KID_M) : age === 'old' ? (f ? HAIR_OLD_F : HAIR_OLD_M) : nat ? (f ? HAIR_NAT_F : HAIR_NAT_M) : g === 'ea' ? (f ? HAIR_EA_F : HAIR_EA_M) : (f ? HAIR_F : HAIR_M);
   if (age === 'kid' && nat) pool = f ? [['puff', 2], ['braids', 2], ['twists', 1], ['bun', 1]] : [['fade', 2], ['short', 2], ['crop', 1]];
   if (age === 'teen' && !f && nat) pool = [['fade', 3], ['short', 2], ['afro', 1.5], ['braids', 1.5], ['locs', 1], ['twists', 1]];
-  if (HAT_STYLED.has(hat)) pool = pool.filter(([h]) => !BIG_HAIR.has(h) || h === 'bun');
-  if (hat === 'hood' || hat === 'hoodDown') pool = pool.filter(([h]) => h !== 'afro' && h !== 'puff');
-  return wpick(rng, pool) ?? 'short';
+  // WARDROBE: a hat is kept only on hair it fits (pedMix.HAT_HAIR); a hood only over hair that does not stand out of it
+  pool = pool.filter(([h]) => hairFitsHat(hat, h));
+  if (hat === 'hoodDown') pool = pool.filter(([h]) => h !== 'afro' && h !== 'puff');
+  return wpick(rng, pool) ?? (hat === 'none' ? 'short' : pickOf(rng, ['short', 'crop', 'bald'] as HairStyle[]));
 }
 const GREY = ['#c8c8cc', '#b8b8bc', '#d0d0d4', '#a8a8ac'];
 /** hat by look and season; hood comes from the garment */
-function hatFor(rng: Rng, l: Look, season: Season, sex: 'm' | 'f' | 'x', g: PopGroup, age: Age, brought: HatStyle | undefined): { hat: HatStyle; color: string } {
+function hatFor(rng: Rng, l: Look, season: Season, sex: 'm' | 'f' | 'x', g: PopGroup, age: Age, brought: HatStyle | undefined, hc?: HatCtx): { hat: HatStyle; color: string } {
   const none = { hat: 'none' as HatStyle, color: '#222222' };
   if (brought) return { hat: brought, color: '#222222' };
   const warm = season === 'warm', cold = season === 'cold';
@@ -315,8 +329,8 @@ function hatFor(rng: Rng, l: Look, season: Season, sex: 'm' | 'f' | 'x', g: PopG
   if ((g === 'ba' || g === 'ca') && sex !== 'f' && age !== 'kid' && l !== 'smart' && l !== 'church') pool.push(['durag', 0.5]);
   if ((g === 'ba' || g === 'ca') && sex === 'f' && l !== 'work' && l !== 'smart') pool.push(['headwrap', 0.5]);
   if (age === 'kid') return rng.next() < 0.3 ? { hat: 'cap', color: pickOf(rng, COLOURWAYS.bright) } : none;
-  const h = wpick(rng, pool) ?? 'none';
-  const col = h === 'church' ? pickOf(rng, ['#c9a2e0', '#3b2a52', '#e8d8dc', '#2d2638', '#d8b84a']) : h === 'hardhat' ? pickOf(rng, ['#f4f4f0', '#f4d03f', '#e0702a']) : h === 'fedora' || h === 'flat' ? pickOf(rng, ['#2f3442', '#3a3028', '#5a5348', '#101014']) : pickOf(rng, [...COLOURWAYS.dark, ...COLOURWAYS.bright.slice(0, 4), '#e8e6e0']);
+  const h = wpick(rng, hc ? pool.map(([hh, w]) => [hh, hh === 'none' ? w : w * hatScore(hh, hc)] as [HatStyle, number]) : pool) ?? 'none';
+  const col = h === 'church' ? pickOf(rng, ['#c9a2e0', '#3b2a52', '#e8d8dc', '#2d2638', '#d8b84a']) : h === 'hardhat' ? pickOf(rng, ['#f4f4f0', '#f4d03f', '#e0702a']) : h === 'fedora' || h === 'flat' ? pickOf(rng, ['#2f3442', '#3a3028', '#5a5348', '#101014']) : pickOf(rng, [...COLOURWAYS.dark, ...COLOURWAYS.dark, '#4a5a48', '#7a6a4c', '#b0aca0', '#bdb49c', ...COLOURWAYS.bright.slice(0, 3), '#e8e6e0']);
   return { hat: h, color: col };
 }
 function gearFor(rng: Rng, l: Look, sex: 'm' | 'f' | 'x', age: Age, hasLayerLong: boolean): { gear: PedSpec['gear']; color: string } {
@@ -409,6 +423,8 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
   const oRng = new Rng((seed * 7919 + 13) >>> 0), ofw = outfitWeights(age, sex, lk, season);
   const OFT: Outfit | null = opts.outfit ? (OUTFITS_BY_ID.get(opts.outfit) ?? null) : !opts.noOutfit && oRng.next() < 0.55 ? wpick(oRng, ofw) : null;
   const WAY: Way | null = OFT ? OFT.ways[(opts.way ?? Math.floor(oRng.next() * OFT.ways.length)) % OFT.ways.length] : null;
+  // a way may swap a garment for an alternative ("chinos or suit trousers"): the ids of this person's outfit
+  const ID = OFT && WAY ? { top: WAY.ids?.top ?? OFT.top, layer: WAY.ids?.layer ?? OFT.layer, bottom: WAY.ids?.bottom ?? OFT.bottom, shoes: WAY.ids?.shoes ?? OFT.shoes, hat: (WAY.ids?.hat ?? OFT.hat) as HatStyle | undefined, gear: (WAY.ids?.gear ?? OFT.gear) as PedSpec['gear'] | undefined, one: OFT.onePiece } : null;
   // the body
   const pool = BODY_POOLS[`${age}-${sex}`] ?? BODY_POOLS['adult-m'];
   const body = wpick(rng, pool.map(([b, w]) => [b, w] as [BodyTypeId, number])) ?? 'avg';
@@ -421,22 +437,30 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
   const op = Object.keys(ONE_PIECE).map((id) => { const o = ONE_PIECE[id]; return [id, (o.a ?? 'ato').includes(ageCode(age)) && (!o.sx || o.sx === sex || sex === 'x') ? look(o.k, lk) * seasonK(o.w, season) : 0] as [string, number]; });
   const opTot = op.reduce((a, [, w]) => a + w, 0);
   let sets: PedSpec['top'] | null = null;
-  if (!OFT && opTot > 0 && rng.next() < onePieceP * (1 + Math.min(2, opTot / 6))) {
-    const id = wpick(rng, op)!, o = ONE_PIECE[id], c = o.c === 'dark' ? colour(rng, 'dark') : colour(rng, o.c);
-    const tc = o.tr ? colour(rng, o.tr) : shade(c, 0.72);
+  if (ID?.one || (!OFT && opTot > 0 && rng.next() < onePieceP * (1 + Math.min(2, opTot / 6)))) {
+    const id = ID?.one ?? wpick(rng, op)!, o = ONE_PIECE[id], c = WAY ? WAY.top! : o.c === 'dark' ? colour(rng, 'dark') : colour(rng, o.c);
+    const tc = o.tr && !WAY ? colour(rng, o.tr) : shade(c, 0.72);
     sets = { kind: 'dress', color: c, trim: tc, sleeves: 'short', print: 'none', printColor: tc, ...o.top } as Top;
     topSpec = sets; topId = id; layerId = '';
     botSpec = { kind: 'skirt', color: c, trim: shade(c, 0.78), ...o.bottom } as Bottom;
-    if (id === 'sundress' || id === 'kaftan') topSpec.pattern = rng.next() < 0.6 ? 'print' : 'none';
+    if ((id === 'sundress' || id === 'kaftan') && !WAY) topSpec.pattern = rng.next() < 0.6 ? 'print' : 'none';
+    if (WAY) topSpec.pattern = 'none';
     if (topSpec.pattern === 'print') topSpec.printColor = colour(rng, 'floral');
     if (id === 'trackSet') botSpec.trim = tc;
     if (id === 'wrapDress' || id === 'shirtDress') topSpec.trim = shade(c, 0.8);
     if (id === 'sundress') botSpec.trim = '#f4e8e0';
     botId = id === 'boilerSuit' ? 'cargo' : id === 'trackSet' ? 'trackPants' : id === 'wrapDress' || id === 'shirtDress' ? 'pleated' : 'pleated';
+    if (ID?.layer && WAY?.layer) {
+      // an outfit may wear a jacket or cardigan over its dress: the dress shows in the opening and below the hem
+      const lg = LAYERS[ID.layer];
+      layerId = ID.layer;
+      topSpec = { kind: 'jacket', color: WAY.layer, trim: lg.tr ? colour(rng, lg.tr) : shade(WAY.layer, 0.72), sleeves: 'long', print: 'none', printColor: '#ffffff', ...lg.p, under: c } as Top;
+      if (ID.layer === 'cardigan') delete topSpec.open;
+    }
   } else {
     // bottom first (it decides the shoes), then the base top, then a layer
-    const bId = OFT ? OFT.bottom : pickG(rng, BOTTOMS, who)!;
-    const tId = OFT ? OFT.top : pickG(rng, BASE_TOPS, who, (id) => goes(id, bId) * (BASE_TOPS[id].only ? 0.3 : 1))!;
+    const bId = ID ? ID.bottom : pickG(rng, BOTTOMS, who, (id) => decadeW(id, age))!;
+    const tId = ID ? ID.top : pickG(rng, BASE_TOPS, who, (id) => topBottom(id, bId, age) * decadeW(id, age) * (BASE_TOPS[id].only ? 0.3 : 1))!;
     botId = bId; topId = tId;
     const bg = BOTTOMS[bId], tg = BASE_TOPS[tId];
     const bc = WAY ? WAY.bottom : colour(rng, bg.c);
@@ -452,9 +476,9 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
     if (tId === 'footballShirt') { topSpec.printColor = distinct(rng, 'trackTrim', [tc], 90); }
     if (tId === 'shirt' || tId === 'dressShirt') { if (lk === 'smart' || lk === 'church') topSpec.tie = tId === 'dressShirt' && rng.next() < 0.7 ? colour(rng, 'bright') : undefined; }
     // layer
-    const cold = season === 'cold' ? 0.9 : season === 'warm' ? 0.07 : 0.42, wantLayer = tg.only && !OFT ? 0 : cold * (lk === 'smart' ? 1.4 : lk === 'sport' ? 0.7 : 1);
-    if (OFT ? !!OFT.layer && (season !== 'warm' || OFT.season[2] > 0.5) : rng.next() < wantLayer) {
-      const lId = OFT ? OFT.layer : pickG(rng, LAYERS, who, (id) => layerOk(id, tId, bId));
+    const cold = season === 'cold' ? 0.9 : season === 'warm' ? 0.07 : 0.3, wantLayer = tg.only && !OFT ? 0 : cold * (lk === 'smart' ? 1.4 : lk === 'sport' ? 0.7 : 1);
+    if (ID ? !!ID.layer && (season !== 'warm' || OFT!.season[2] > 0.5) : rng.next() < wantLayer) {
+      const lId = ID ? ID.layer : pickG(rng, LAYERS, who, (id) => layerOk(id, tId, bId) * layerScore(id, tId, bId) * decadeW(id, age));
       if (lId) {
         layerId = lId;
         const lg = LAYERS[lId], lc = WAY?.layer ?? (lg.c === 'tee' ? distinct(rng, 'tee', [tc, bc], 55) : distinct(rng, lg.c, [bc], 45));
@@ -466,6 +490,7 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
         if (lId === 'blazer' && rng.next() < 0.5 && !topSpec.tie) topSpec.tie = colour(rng, 'bright');
         if (lId === 'cardigan' || lId === 'cardiganOpen' || lId === 'trackJacket' || lId === 'pufferShort' || lId === 'pufferLong' || lId === 'parka') delete topSpec.open;
         if (lId === 'cardiganOpen') topSpec.open = true;
+        if (WAY?.tie) topSpec.tie = WAY.tie;
         hatBrought = lg.hat ?? (tg.hat === 'hoodDown' ? 'hoodDown' : undefined);
       }
     }
@@ -477,18 +502,20 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
     }
   }
   // the shoes
-  const sId = (OFT ? OFT.shoes : null) ?? wpick(rng, Object.keys(SHOES).map((id) => [id, gW(SHOES[id], who, shoeOk(id, botId, topId, sex, season, age))] as [string, number])) ?? 'sneakerLow';
+  const sId = (ID ? ID.shoes : null) ?? wpick(rng, Object.keys(SHOES).map((id) => [id, gW(SHOES[id], who, shoeOk(id, botId, topId, sex, season, age) * shoeScore(id, botId, topId, layerId, season, age, WET) * decadeW(id, age))] as [string, number])) ?? 'sneakerLow';
   const sg = SHOES[sId], sc = WAY ? WAY.shoes : colour(rng, sg.c);
   const shoes: PedSpec['shoes'] = { color: sc, sole: sg.p.kind === 'sneakerLow' || sg.p.kind === 'sneakerHigh' || sg.p.kind === 'runner' ? shade(sc, 0.82) : shade(sc, 0.35), accent: sg.p.kind === 'runner' || sg.p.kind === 'sneakerHigh' ? colour(rng, 'bright') : shade(sc, 0.7), kind: sg.p.kind };
   if (sg.p.kind === 'sneakerHigh') shoes.high = true;
+  if (sId === 'chunkySneaker') shoes.chunky = true;
   if (sg.p.kind === 'workBoot' || sg.p.kind === 'tallBoot') shoes.high = true;
   if (sg.p.kind === 'slide') shoes.sock = rng.next() < 0.7 ? '#f0f0ee' : '#1c1c20';
   if (sg.p.kind === 'sandal' || sg.p.kind === 'slide') { /* bare foot */ }
   // headwear, hair, face, bag
-  const hw = OFT && OFT.hat !== undefined && !(layerId && LAYERS[layerId]?.hat && OFT.hat === 'none') ? { hat: OFT.hat as HatStyle, color: WAY?.hat ?? '#222222' } : hatFor(rng, lk, season, sex, group, age, hatBrought);
+  const hc: HatCtx = { topId, layerId, botId: botId ?? '', shoeId: sId, season, look: lk, age, sex };
+  const hw = ID && ID.hat !== undefined && !(layerId && LAYERS[layerId]?.hat && ID.hat === 'none') ? { hat: ID.hat, color: WAY?.hat ?? '#222222' } : hatFor(rng, lk, season, sex, group, age, hatBrought, hc);
   const hair = hairFor(rng, group, sex, age, hw.hat);
   const hairColor = kidOld && rng.next() < (group === 'wh' ? 0.85 : 0.6) ? pickOf(rng, GREY) : hair === 'bald' ? pal.hair[0] : pickOf(rng, pal.hair);
-  const gear = OFT && OFT.gear ? { gear: OFT.gear as PedSpec['gear'], color: WAY?.gear ?? '#2a2c32' } : gearFor(rng, lk, sex, age, !!topSpec.long);
+  const gear = ID && ID.gear ? { gear: ID.gear, color: WAY?.gear ?? '#2a2c32' } : gearFor(rng, lk, sex, age, !!topSpec.long);
   const face = faceFor(rng, sex, age, group, opts.mask ?? 0.03);
   const spec: PedSpec = {
     id: '', role: 'civilian', group, sex, age, skin: skinJ,
@@ -498,6 +525,8 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
   };
   if (hw.hat === 'hood' || hw.hat === 'hoodDown') { spec.hatColor = topSpec.color; spec.hatTrim = topSpec.trim; }
   if (hw.hat === 'hood' && layerId === 'parka') spec.hatTrim = '#e8e4dc';
+  // the colour pass (one accent, a lightness gap between top and bottom, shoes echoing the bag) runs on the random mix; whole outfits are authored and tested instead
+  if (!OFT) colourPass(spec, { layerId, topId, botId: botId ?? '', onePiece: !!sets }, (slot) => slot === 'bottom' ? colour(rng, BOTTOMS[botId ?? 'jeansStraight']?.c ?? 'denim') : slot === 'under' ? colour(rng, 'tee') : slot === 'gear' ? pickOf(rng, ['#3a3a40', '#1c1c20', '#5b3a24']) : colour(rng, 'tee'), () => rng.next());
   spec.id = specId(spec, topId, layerId, botId ?? '');
   return spec;
 }

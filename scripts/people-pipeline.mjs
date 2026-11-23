@@ -271,6 +271,72 @@ export function triangulateUv(quads, quadUv, positions) {
   return { indices: Uint32Array.from(out), uvIdx: Uint32Array.from(uo) };
 }
 
+// ------------------------------------------------------------------ posing with MakeHuman's own skeleton (round 3, BASE)
+
+/**
+ * Rigid transforms as { q: [w, x, y, z] unit quaternion, t: [x, y, z] }: p' = q p q* + t. Bones are posed in world space (game space): each posed
+ * bone turns about its own head as its parent has already moved it, and carries its children with it.
+ */
+const qMul = (a, b) => [a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3], a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2], a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1], a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]];
+const qRot = (q, p) => { const r = qMul(qMul(q, [0, p[0], p[1], p[2]]), [q[0], -q[1], -q[2], -q[3]]); return [r[1], r[2], r[3]]; };
+const qAxis = (axis, a) => { const s = Math.sin(a / 2); return [Math.cos(a / 2), axis[0] * s, axis[1] * s, axis[2] * s]; };
+export const xfApply = (m, p) => { const r = qRot(m.q, p); return [r[0] + m.t[0], r[1] + m.t[1], r[2] + m.t[2]]; };
+/** world rotation by `a` about `axis` through the point `c`, after `m` */
+const xfTurn = (m, axis, a, c) => { const q = qAxis(axis, a), t = qRot(q, [m.t[0] - c[0], m.t[1] - c[1], m.t[2] - c[2]]); return { q: qMul(q, m.q), t: [t[0] + c[0], t[1] + c[1], t[2] + c[2]] }; };
+const ID = { q: [1, 0, 0, 0], t: [0, 0, 0] };
+
+/** per vertex, the MakeHuman bones that move it: { bones: string[], off: Int32Array (n + 1), bi: Int32Array, bw: Float32Array }, weights summing to 1 */
+export function vertexBones(weightsJson, n) {
+  const bones = Object.keys(weightsJson.weights), lists = Array.from({ length: n }, () => []);
+  bones.forEach((b, k) => { for (const [v, x] of weightsJson.weights[b]) if (v < n && x > 0) lists[v].push(k, x); });
+  const off = new Int32Array(n + 1), bi = [], bw = [];
+  for (let v = 0; v < n; v++) {
+    const l = lists[v]; let s = 0;
+    for (let k = 1; k < l.length; k += 2) s += l[k];
+    for (let k = 0; k < l.length; k += 2) { bi.push(l[k]); bw.push(l[k + 1] / (s || 1)); }
+    off[v + 1] = bi.length;
+  }
+  return { bones, off, bi: Int32Array.from(bi), bw: Float32Array.from(bw) };
+}
+
+/**
+ * Dual quaternion skinning (not linear blend): a vertex half on a turned bone turns half the angle about the joint, so the deltoid stays a round cap and the
+ * armpit does not collapse into the box corner and crease that linear blending of one 41 degree turn made (the old pipeline, with the same weights in effect).
+ * `xf` maps bone name -> transform (bones not in it stay put). Moves `pos` in place.
+ */
+export function skinDQ(pos, vb, xf) {
+  const n = pos.length / 3, B = vb.bones.map((b) => xf.get(b) ?? null);
+  const dq = B.map((m) => (m ? { r: m.q, d: qMul([0, m.t[0], m.t[1], m.t[2]], m.q).map((x) => x * 0.5) } : null));
+  for (let v = 0; v < n; v++) {
+    let moved = false;
+    for (let k = vb.off[v]; k < vb.off[v + 1]; k++) if (B[vb.bi[k]]) { moved = true; break; }
+    if (!moved) continue;
+    const r = [0, 0, 0, 0], d = [0, 0, 0, 0];
+    let first = null;
+    for (let k = vb.off[v]; k < vb.off[v + 1]; k++) {
+      const x = dq[vb.bi[k]] ?? { r: ID.q, d: [0, 0, 0, 0] }, w0 = vb.bw[k];
+      if (!first) first = x.r;
+      const w = (x.r[0] * first[0] + x.r[1] * first[1] + x.r[2] * first[2] + x.r[3] * first[3]) < 0 ? -w0 : w0;
+      for (let j = 0; j < 4; j++) { r[j] += x.r[j] * w; d[j] += x.d[j] * w; }
+    }
+    const l = Math.hypot(r[0], r[1], r[2], r[3]) || 1;
+    for (let j = 0; j < 4; j++) { r[j] /= l; d[j] /= l; }
+    const t = qMul(d, [r[0], -r[1], -r[2], -r[3]]);
+    const p = qRot(r, [pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]]);
+    pos[v * 3] = p[0] + 2 * t[1]; pos[v * 3 + 1] = p[1] + 2 * t[2]; pos[v * 3 + 2] = p[2] + 2 * t[3];
+  }
+}
+
+/** bone name -> its parent (MakeHuman skeleton), and the bones under a root (the root included) */
+function descendants(skel, root) {
+  const out = new Set([root]); let grew = true;
+  while (grew) { grew = false; for (const [b, d] of Object.entries(skel.bones)) if (d.parent && out.has(d.parent) && !out.has(b)) { out.add(b); grew = true; } }
+  return out;
+}
+
+/** BASE (round 3): how the A pose is lowered. Degrees of the turn given to the clavicle (the rest goes to the upper arm, about the shoulder joint). */
+export const HANG = { clavicleDeg: 3, out: 0.012 };
+
 // ------------------------------------------------------------------ the shape
 
 const DEG = Math.PI / 180;
@@ -291,7 +357,6 @@ export function buildBody(src, shape) {
   const pos = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { const g = G([morphed[i * 3], morphed[i * 3 + 1], morphed[i * 3 + 2]]); pos.set(g, i * 3); }
   const J = (name) => G(jointPos(src.skel, name, morphed));
-  const flip = (p) => [-p[0], p[1], p[2]];
   const joints = {
     shoulderL: J('upperarm01.L____head'), elbowL: J('lowerarm01.L____head'), wristL: J('wrist.L____head'),
     hipL: J('upperleg01.L____head'), kneeL: J('lowerleg01.L____head'), ankleL: J('foot.L____head'),
@@ -300,9 +365,58 @@ export function buildBody(src, shape) {
   const w12 = src.w12;
   // resting hands (fingers together, a slight curl, the thumb in) while the arm is still in the A pose
   if (src.weightsJson) for (const side of ['L', 'R']) relaxHand(pos, src, (nm) => J(nm), side);
+  const rig = {};
+  if (src.vb && process.env.PEOPLE_HANG !== 'old') hangWithSkeleton(pos, src, J, rig);
+  else hangLegacy(pos, w12, joints, rig, n);
+  // hands: scale about the wrist (vertices below it, on the elbow bone), a little smaller than MakeHuman's
+  for (const side of ['L', 'R']) {
+    const k = side === 'L' ? 0 : 1, eb = I.elbowL + 2 * k, wr = rig['wrist' + side];
+    for (let i = 0; i < n; i++) {
+      if (w12[i * 12 + eb] < 0.5 || pos[i * 3 + 1] > wr[1]) continue;
+      pos[i * 3] = wr[0] + (pos[i * 3] - wr[0]) * 0.86;
+      pos[i * 3 + 1] = wr[1] + (pos[i * 3 + 1] - wr[1]) * 0.9;
+      pos[i * 3 + 2] = wr[2] + (pos[i * 3 + 2] - wr[2]) * 0.86;
+    }
+  }
+  return finishBody(src, pos, w12, rig, joints, n);
+}
+
+/**
+ * BASE (round 3): lower the A pose with MakeHuman's own skeleton and weights, dual quaternion skinned. Per side: the clavicle turns HANG.clavicleDeg down
+ * about its sternal end, the upper arm (with everything under it) turns about the shoulder joint until the upper arm hangs straight, and moves HANG.out
+ * toward the body as before; the forearm turns about the elbow so it hangs with a 0.2 rad bend; the leg turns about the hip until the ankle is under it.
+ * The rig joints (shoulder, elbow, wrist, hip, knee, ankle) are the turned joint centres.
+ */
+function hangWithSkeleton(pos, src, J, rig) {
+  const Z = [0, 0, 1], X = [1, 0, 0], xf = new Map();
+  const set = (root, m) => { for (const b of descendants(src.skel, root)) xf.set(b, m); };
+  for (const side of ['L', 'R']) {
+    const sg = side === 'L' ? 1 : -1, H = (b) => J(`${b}.${side}____head`), T = (b) => J(`${b}.${side}____tail`);
+    const ch = H('clavicle'), ct = T('clavicle');
+    const m0 = xfTurn(ID, Z, -Math.sign(ct[0] - ch[0]) * HANG.clavicleDeg * DEG, ch);
+    set(`clavicle.${side}`, m0);
+    const s1 = xfApply(m0, H('upperarm01')), e1 = xfApply(m0, H('lowerarm01'));
+    const m1 = xfTurn(m0, Z, -Math.atan2(e1[0] - s1[0], -(e1[1] - s1[1])), s1);
+    m1.t[0] += sg * HANG.out;
+    set(`upperarm01.${side}`, m1);
+    const e2 = xfApply(m1, H('lowerarm01')), w2 = xfApply(m1, H('wrist'));
+    const fwd = Math.atan2(-(w2[2] - e2[2]), -(w2[1] - e2[1]));
+    const m2 = xfTurn(m1, X, -(fwd - 0.2), e2);
+    set(`lowerarm01.${side}`, m2);
+    rig['shoulder' + side] = xfApply(m1, H('upperarm01')); rig['elbow' + side] = e2; rig['wrist' + side] = xfApply(m2, H('wrist'));
+    const hip = H('upperleg01'), ank = H('foot');
+    const ml = xfTurn(ID, Z, -Math.atan2(ank[0] - hip[0], -(ank[1] - hip[1])), hip);
+    set(`upperleg01.${side}`, ml);
+    rig['hip' + side] = hip; rig['knee' + side] = xfApply(ml, H('lowerleg01')); rig['ankle' + side] = xfApply(ml, ank);
+  }
+  skinDQ(pos, src.vb, xf);
+}
+
+/** the pipeline before round 3 (PEOPLE_HANG=old): linear blend of one turn per limb with the 12-bone weights */
+function hangLegacy(pos, w12, joints, rig, n) {
+  const flip = (p) => [-p[0], p[1], p[2]];
   // hang the A pose straight: rotate every arm / leg weighted vertex about the shoulder / hip (z axis) until the upper arm / the leg is vertical
   const OUT = 0.012; // keeps the upper arm clear of the ribs
-  const rig = {};
   const limbs = [
     { name: 'arm', pivot: joints.shoulderL, ref: joints.elbowL, a: [I.armL, I.armR], e: [I.elbowL, I.elbowR], out: OUT, pts: { elbow: joints.elbowL, wrist: joints.wristL } },
     { name: 'leg', pivot: joints.hipL, ref: joints.ankleL, a: [I.legL, I.legR], e: [I.kneeL, I.kneeR], out: 0, pts: { knee: joints.kneeL, ankle: joints.ankleL } },
@@ -337,16 +451,11 @@ export function buildBody(src, shape) {
       const q = rotX([pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]]);
       pos[i * 3 + 1] += (q[1] - pos[i * 3 + 1]) * wb; pos[i * 3 + 2] += (q[2] - pos[i * 3 + 2]) * wb;
     }
-    const wr = rotX(w);
-    rig['wrist' + side] = wr;
-    // hands: scale about the wrist (vertices below it, on the elbow bone)
-    for (let i = 0; i < n; i++) {
-      if (w12[i * 12 + eb] < 0.5 || pos[i * 3 + 1] > wr[1]) continue;
-      pos[i * 3] = wr[0] + (pos[i * 3] - wr[0]) * 0.86;
-      pos[i * 3 + 1] = wr[1] + (pos[i * 3 + 1] - wr[1]) * 0.9;
-      pos[i * 3 + 2] = wr[2] + (pos[i * 3 + 2] - wr[2]) * 0.86;
-    }
+    rig['wrist' + side] = rotX(w);
   }
+}
+
+function finishBody(src, pos, w12, rig, joints, n) {
   // straightening the legs moves the soles; put them back on y = 0
   let lowest = Infinity, highest = -Infinity;
   for (let i = 0; i < n; i++) { lowest = Math.min(lowest, pos[i * 3 + 1]); highest = Math.max(highest, pos[i * 3 + 1]); }
@@ -650,7 +759,7 @@ export function loadSources(dir = SRC) {
   const weightsJson = JSON.parse(gunzipSync(readFileSync(join(dir, 'default_weights.mhw.gz'))).toString());
   const targets = new Map();
   for (const t of TARGETS) targets.set(t, parseTarget(gunzipSync(readFileSync(join(dir, 'targets', `${t}.target.gz`))).toString()));
-  return { obj, skel, w12: rigWeights(weightsJson, BODY_VERTS), targets, weightsJson };
+  return { obj, skel, w12: rigWeights(weightsJson, BODY_VERTS), targets, weightsJson, vb: vertexBones(weightsJson, BODY_VERTS) };
 }
 
 export async function fetchSources(dir = SRC) {
