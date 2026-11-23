@@ -189,3 +189,40 @@ differences that SOMATO must justify with a picture. BASE posts the exact fields
 The rule from round 2 stands: LOOK. Every seat shoots front, back and side sheets and compares them with the owner's
 marked sheet (`scratchpad/refs/owner-marked-faults.png`) and the written description of his references in "Round 2".
 The reference pictures themselves were lost in the restart; the owner has been asked to send them again.
+
+# Round 3: how it ended (23 Nov 2026, about 03:00 UTC)
+
+Written by the documentation editor from the seats' notes and the channel. Seat results are the seats' reports; the lead
+booted one mid-work snapshot (real map, hosted build, about 02:50 UTC: clean, 303k triangles, 200
+draw calls, new bodies in the street). Nothing from rounds 2 and 3 is deployed. Story: `docs/swarm/transcripts/2026-11-23-body-team.md`.
+
+| Seat | Who | Outcome | Notes |
+|---|---|---|---|
+| BASE | Mira Castellan | Done in two shifts (the usage limit stopped her after 00:37 UTC; she resumed after the reset). Arms hung with the source skeleton; the full muscle by weight grid shipped on every shape; all ten deformers off (`VITE_BODY_OLD=1` restores); child figures `kid_a`, `kid_b`; muscle capped by age; women's build shapes fixed; build-aware decimation. Corrected the lead's diagnosis: the shoulder fold was made at run time, not by the pipeline's arm hang. Her edit to `pedBodyTypes.ts` was refused by the permission system; the dead fields are listed in her notes | `docs/swarm/tasks/BODY-BASE.md` |
+| SOMATO | Mateo | Done. 30 body types (9 new), `bodyBuildOf(spec)`, statures inside the survey's 5th to 95th percentile, adult BMI mix 34 / 34 / 32 percent | `BODY-SOMATO.md` |
+| WARDROBE | Jonah Reyes (after Dara Okonkwo's build was lost in the restart) | Done. 61 outfits, 26 tops, 28 layers, 31 bottoms, 18 shoes, 6 one-pieces, mix rules in `pedMix.ts`, 39 tests | `BODY-WARDROBE.md` |
+| FIT | Nora Vance | Stopped on budget after two fixes: neckline height per person, the hood cowl. Split into the two seats below | `BODY-FIT.md` |
+| FIT-TOPS | Tomas Reyes | Necklines and collars as geometry (one function for paint and geometry). Sleeves only softened; open layers not done | `BODY-FIT.md`, "FIT-TOPS" |
+| FIT-LEGS | Cleo Brandt | The trouser fork pouch fixed (the base mesh's own crotch triangles, cut away); seat rows from the built hip; shoes 0.163 to 0.166 of stature | `BODY-FIT.md`, "FIT-LEGS" |
+| GAIT3 | Ines Marlowe | Each person's own foot from the skin; a dragged foot lifts and steps; ball slide at most 1.4 cm in walks, starts and stops; the reviewer's 31.6 cm was a stance-detection error; the set-off ramp visual only; simulation folder green by her run | `BODY-GAIT3.md` |
+
+## What the next team inherits
+
+- The FIT leftovers: open-front layers (opening width, seams); hood wings at the shoulder tips; cuffs and plackets; sleeves
+  that read as pipes; `bottom.fit` (slim, wide, taper) ignored; the waistband that does not drop under a belly; a dark remnant
+  at the fork on heavy builds, dark back-pocket flaps, a notch on shorts and skirts; the skirt built from the base shape's hip
+  rings (`pedround5` skirts, a real fault); every garment in `pedMix.NEEDS_SHAPE`; the pale chest bib under open layers.
+- The open body items: knees step (the source itself steps 4.9 mm per cm); `neckCm`, `shoulderK`, `legK` drawn and not
+  applied; a small thigh gap on slimmer builds; the elder's stoop not passed to the body layers; obese hands against the
+  thighs not measured; kerbs, turning on the spot and run reversals (from round 1); the "broad" type has no street civilian.
+- Red at the seats' last runs: `pedround5` (skirts, triangle counts within 5 percent, sleeves on `ea-kid`), `pedpieces`
+  (athletic, broad), `body-pose-before-after` (ba-work arm), `gait3-slide` (wh-office stop at 4.0 m/s, red in BASE's
+  02:50 run). No one has run every folder on the final tree.
+- The single-file build is at 11,823,623 of 12,000,000 bytes (BASE, 02:32 UTC).
+
+## Next topics (the owner's order)
+
+1. Faces and eyes (the faces researcher's trait table and eyeball note are ready: `docs/reference/faces-reference.md`).
+2. Vehicles: the shapes to the owner's references, the classes not yet reshaped, a motorbike, maybe a skateboard; then the
+   camera and the engine sound that still stutters.
+3. Textures: clothing, faces, streets and roads.
