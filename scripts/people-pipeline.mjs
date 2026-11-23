@@ -61,10 +61,12 @@ export const GROUPS = {
   mx: { caucasian: 0.4, african: 0.3, asian: 0.3 },           // mixed
 };
 
+/** BASE (round 3): a teenager (13 to 16) between the child and young adult shapes; girls lean to the child side (0.6) so the figure stays plain and modest */
+export const teenAges = (sex) => (sex === 'female' ? { child: 0.6, young: 0.4 } : { child: 0.5, young: 0.5 });
 /** weights of the race targets for a group at an age ('young' | 'old' | 'teen' = child/young) and sex ('male' | 'female' | 'x' = both halves) */
 export function shapeTargets(group, sex, age) {
   const t = {};
-  const ages = age === 'teen' ? { child: 0.5, young: 0.5 } : { [age]: 1 };
+  const ages = age === 'teen' ? teenAges(sex) : { [age]: 1 };
   const sexes = sex === 'x' ? { male: 0.5, female: 0.5 } : { [sex]: 1 };
   for (const [race, wr] of Object.entries(GROUPS[group])) for (const [sx, ws] of Object.entries(sexes)) for (const [ag, wa] of Object.entries(ages)) {
     const k = `${race}-${sx}-${ag}`;
@@ -796,7 +798,7 @@ export async function fetchSources(dir = SRC) {
 
 /** the sex and age mix of a shape, as shapeTargets uses it */
 function sexAgeOf(shape) {
-  return { sexes: shape.sex === 'x' ? { male: 0.5, female: 0.5 } : { [shape.sex]: 1 }, ages: shape.age === 'teen' ? { child: 0.5, young: 0.5 } : { [shape.age]: 1 } };
+  return { sexes: shape.sex === 'x' ? { male: 0.5, female: 0.5 } : { [shape.sex]: 1 }, ages: shape.age === 'teen' ? teenAges(shape.sex) : { [shape.age]: 1 } };
 }
 /** the grid target weights of a shape at one grid point (its own sex and age band) */
 export function gridTargets(shape, key) {
