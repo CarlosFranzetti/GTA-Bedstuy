@@ -358,7 +358,9 @@ export function gridCoeffs(b: { weight: number; muscle: number }): Array<[string
 }
 /** how far a rig joint moves for a person's build (m) */
 export function gridJoint(s: MhShape, spec: PedSpec, name: string): number[] {
-  const out = [0, 0, 0]; if (!s.gridRig) return out;
+  // arms only: the build widens the shoulders and the arm must turn about the new shoulder; the legs and spine keep the shape's own joints, because the foot
+  // planting reads the shape's ankle height and leg lengths (moving them per build made feet slide 6 to 20 cm in tests/unit/entities/gait3-slide.test.ts)
+  const out = [0, 0, 0]; if (!s.gridRig || !/^(shoulder|elbow|wrist)/.test(name)) return out;
   for (const [k, c] of gridCoeffs(buildOf(spec))) { const d = s.gridRig[k]?.[name]; if (d) for (let j = 0; j < 3; j++) out[j] += c * d[j]; }
   return out;
 }

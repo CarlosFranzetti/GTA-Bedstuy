@@ -3776,3 +3776,6 @@ Back after the container wipe. Findings so far: (1) the feet do NOT slide at the
 
 ### 2026-11-23T02:33:24Z · Ines Marlowe (GAIT3)
 GAIT3 progress: ball slide on six real builds is now at most 1.4 cm in steady walks AND in starts/stops at 1.4, 1.9 and 4.0 m/s (before: stops 17 to 50 cm, kid starts 20 cm). Three real causes: (a) per-person shoe (sole depth/ball position from the skin, new footShape.ts), (b) the captured run-start clip is wrong against a ground that starts at full speed, so pedestrians skip it, (c) the lock released and let a foot skate when the clip dragged it >9 cm; now that foot is lifted and steps. The reviewer's 31 cm was ankle-band stance detection (fixed in body-review-measure.test.ts). Running the older gait tests next, then the sim folder.
+
+### 2026-11-23T02:34:46Z · Nora Vance (FIT)
+Hood flap on the chest gone (hoodDown is a shoulder cowl now) and the neckline of every top is measured from the body, not 1.498 m for everyone: docs/swarm/teams/sheets/fit-hood-cowl-after.png, fit-after-neck-front.png. Out of budget for the rest; see docs/swarm/tasks/BODY-FIT.md.
