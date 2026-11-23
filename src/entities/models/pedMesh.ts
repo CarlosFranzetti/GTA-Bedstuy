@@ -346,7 +346,7 @@ export function buildOf(spec: PedSpec): { weight: number; muscle: number } {
 /** bilinear weights of the grid keys for a build, as the source blends its macro targets: min / average / max = max(0, -t), 1 - |t|, max(0, t) */
 export function gridCoeffs(b: { weight: number; muscle: number }): Array<[string, number]> {
   // past weight 1 only with average muscle or less: the strong-and-heavy corner (1, 1) is already the extreme, beyond it knees and thighs break into ledges
-  const mu = Math.min(GRID_REACH.muscleHi, Math.max(GRID_REACH.lo, b.muscle)), wt = Math.min(GRID_REACH.weightHi - 0.4 * Math.max(0, mu), Math.max(GRID_REACH.lo, b.weight));
+  const mu = Math.min(GRID_REACH.muscleHi, Math.max(GRID_REACH.lo, b.muscle)), wt = Math.min(1 + (GRID_REACH.weightHi - 1) * (1 - Math.max(0, mu)), Math.max(GRID_REACH.lo, b.weight));
   const f = (t: number): number[] => [Math.max(0, -t), 1 - Math.abs(t), Math.max(0, t)];
   const fm = f(mu), fw = f(wt), out: Array<[string, number]> = [];
   for (const k of GRID_KEYS) { const c = fm[+k[0]] * fw[+k[1]]; if (c !== 0) out.push([k, c]); }

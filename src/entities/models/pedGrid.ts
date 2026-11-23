@@ -22,7 +22,7 @@ export const GRID_BMI: Record<AgeClassG, Record<SexG, Tab3>> = {
 };
 /** how far the coordinates may go: past weight 1 only with average muscle or less (beyond the strong-and-heavy corner knees and thighs break into ledges); muscle not past 1 */
 export const GRID_SAFE = { weight: [-1.05, 1.4] as const, muscle: [-1.05, 1] as const };
-export const weightMax = (muscle: number): number => GRID_SAFE.weight[1] - 0.4 * Math.max(0, muscle);
+export const weightMax = (muscle: number): number => 1 + (GRID_SAFE.weight[1] - 1) * (1 - Math.max(0, muscle));
 /** piecewise-linear weights of the three grid lines at t (nodes -1, 0, 1), extrapolating past the ends: the same blend as pedMesh.gridCoeffs */
 const tri = (t: number): [number, number, number] => (t <= 0 ? [-t, 1 + t, 0] : [0, 1 - t, t]);
 /** BMI-equivalent of the source's figure at (weight, muscle) */

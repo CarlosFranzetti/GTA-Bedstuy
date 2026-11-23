@@ -110,6 +110,8 @@ export const LOD_TRIS = { hi: 3500, mid: 1100, far: 400 };
  * int8 step of a delta in metres: a fixed GRID_STEP (small values compress well), or the field's largest move / 127 when that is bigger */
 export const GRID_LODS = (process.env.GRID_LODS ?? 'hi').split(',');
 export const GRID_STEP = Number(process.env.GRID_STEP ?? 0.0015);
+/** BASE (round 3): the build deltas the decimation respects (the four corners of the grid) and their attribute weight (0 = decimate on the average shape alone, as before) */
+export const DECIMATE_BUILD = { keys: ['00', '02', '20', '22'], weight: Number(process.env.DECIMATE_BUILD ?? 0.5) };
 const gridStep = (maxAbs) => Math.max(GRID_STEP, maxAbs / 127);
 
 // ------------------------------------------------------------------ parsing
@@ -504,13 +506,18 @@ export function smoothFeet(pos, w12, indices, topY, iterations = 8) {
 // ------------------------------------------------------------------ decimation
 
 /** Simplify to ~targetTris triangles keeping the bone weights; with a budget {head, hands, body} each region is simplified separately (see REGION_BUDGET). */
-export function decimate(simplifier, body, targetTris, budget = null) {
+export function decimate(simplifier, body, targetTris, budget = null, extra = null) {
   const { positions, w12, indices } = body;
   if (indices.length / 3 <= targetTris) return compact(body, indices);
-  const nv = positions.length / 3, AW = 12;
-  const attr = new Float32Array(w12.length);
-  for (let i = 0; i < w12.length; i++) attr[i] = w12[i];
-  const wts = new Array(12).fill(0.05);
+  // BASE (round 3): `extra` = { fields: Float32Array[] (n * 3 each), weight }: build deltas the simplifier keeps the outline of, so every build (not
+  // only the average one) keeps its vertices at the biceps, the calf and the knee
+  const nv = positions.length / 3, EX = extra ? extra.fields.length * 3 : 0, AW = 12 + EX;
+  const attr = new Float32Array(nv * AW);
+  for (let v = 0; v < nv; v++) {
+    for (let k = 0; k < 12; k++) attr[v * AW + k] = w12[v * 12 + k];
+    if (extra) extra.fields.forEach((f, j) => { for (let q = 0; q < 3; q++) attr[v * AW + 12 + j * 3 + q] = f[v * 3 + q]; });
+  }
+  const wts = [...new Array(12).fill(0.05), ...new Array(EX).fill(extra?.weight ?? 0)];
   if (budget && (budget.head > 0 || budget.hands > 0 || budget.feet > 0 || budget.shoulders > 0)) {
     const wristY = body.landmarks?.wristY ?? 0.9;
     const region = new Uint8Array(nv);   // 0 body, 1 head, 2 hands, 3 feet, 4 shoulders (upper chest, trapezius, deltoids)
@@ -831,7 +838,7 @@ export function buildShape(src, simplifier, name) {
   const lods = {};
   let shared = null;
   for (const [lod, tris] of Object.entries(LOD_TRIS)) {
-    const m = decimate(simplifier, body, tris, REGION_BUDGET[lod]);
+    const m = decimate(simplifier, body, tris, REGION_BUDGET[lod], DECIMATE_BUILD.weight > 0 ? { fields: DECIMATE_BUILD.keys.map((k) => grid[k]), weight: DECIMATE_BUILD.weight } : null);
     const u = unwrapUVs(m, body.landmarks, shared);
     if (lod === 'hi') shared = u.shared;
     const n = u.position.length / 3, orig = new Uint32Array(n);
