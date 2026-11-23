@@ -137,3 +137,55 @@ Everything else in this file still holds: the channel, the rules of the road, th
 level within about 10 percent of today: 6,391 / 1,626 / 360 on average; no new draw calls or textures per person on
 phone and low), minors never hurt, off-limits files (faces, eyes, hair, `src/main.ts`, animation: `src/entities/anim/**`
 belongs to nobody this round: if a body change needs an animation change, post "@Fable:").
+
+# Round 3: bodies from the source, not from deformers (started 23 Nov 2026, 00:15 UTC)
+
+## What happened
+
+- Round 2's first limb pass hit the survey girths and looked WORSE from the front and back: jodhpur thighs, a ledge at
+  the knee, a cuff at the wrist. The lead rejected it. The owner saw the same sheet and marked the same faults, plus the
+  one nobody had fixed: "what's with the strange fold between arm and torso; also the thighs aren't accurate yet. This
+  causes the clothing to look strange. Let's get closer to the reference images. Proportions and variation: there are
+  many human body types, ectomorph, endomorph, etc., obese and skinny, tall and short. Mix it up but do it more
+  accurately; it needs to more closely resemble the human form. I'm not saying go read Gray's Anatomy, but follow the
+  images I sent."
+- At 23:54 UTC the container restarted. Everything not pushed was lost: the first limb pass (no loss), the wardrobe
+  seat's 65 outfits and mix system (a real loss), the half-done trunk, ages and gait work, and the whole scratch folder:
+  the owner's ten reference pictures and the lead's capture scripts. Work is now saved and pushed automatically every
+  four minutes. Tools worth keeping go in `scripts/dev/` in the repository, never only in the scratch folder.
+
+## The root cause (the lead read the pipeline)
+
+1. EVERY body is the SAME average build. `scripts/people-pipeline.mjs` bakes 23 base meshes that differ by population
+   group, sex and age only. Build comes from two linear morphs (MakeHuman's max-weight and max-muscle shapes, young
+   adult only; "thin" is the heavy shape run backwards) and then a stack of hand-written deformers in
+   `dressLodBody` (`pedMesh.ts`), `pedMass.ts`, `pedProportions.ts`: shoulders widened, torso flattened, girths fitted
+   to a survey table. Those deformers are what make padded boxes, jodhpurs and ledges. A girth table is not a body.
+2. THE FOLD AT THE SHOULDER is baked in. The source mesh stands in an A pose. The pipeline hangs the arms by rotating
+   "every arm weighted vertex about the shoulder" with the game's coarse 12-bone weights, so the shoulder collapses
+   into a box corner with a crease, before decimation, on every shape.
+3. The source has what the owner is asking for. MakeHuman's CC0 data holds artist-made shapes for the whole grid of
+   muscle (min, average, max) by weight (min, average, max) for men and women at each age (child, young, old), and a
+   163-bone skeleton with shoulder, clavicle and twist bones and their weights. Checked on 23 Nov: the target files
+   answer at the pipeline's RAW address (for example `universal-male-young-minmuscle-maxweight`, `...-maxmuscle-maxweight`,
+   `universal-male-old-averagemuscle-maxweight`, `universal-female-child-averagemuscle-maxweight`).
+
+## The plan
+
+Bodies come from the source's own shapes, blended, and the hand-written mass and limb deformers are retired.
+
+| Seat | Owns | Job |
+|---|---|---|
+| BASE | `scripts/people-pipeline.mjs`, `src/assets/models/people/**`, `src/entities/models/pedMesh.ts` (body part only), `pedMass.ts`, `pedTorso.ts`, `pedLimbs.ts`, `pedAges.ts`, `pedProportions.ts` | The pipeline ships the full muscle by weight grid as morphs per shape and level, for young, old and child; hangs the arms with the source's own skeleton so the shoulder is a shoulder; spends triangles so limbs keep their outline. The runtime blends the grid the way the source does and stops reshaping the result |
+| SOMATO | `src/entities/models/pedBodyTypes.ts`, `humanModel.ts`, their tests | The cast: body types as points in muscle by weight space with stature and frame (ectomorph, mesomorph, endomorph and the mixes; obese, skinny, tall, short, stocky; elders, teenagers, children), a seeded spread round each point so no two people match, and the street mix |
+| WARDROBE | as in round 2 | Rebuild the lost mix system and about sixty outfits from `docs/reference/wardrobe-60.md` |
+| FIT | as in round 2 | Starts when BASE's bodies are in: garments over the new bodies |
+
+Interface between BASE and SOMATO: a body type keeps its `weight` and `muscle` fields (now true coordinates: -1 is the
+source's minimum shape, 0 average, +1 maximum; BASE says how far beyond 1 is safe) and `h`; the other hand-tuned
+factors (`shoulders`, `chest`, `belly`, `waist`, `hips`, `arms`, `legs`) are retired or cut to small, smooth frame
+differences that SOMATO must justify with a picture. BASE posts the exact fields it reads.
+
+The rule from round 2 stands: LOOK. Every seat shoots front, back and side sheets and compares them with the owner's
+marked sheet (`scratchpad/refs/owner-marked-faults.png`) and the written description of his references in "Round 2".
+The reference pictures themselves were lost in the restart; the owner has been asked to send them again.

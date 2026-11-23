@@ -223,6 +223,15 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 
 ## Hard-won lessons
 
+- THE CONTAINER CAN RESTART AT ANY TIME AND WIPES EVERYTHING NOT PUSHED, including the scratch folder (23 Nov, 23:54 UTC:
+  a wardrobe of 65 outfits, the owner's reference pictures and every capture script were lost). So: a background loop
+  commits and pushes work in progress every four minutes while lanes run (start it at the top of every session; it dies
+  with the container); tools worth keeping live in `scripts/dev/`, not the scratch folder; after a restart run `npm ci`.
+  The owner's reference pictures may not go in the repository (rule 1), so ask him to re-send them after a restart.
+- Bodies: a girth table is not a silhouette. Round 2's limb pass matched the survey numbers and looked worse. Build comes
+  from the source's own muscle and weight shapes (`scripts/people-pipeline.mjs`), not from deformers stacked at run time.
+  Always look at front, back and side sheets before believing a number.
+
 - A whole-screen flicker in Chrome came from Inf or NaN in the HDR buffer smeared by bloom. Every shader that reads
   scene colour passes it through `hdrSafe` (`src/render/HdrGuard.ts`).
 - Characters must be drawn on the walking surface (`src/world/Ground.ts`): sidewalks are 0.15 m above the road.
