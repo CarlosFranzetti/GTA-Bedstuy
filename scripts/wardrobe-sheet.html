@@ -18,7 +18,7 @@ await loadPeople();
 const q = new URLSearchParams(location.search);
 const mode = q.get('mode') ?? 'street', N = Number(q.get('n') ?? 60), COLS = Number(q.get('cols') ?? 12), SEED = Number(q.get('seed') ?? 1);
 const SEASON = q.get('season') ?? 'mild', WAYQ = q.get('way') ?? '0', YAW = Number(q.get('yaw') ?? 0), FROM = Number(q.get('from') ?? 0);
-const W = Number(q.get('w') ?? 2400), ROWS = Math.ceil((mode === 'outfits' ? Math.min(N, OUTFITS.length - FROM) : N) / COLS), H = Math.round(W / COLS * ROWS * 1.18);
+const W = Number(q.get('w') ?? 2400), ROWS = Math.ceil((mode === 'outfits' ? Math.min(N, OUTFITS.length - FROM) : N) / COLS), H = Math.round(W * ROWS * 2.0 / COLS);
 setPeopleMode('skin'); setWardrobeSeason(SEASON);
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
@@ -56,8 +56,8 @@ ids.forEach((id, i) => {
   m.group.traverse((o) => { if (o.isLOD) { o.update = () => {}; o.levels.forEach((l, k) => { l.object.visible = k === 0; }); } });
   scene.add(m.group);
 });
-const hw = COLS * SP / 2, hh = ROWS * ROWH / 2, cam = new THREE.OrthographicCamera(-hw, hw, 1.0 + 0.62 * 0 + ROWH * 0 + (ROWS * ROWH) - hh + hh - ROWS * ROWH + 1.0 + 0.0, 0, 0.1, 50);
-cam.left = -hw; cam.right = hw; cam.top = 1.0 + 0.22; cam.bottom = cam.top - ROWS * ROWH - 0.0; cam.position.set(0, 0, 10); cam.lookAt(0, 0, 0); cam.updateProjectionMatrix();
+const hw = COLS * SP / 2, cam = new THREE.OrthographicCamera(-hw, hw, 2.0, 2.0 - ROWS * ROWH, 0.1, 50);
+cam.position.set(0, 0, 10); cam.lookAt(0, 0, 0); cam.updateProjectionMatrix();
 for (let i = 0; i < 3; i++) renderer.render(scene, cam);
 window.__ready = { ids, labels, tris, calls: renderer.info.render.calls, size: [W, H] };
 </script></body></html>

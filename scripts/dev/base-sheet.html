@@ -36,10 +36,11 @@ const people = (q.get('people') ?? 'm:avg:adult,m:heavy:adult,m:slim:adult').spl
 const sp = Number(q.get('sp') ?? 0.9), info = [];
 const grey = new THREE.MeshStandardMaterial({ color: 0xc9ad94, roughness: 0.75, wireframe: q.get('wire') === '1' });
 people.forEach((e, i) => {
-  const [sex, t, age = 'adult', grp = 'wh'] = e.split(':');
+  const [sex, t, age = 'adult', grp = 'wh', bw, bm] = e.split(':');      // optional weight and muscle grid coordinates override the type's build
   const spec = composeSpec(seed + i * 7, { group: grp, sex, age }, { look: age === 'old' ? 'elder' : 'street' });
   if (naked) spec.bottom = { ...spec.bottom, kind: 'shorts', cut: 'run' };
   spec.body = t === 'auto' ? undefined : t; spec.id = `${spec.id}-bs${i}`;
+  if (bw !== undefined) PM.buildDebug.set(spec.id, { weight: Number(bw), muscle: Number(bm ?? 0) });
   const v = registerSpec(spec);
   const m = buildPerson(materials, new Rng(seed + i), { variant: v });
   m.group.position.set((i - (people.length - 1) / 2) * sp, 0, 0); m.group.rotation.y = Math.PI + yaw;

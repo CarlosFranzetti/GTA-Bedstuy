@@ -219,7 +219,9 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
       const bandD = y - wy;
       if (Math.abs(bandD) < 0.02 && kind !== 'jeans' || (kind === 'jeans' && bandD < 0.012 && bandD > -0.032)) {
         // belt: leather, stitched edges, a metal buckle at the front, loops
-        const bc: RGB = kind === 'trousers' ? [38, 28, 22] : [66, 46, 30];
+        // WARDROBE: a leather belt takes the shoe colour when the shoes are leather; sneakers and slides get the usual dark brown or black
+        const leatherShoe = ['loafer', 'dressShoe', 'workBoot', 'flat', 'heel', 'tallBoot'].includes(K.s.shoes.kind ?? '');
+        const bc: RGB = leatherShoe ? mulc(rgbOf(K.s.shoes.color), 0.92) : kind === 'trousers' ? [38, 28, 22] : [66, 46, 30];
         const inBelt = sst(0.016, 0.01, Math.abs(bandD + (kind === 'jeans' ? 0.01 : 0)));
         if (kind === 'jeans') {
           c.mix(mulc(K.botC, 0.9), 0.5 * sst(-0.034, -0.03, bandD) * sst(0.014, 0.01, bandD)).mul(1 - 0.18 * ln(bandD - 0.0, 0.003));
@@ -242,6 +244,8 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
           c.mix(METAL, 0.7 * g2(Math.hypot(ax - 0.069, y - (wy - 0.026)), 0.004) * (denim ? 1 : 0));                              // rivet
         }
       } else if (fr < 0.2 && y < wy - 0.012 && Math.abs(phi) > 2.2 && ax < 0.16) {
+        // WARDROBE: the yoke of a pair of jeans, a V seam across the back below the waistband, stitched in the contrast thread
+        if (kind === 'jeans') { const yk = wy - 0.04 - 0.55 * ax; if (y < wy - 0.03 && y > wy - 0.075) c.mix(denim ? GOLD_STITCH : mulc(K.botC, 0.7), 0.4 * ln(y - yk, 0.0016)); }
         // back pockets: two stitched patches, or welts on trousers
         const pcx = 0.078, pt = wy - 0.04, pb = wy - 0.125;
         if (kind === 'trousers') c.mul(1 - 0.35 * ln(y - (wy - 0.05), 0.0028) * sst(0.035, 0.03, Math.abs(ax - pcx))).mul(1 - 0.06 * band(-0.03, 0.03, ax - pcx, 0.004));

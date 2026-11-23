@@ -41,7 +41,7 @@ import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
 type Ring = [number, number, number, number, number?]; // y, rx, cz, rz, cx (half extents round the centre)
 /** `normal` = smooth normals of the low-poly mesh itself; `normal0` = the normals of the full-resolution MakeHuman surface it was reduced from; `dw` / `dm` = MakeHuman's weight and muscle shapes as position deltas (normalised by deltaScale, hi LOD only) */
-export interface MhLod { position: Float32Array; normal: Float32Array; uv: Float32Array; joints: Uint16Array; weights: Float32Array; index: Uint32Array; normal0?: Float32Array; dw?: Float32Array; dm?: Float32Array; /** set when the trouser legs were cut and replaced by tubes (pedLegs.ts): where the shoes stand */ tube?: LegTube; /** FACES2: how far the face morph moved each vertex (the skin painter reads the unmorphed position so painted features travel with the surface) */ faceDelta?: Float32Array }
+export interface MhLod { position: Float32Array; normal: Float32Array; uv: Float32Array; joints: Uint16Array; weights: Float32Array; index: Uint32Array; normal0?: Float32Array; /** BASE (round 3): MakeHuman's muscle by weight grid as position deltas (m) per grid key 'mw' (0 min, 1 average, 2 max; '11' is the base): shipped on the hi level, looked up from it for mid and far (gridFor) */ grid?: Record<string, Float32Array>; /** set when the trouser legs were cut and replaced by tubes (pedLegs.ts): where the shoes stand */ tube?: LegTube; /** FACES2: how far the face morph moved each vertex (the skin painter reads the unmorphed position so painted features travel with the surface) */ faceDelta?: Float32Array }
 export interface MhShape {
   name: string;
   height: number;
@@ -51,7 +51,8 @@ export interface MhShape {
   /** left limbs (x < 0), ascending in y */
   armRings: { upper: Ring[]; fore: Ring[] }; legRings: { thigh: Ring[]; shin: Ring[] };
   lods: Record<PedDetail, MhLod>;
-  deltaScale?: { w: number; m: number };
+  /** BASE (round 3): per grid key, how far each rig joint moves at that grid point (m) */
+  gridRig?: Record<string, Record<string, number[]>>;
 }
 
 const shapes = new Map<string, MhShape>();
@@ -121,15 +122,21 @@ function shapeFromGltf(gltf: GLTF): MhShape {
     }
     const ix = g.index!, index = new Uint32Array(ix.count);
     for (let i = 0; i < ix.count; i++) index[i] = ix.getX(i);
-    const na = g.getAttribute('normal'), wa2 = g.getAttribute('_wgt'), ma = g.getAttribute('_mus');
-    let normal0: Float32Array | undefined, dw: Float32Array | undefined, dm: Float32Array | undefined;
+    const na = g.getAttribute('normal');
+    let normal0: Float32Array | undefined, grid: Record<string, Float32Array> | undefined;
     if (na) { normal0 = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const x = na.getX(i), y = na.getY(i), z = na.getZ(i), l = Math.hypot(x, y, z) || 1; normal0[i * 3] = x / l; normal0[i * 3 + 1] = y / l; normal0[i * 3 + 2] = z / l; } }
-    if (wa2 && ma) { dw = new Float32Array(n * 3); dm = new Float32Array(n * 3); for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { dw[i * 3 + k] = wa2.getComponent(i, k); dm[i * 3 + k] = ma.getComponent(i, k); } }
-    lods[o.name as PedDetail] = { position, normal: weldedNormals(position, index), uv, joints, weights, index, normal0, dw, dm };
+    const gs = (meta as { gridScale?: Record<string, number> }).gridScale;
+    if (gs) for (const key of GRID_KEYS) {
+      const a = g.getAttribute(`_g${key}`); if (!a) continue;
+      const d = new Float32Array(n * 3), k127 = 127 * gs[key];      // normalised int8: the attribute reads q / 127, the delta is q * step
+      for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) d[i * 3 + k] = a.getComponent(i, k) * k127;
+      (grid ??= {})[key] = d;
+    }
+    lods[o.name as PedDetail] = { position, normal: weldedNormals(position, index), uv, joints, weights, index, normal0, grid };
   });
   if (!lods.hi || !lods.mid || !lods.far) throw new Error('people glb needs meshes hi, mid and far');
   const p = meta as Omit<MhShape, 'name' | 'lods'> & { shape: string };
-  return normalizeShape({ deltaScale: (p as { deltaScale?: { w: number; m: number } }).deltaScale, name: p.shape, height: p.height, rig: p.rig, landmarks: p.landmarks, headRings: p.headRings, torsoRings: p.torsoRings, hipRings: p.hipRings, armRings: p.armRings, legRings: p.legRings, lods });
+  return normalizeShape({ gridRig: (p as { gridRig?: MhShape['gridRig'] }).gridRig, name: p.shape, height: p.height, rig: p.rig, landmarks: p.landmarks, headRings: p.headRings, torsoRings: p.torsoRings, hipRings: p.hipRings, armRings: p.armRings, legRings: p.legRings, lods });
 }
 
 const FILES = peopleFlag() ? import.meta.glob('@/assets/models/people/*.glb', { eager: true, query: '?url', import: 'default' }) as Record<string, string> : {};
@@ -322,28 +329,60 @@ function leanGeometry(pos: Float32Array, nrm: Float32Array | null, jx: ArrayLike
   }
 }
 
-/** weight and muscle deltas of a LOD: shipped for the hi LOD, taken from the nearest hi vertex for the coarser ones */
-const deltaCache = new WeakMap<MhLod, { dw: Float32Array; dm: Float32Array } | null>();
-function deltasFor(s: MhShape, L: MhLod): { dw: Float32Array; dm: Float32Array } | null {
-  if (L.dw && L.dm) return { dw: L.dw, dm: L.dm };
-  let c = deltaCache.get(L);
+/** the muscle by weight grid keys the pipeline ships ('11', average muscle and weight, is the base mesh itself) */
+export const GRID_KEYS = ['00', '01', '02', '10', '12', '20', '21', '22'] as const;
+/** how far past the grid's corners (|weight| or |muscle| = 1) a build may go: the source shapes extrapolate cleanly to here (BASE sheets, round 3) */
+export const GRID_REACH = { lo: -1.05, weightHi: 1.4, muscleHi: 1 };
+/** the build a person is drawn with: grid coordinates, -1 = the source's min shape, 0 average, 1 max (SOMATO owns the numbers in pedBodyTypes.ts) */
+export const buildDebug = new Map<string, { weight: number; muscle: number }>();      // harnesses: a build by spec id (scripts/dev/base-sheet.html)
+export function buildOf(spec: PedSpec): { weight: number; muscle: number } {
+  const o = buildDebug.get(spec.id); if (o) return o;
+  const bt = bodyTypeOf(spec);
+  return { weight: bt.weight, muscle: bt.muscle };
+}
+/** bilinear weights of the grid keys for a build, as the source blends its macro targets: min / average / max = max(0, -t), 1 - |t|, max(0, t) */
+export function gridCoeffs(b: { weight: number; muscle: number }): Array<[string, number]> {
+  // past weight 1 only with average muscle or less: the strong-and-heavy corner (1, 1) is already the extreme, beyond it knees and thighs break into ledges
+  const mu = Math.min(GRID_REACH.muscleHi, Math.max(GRID_REACH.lo, b.muscle)), wt = Math.min(GRID_REACH.weightHi - 0.4 * Math.max(0, mu), Math.max(GRID_REACH.lo, b.weight));
+  const f = (t: number): number[] => [Math.max(0, -t), 1 - Math.abs(t), Math.max(0, t)];
+  const fm = f(mu), fw = f(wt), out: Array<[string, number]> = [];
+  for (const k of GRID_KEYS) { const c = fm[+k[0]] * fw[+k[1]]; if (c !== 0) out.push([k, c]); }
+  return out;
+}
+/** how far a rig joint moves for a person's build (m) */
+export function gridJoint(s: MhShape, spec: PedSpec, name: string): number[] {
+  const out = [0, 0, 0]; if (!s.gridRig) return out;
+  for (const [k, c] of gridCoeffs(buildOf(spec))) { const d = s.gridRig[k]?.[name]; if (d) for (let j = 0; j < 3; j++) out[j] += c * d[j]; }
+  return out;
+}
+/** grid deltas of a LOD: shipped for the hi LOD; a mid or far vertex takes those of the hi vertex at the same place (93 and 84 percent are the same source vertex), else the nearest hi vertex on the same main bone */
+const gridCache = new WeakMap<MhLod, Record<string, Float32Array> | null>();
+function gridFor(s: MhShape, L: MhLod): Record<string, Float32Array> | null {
+  if (L.grid) return L.grid;
+  let c = gridCache.get(L);
   if (c !== undefined) return c;
   const H = s.lods.hi;
-  if (!H.dw || !H.dm) { deltaCache.set(L, null); return null; }
+  if (!H.grid) { gridCache.set(L, null); return null; }
   const cell = 0.04, grid = new Map<string, number[]>(), key = (x: number, y: number, z: number): string => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
   for (let i = 0; i < H.position.length / 3; i++) { const k = key(H.position[i * 3], H.position[i * 3 + 1], H.position[i * 3 + 2]); const a = grid.get(k); if (a) a.push(i); else grid.set(k, [i]); }
-  const n = L.position.length / 3, dw = new Float32Array(n * 3), dm = new Float32Array(n * 3);
+  const n = L.position.length / 3, out: Record<string, Float32Array> = {};
+  for (const k of Object.keys(H.grid)) out[k] = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
-    const x = L.position[i * 3], y = L.position[i * 3 + 1], z = L.position[i * 3 + 2];
+    const x = L.position[i * 3], y = L.position[i * 3 + 1], z = L.position[i * 3 + 2], bone = L.joints[i * 4];
     let best = -1, bd = Infinity;
     for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) for (const j of grid.get(`${Math.floor(x / cell) + dx},${Math.floor(y / cell) + dy},${Math.floor(z / cell) + dz}`) ?? []) {
-      const d = (H.position[j * 3] - x) ** 2 + (H.position[j * 3 + 1] - y) ** 2 + (H.position[j * 3 + 2] - z) ** 2;
+      const d = (H.position[j * 3] - x) ** 2 + (H.position[j * 3 + 1] - y) ** 2 + (H.position[j * 3 + 2] - z) ** 2 + (H.joints[j * 4] === bone ? 0 : 1e-4);
       if (d < bd) { bd = d; best = j; }
     }
-    if (best >= 0) for (let k = 0; k < 3; k++) { dw[i * 3 + k] = H.dw[best * 3 + k]; dm[i * 3 + k] = H.dm[best * 3 + k]; }
+    if (best >= 0) for (const k of Object.keys(H.grid)) for (let q = 0; q < 3; q++) out[k][i * 3 + q] = H.grid[k][best * 3 + q];
   }
-  c = { dw, dm }; deltaCache.set(L, c);
+  c = out; gridCache.set(L, c);
   return c;
+}
+/** a person's build on a level: pos += sum of the grid deltas by their bilinear weights */
+export function applyBuild(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array): void {
+  const G = gridFor(s, L); if (!G) return;
+  for (const [k, c] of gridCoeffs(buildOf(spec))) { const d = G[k]; if (d) for (let i = 0; i < pos.length; i++) pos[i] += c * d[i]; }
 }
 /** normals of a deformed low-poly mesh: the smooth normals of the full MakeHuman surface, turned by however much the deformation turned the low-poly surface */
 function shadeNormals(L: MhLod, pos: Float32Array): Float32Array {
@@ -427,10 +466,7 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
   const shY = R.shoulderL[1], elY = R.elbowL[1], wrY = R.wristL[1], knY = R.kneeL[1], anY = lm.ankleY, hemY = lm.hemY;
   const n = L.position.length / 3, pos = new Float32Array(L.position);
   // MakeHuman's own weight and muscle shapes, at the strength of the body type (no inflating)
-  if ((bt.weight || bt.muscle) && s.deltaScale) {
-    const D = deltasFor(s, L);
-    if (D) for (let i = 0; i < n * 3; i++) pos[i] += bt.weight * D.dw[i] * s.deltaScale.w + bt.muscle * D.dm[i] * s.deltaScale.m;
-  }
+  applyBuild(s, spec, L, pos);
   const tor = s.torsoRings, cz0 = tor[Math.floor(tor.length / 2)][2], K = lm.crownY / 1.78;
   const armX = Math.abs(R.shoulderL[0]), hipX = Math.abs(R.hipL[0]), legK = legX(bt), wristX = Math.abs(R.wristL[0]), hipY = R.hipL[1];
   const yBelly = hipY + 0.09 * K, yWaist = hipY + 0.14 * K, yChest = shY - 0.13 * K, neckY = lm.chinY - 0.03;
@@ -828,7 +864,7 @@ function bakeWithEyes(L: MhLod, p0: Float32Array, e: EyePatch): Pick<BakeInput, 
 }
 function peopleRig(s: MhShape, spec: PedSpec): Record<string, number[]> {
   const bt = bodyTypeOf(spec), R: Record<string, number[]> = {};
-  for (const [k, v] of Object.entries(s.rig)) R[k] = jointFor(k, v, bt);
+  for (const [k, v] of Object.entries(s.rig)) { const g = gridJoint(s, spec, k); R[k] = jointFor(k, Array.isArray(v) ? v.map((x, j) => x + g[j]) : v, bt); }
   return R;
 }
 
@@ -867,7 +903,7 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   // arms hang a little out from a wide body or a flared coat: set on the arm pivots by the pedestrian animation (Pedestrian.reactionPose)
   group.userData.splay = ((): number => { const b = bodyTypeOf(spec); return Math.min(0.2, Math.max(0.02, (spec.top.long ? 0.12 : 0) + (spec.top.kind === 'puffer' ? 0.07 : 0) + Math.max(0, (Math.max(b.hips, b.chest, 1) - 1)) * 0.3 + (spec.bottom.kind === 'skirt' ? 0.05 : 0) + 0.03)); })();
   const bt = bodyTypeOf(spec), R: Record<string, number[]> = {};
-  for (const [k, v] of Object.entries(shape.rig)) R[k] = jointFor(k, v, bt, shape.rig.torso);
+  for (const [k, v] of Object.entries(shape.rig)) { const g = gridJoint(shape, spec, k); R[k] = jointFor(k, Array.isArray(v) ? v.map((x, j) => x + g[j]) : v, bt, shape.rig.torso); }
   const rig = new THREE.Bone(); rig.name = 'rig'; group.add(rig);
   const bone = (name: string, parent: THREE.Object3D, world: number[], pw: number[]): THREE.Bone => { const b = new THREE.Bone(); b.name = name; b.position.set(world[0] - pw[0], world[1] - pw[1], world[2] - pw[2]); parent.add(b); return b; };
   const O = [0, 0, 0];
