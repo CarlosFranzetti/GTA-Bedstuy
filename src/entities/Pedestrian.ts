@@ -1064,7 +1064,7 @@ export class Pedestrian implements Entity {
       const lod = (this.lodObj ??= this.model.group.getObjectByName('pedLod') as THREE.LOD | null ?? null);
       const farLevel = !!lod && lod.levels.length > 1 && lod.levels[lod.levels.length - 1].object.visible;
       if (this.anim.cheap !== farLevel) this.anim.cheap = farLevel;
-      this.anim.rampUp = this.state === 'fleeing' ? 9 : 3.4;
+      this.anim.startClip = false;
       this.animLive = this.anim.update(dt, { speed, yawRate, look: farLevel ? null : this.glance(dt), action: this.fightPose });
       if (!this.animLive) animateWalk(this.model, this.phase, this.amp);
       this.applyIdlePose(this.model);

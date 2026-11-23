@@ -13,9 +13,9 @@ test `tests/unit/entities/base-build.test.ts`.
 | 0 baseline + before sheets | DONE: `build` reproduces all 23 glb byte for byte; `PEOPLE_HANG=old` still does |
 | 1 shoulder | DONE: arms hung with the source skeleton, dual quaternion skinned; the fold was mostly made at RUN TIME (step 3) |
 | 2 muscle x weight grid, all levels | DONE: 8 grid deltas per shape on hi, mid/far look them up; joints move with build; face front masked |
-| 3 retire the deformers | DONE (all ten off by default, `VITE_BODY_OLD=1` restores); dressed check and tests in progress |
-| 4 children, teens, elders | not started (kids are still the teen shapes scaled; teen_b has a chest) |
-| 5 triangles | not started (knee ledges on muscular builds, foot spikes) |
+| 3 retire the deformers | DONE (all ten off by default, `VITE_BODY_OLD=1` restores); dressed check done, FIT list posted |
+| 4 children, teens, elders | DONE: `kid_a` / `kid_b` from the child targets (child grid only), teen girls 60/40 child/young, street caps by age |
+| 5 triangles | MEASURED, nothing moved: +800 on the body region did not smooth knees (the source itself steps 4.9 mm at the knee); build-aware decimation instead |
 
 ## How it works now
 
@@ -50,6 +50,42 @@ All ten retired by default: torso, wedge, shtop, depth, hipx, arms, legs, flatte
 ## Sheets
 
 `docs/swarm/teams/sheets/base-before-{front,back,side}.png`, `base-after-{front,back,side}.png`, `base-grid-front.png`.
+
+## Round 3, second shift (after the usage reset)
+
+- Children: `kid_a` (boy, 1.34 m) and `kid_b` (girl, 1.32 m) from `universal-*-child-*` and the race child targets; their grid is the
+  child band only, so no build can put an adult chest or muscle on a child. Raw shapes 6.8 / 7.0 heads; at run time the head is scaled to
+  `HEADS_OF_STATURE.kid` 6.2 heads, which reads as about 7 to 9 years. Flat chest, round trunk, short legs. `shapeFor` kid -> kid_a / kid_b.
+- Teenagers: teen_a 50/50 child/young (boys), teen_b 60/40 (girls: plainer chest). Sheets: `base-ages-bare.jpg`, `base-young-dressed-*.jpg`.
+- Street caps (`pedMesh.STREET_CAP`): adults muscle 0.8, elders 0.6, teens 0.5 (weight 1.1), kids 0.3 (weight 1). The +1 muscle shape is
+  NOT clean (trapezius swallows the neck, knee ledges: `base-muscle-cap.jpg`, second figure), so no gym type draws it.
+- Decimation now respects the build (`DECIMATE_BUILD`: the four grid corners as simplifier attributes, weight 0.5): mid upper arms on
+  muscular men went from 15 percent thinner than hi to 3 percent.
+- Knees: the artist-made full-resolution source steps 4.9 mm per cm at the knee and 4.3 at the top of the arm (`scripts/dev/base-outline.mjs`);
+  the hi level 3 to 6.3 mm. +800 triangles on the body region made it no better (and cost 260 kB), so not shipped.
+- Thighs at the top: measured gap two centimetres below the fork: street-average man 28 mm, soft-heavy man 22 mm, strong woman 13 mm;
+  obese (both), soft-heavy woman and strong man touch. A thigh-in stance (`HANG.thighInDeg`, env `THIGH_IN`) was tried: it moves knees and
+  ankles 23 mm, so it is off.
+- Sizes: 25 glb, 2,408,828 bytes (+591 kB on 1,817,868, two of the files new).
+
+## Dead fields in pedBodyTypes.ts (for a later cleanup; my edit there was refused)
+
+- `BMI_ANCHORS`, `MUSCLE_BMI`, `SAFE`, `weightOfBmi`, `bmiOf`: the mesh uses `pedGrid.GRID_BMI` / `GRID_SAFE` / `gridPointOf` instead.
+  `bodyBuildOf(spec).bmi` and `.muscle` and `.statureM` ARE read; `.weight`, `.neckCm`, `.shoulderK`, `.legK` are not.
+- BodyType factors `shoulders`, `chest`, `waist`, `hips`, `arms`, `legs`, `belly`: read only with VITE_BODY_OLD=1, except FIT's pedLegs.ts
+  (`bt.legs`, `bt.hips`), pedHead.ts (`bt.shoulders`, hair width) and the arm splay in buildMhPedModel (`hips`, `chest`). `weight`,
+  `muscle` of BodyType: read only with VITE_BODY_OLD=1. Kept: `head`, `stoop`, `h` (old path).
+- The interim line registering new ids into `pedMass.TYPE_BMI`: pedMass is retired (mass deformer off) but still imported by
+  pedBodyTypes (massTargets for `legs`); delete both together.
+
+## Tests
+
+- New `tests/unit/entities/base-build.test.ts` (8 tests): deformers off, grid shipped on every shape, bilinear blend, the shipped deltas
+  equal the source shapes at the decimated vertices, hi/mid girths within 10 percent for 7 builds x 2 sexes, outline steps <= 7 mm
+  (the brief said 3; the source itself steps 4.9), thighs meet for the heavy builds (others measured, see above), shoulder outline convex.
+- `pedbodytypes.test.ts`: joints no longer follow the old factors by default (asserted both ways); the dressing test pins the grid centre.
+- `body-pose-mesh.test.ts`: arm-out limits grow 1.5 deg per BMI point over 25 (heavy trunks now push the arms out, as on a heavy person).
+- `population.test.ts`: ea-kid is `kid_a` now.
 
 ## Next
 

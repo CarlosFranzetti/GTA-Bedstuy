@@ -301,6 +301,8 @@ export class AnimController {
   rampUp = 16;
   /** how fast it may fall (m/s2): 22 for the player, a pedestrian that stops dead in the simulation lets its legs run down over a step or two */
   rampDown = 22;
+  /** false for a body whose position changes speed at once (a pedestrian): the captured run-start has the feet pushing off at the speed of an accelerating runner, so against a ground that is already at full speed it slides 10 to 25 cm */
+  startClip = true;
   /** 0 turns the lean into a turn off (tests); 1 is the shipped amount */
   leanGain = 1;
   /** the foot lock's weights (0 free, 1 held) for tests and the showcase */
@@ -447,7 +449,7 @@ export class AnimController {
       if (raw < 0.35 && this.recentMax > 1.2) {
         this.playOnce(this.recentMax > 2.6 ? 'stopRun' : 'stopWalk', { from: this.recentMax > 2.6 ? 0.4 : 0.45, fadeIn: 0.1, fadeOut: 0.25 });
         this.recentMax = 0;
-      } else if (raw > 2.0 && this.sinceStill < 0.4 && !this.startedRun) { this.playOnce('startRun', { to: 0.55, fadeIn: 0.05, fadeOut: 0.3 }); this.startedRun = true; }
+      } else if (this.startClip && raw > 2.0 && this.sinceStill < 0.4 && !this.startedRun) { this.playOnce('startRun', { to: 0.55, fadeIn: 0.05, fadeOut: 0.3 }); this.startedRun = true; }
     }
     if (raw < 0.3) this.startedRun = false;
     if (this.shot && raw > 0.9 && this.shot.clip.name.startsWith('stop')) this.cancelOnce(0.12);

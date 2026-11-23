@@ -21,6 +21,8 @@ export interface FootDims { ankleH: number; heel: number; ball: number; toe: num
  * How much of the full leg (thigh + shin) a held foot may be asked to reach: the pelvis sinks so the reach stays under REACH_NEED, and the solve never stretches past
  * REACH_SOLVE. They were 0.985 and 0.992, which made a straight standing leg bend 15 to 20 degrees (cos(10 deg) = 0.985): the standing squat. At 0.9994 the least bend is about 4 degrees.
  */
+/** a held foot dragged this far from its ground point starts to lift (from) and is lifted by `SKIM_LIFT` (rig units) at `to` */
+const SKIM_FROM = 0.06, SKIM_TO = 0.14, SKIM_LIFT = 0.05;
 export const REACH_NEED = 0.9994, REACH_SOLVE = 0.9996;
 
 export interface LegDims {
@@ -86,6 +88,10 @@ export class FootLock {
   private readonly cz = [0, 0];
   private readonly tx = [0, 0];
   private readonly tz = [0, 0];
+  /** GAIT3: how far (rig units) a foot the clip drags away from its ground point is lifted, so it steps there instead of skating (see solve) */
+  private readonly sk = [0, 0];
+  /** the lift of each foot right now, for tests */
+  get skim(): readonly number[] { return this.sk; }
   private readonly cl = [new THREE.Quaternion(), new THREE.Quaternion()];
   private readonly ck = [new THREE.Quaternion(), new THREE.Quaternion()];
   private static readonly lq1 = new THREE.Quaternion();
@@ -109,7 +115,7 @@ export class FootLock {
 
   constructor(private readonly d: LegDims) {}
 
-  reset(): void { this.w[0] = this.w[1] = 0; this.held[0] = this.held[1] = false; }
+  reset(): void { this.sk[0] = this.sk[1] = 0; this.w[0] = this.w[1] = 0; this.held[0] = this.held[1] = false; }
 
   /**
    * Hold planted feet. `p` is the final pose (Euler channels), `rig` the pelvis offset already chosen (lowered here when a held foot would
@@ -152,6 +158,11 @@ export class FootLock {
       if (this.held[s]) { this.cx[s] = this.ax[s] - bx; this.cz[s] = this.az[s] - bz; }
       // a foot the capture drags far from its ground point (an acceleration the clip does not match) is let go gradually, never pulled hard
       const full = Math.hypot(this.cx[s], this.cz[s]), gain = this.w[s] * (1 - sstep(0.09, 0.26, full));
+      // GAIT3: a foot the clip drags more than about 9 cm from its ground point (a stop or a start against a ground that changes speed at once, which the capture
+      // never had) is no longer held down: it is lifted, so it steps to where the clip wants it instead of skating there on the road. It sets down again (a new plant) when the
+      // offset is gone.
+      const drag = this.held[s] ? sstep(SKIM_FROM, SKIM_TO, full) : 0;
+      this.sk[s] += (SKIM_LIFT * drag - this.sk[s]) * Math.min(1, dt * (drag > 0 ? 14 : 9));
       const tx = this.cx[s] * gain, tz = this.cz[s] * gain;
       this.tx[s] = tx; this.tz[s] = tz;
       // sink needed: the horizontal distance to the target ankle fixes how far down it can be at full reach
@@ -171,14 +182,14 @@ export class FootLock {
       const lift = this.drop;
       const tx = this.tx[s], tz = this.tz[s];
       this.pull[s] = Math.hypot(tx, tz);
-      if (this.pull[s] < 1e-4 && lift < 1e-4) { this.cl[s].identity(); this.ck[s].identity(); continue; }
+      if (this.pull[s] < 1e-4 && lift < 1e-4 && this.sk[s] < 1e-4) { this.cl[s].identity(); this.ck[s].identity(); continue; }
       quat(qL, p, lo); quat(qK, p, ko); qLK.copy(qL).multiply(qK);
       const hip = this.hv.copy(d.hip[s]).add(rig);
       const kneeOld = this.kv.copy(d.knee[s]).applyQuaternion(qL).add(hip);
       const A = this.av.copy(d.ankle[s]).applyQuaternion(qLK).add(kneeOld);
       const a = d.knee[s].length(), b = d.ankle[s].length();
       // the target: where the ankle was in the world (the pelvis has sunk, so a foot keeps its height by reaching), moved by the held offset
-      const Tx = A.x + tx, Ty = A.y + lift, Tz = A.z + tz;
+      const Tx = A.x + tx, Ty = A.y + lift + this.sk[s], Tz = A.z + tz;
       const hx = hip.x, hy = hip.y, hz = hip.z, kx = kneeOld.x - hx, ky = kneeOld.y - hy, kz = kneeOld.z - hz;
       const dx = Tx - hx, dy = Ty - hy, dz = Tz - hz, dl = Math.hypot(dx, dy, dz);
       const dist = Math.min(Math.max(dl, Math.abs(a - b) + 1e-3), REACH_SOLVE * (a + b));
@@ -207,7 +218,7 @@ export class FootLock {
       v1.copy(d.ankle[s]).normalize().applyQuaternion(qK);
       const nk = this.kq[s].setFromUnitVectors(v1, v3).multiply(qK);
       // the solve is mixed in by how far it moves the foot (a straight captured leg gets a few degrees of bend from the reach limit; that must fade out, not pop off when the pull ends)
-      const kk = sstep(0.0004, 0.012, Math.max(this.pull[s], lift));
+      const kk = sstep(0.0004, 0.012, Math.max(this.pull[s], lift, this.sk[s]));
       qW.setFromEuler(eul.set(p[lo], p[lo + 1], p[lo + 2], 'XYZ')); nl.copy(qW.slerp(nl, kk));
       qK.setFromEuler(eul.set(p[ko], p[ko + 1], p[ko + 2], 'XYZ')); nk.copy(qK.slerp(nk, kk));
       // the correction the solve makes to the captured thigh and shin may turn by at most 900 degrees a second: a knee that is almost straight can pick another

@@ -1,3 +1,4 @@
+import { bodyBuildOf } from '@/entities/models/pedBodyTypes';
 import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
@@ -73,15 +74,17 @@ describe('built people: arms and head', () => {
       }
       rows.push(`${id.padEnd(16)} stand: out ${stand.out.toFixed(1)} fwd ${stand.fwdLo.toFixed(0)}..${stand.fwdHi.toFixed(0)} flex ${stand.flex.toFixed(0)} armClear ${(stand.clear * 100).toFixed(1)}cm elbowClear ${(stand.elbow * 100).toFixed(1)}cm | walk (6 styles): out<=${walk.outHi.toFixed(1)} flex ${walk.flexLo.toFixed(0)}..${walk.flexHi.toFixed(0)} armClear ${(walk.clear * 100).toFixed(1)}cm elbowClear ${(walk.elbow * 100).toFixed(1)}cm handZ ${walk.zLo.toFixed(2)}..${walk.zHi.toFixed(2)}`);
       // standing: the upper arm within about 8 degrees of the side (a wide coat may need more), the elbow under about 35 degrees from straight
-      expect(stand.out, 'upper arm out').toBeLessThan(m.group.userData.splay > 0.1 ? 16 : 11);
+      // round 3 (BASE): heavy builds now have the source's heavy trunk, and their arms hang out from it (as a heavy person's do): +1.5 deg per BMI point over 25
+      const bmiOver = Math.max(0, bodyBuildOf(PED_SPECS.find((s) => s.id === id)!).bmi - 25);
+      expect(stand.out, 'upper arm out').toBeLessThan((m.group.userData.splay > 0.1 ? 16 : 11) + 1.5 * bmiOver);
       expect(stand.flex, 'elbow bend standing').toBeLessThan(35);
       expect(stand.fwdLo, 'not hanging behind the body').toBeGreaterThan(-12);
       expect(stand.fwdHi, 'not held forward').toBeLessThan(14);
       // the arm does not sink into the torso at the elbow (the torso's half-width is an estimate: a centimetre of tolerance)
       expect(stand.elbow, 'elbow outside the torso').toBeGreaterThan(-0.01);
       expect(walk.elbow, 'walking elbow outside the torso').toBeGreaterThan(-0.04);
-      expect(walk.outHi, 'walking arm swing stays near the body').toBeLessThan(m.group.userData.splay > 0.1 ? 22 : 15);
-      expect(walk.outLimp, 'a limp throws the arms, but not far').toBeLessThan(m.group.userData.splay > 0.1 ? 32 : 24);
+      expect(walk.outHi, 'walking arm swing stays near the body').toBeLessThan((m.group.userData.splay > 0.1 ? 22 : 15) + 1.5 * bmiOver);
+      expect(walk.outLimp, 'a limp throws the arms, but not far').toBeLessThan((m.group.userData.splay > 0.1 ? 32 : 24) + 1.5 * bmiOver);
       expect(walk.flexHi, 'walking elbow').toBeLessThan(90);
       // the hands pass both in front of and behind the hip
       expect(walk.zHi, 'a hand swings back').toBeGreaterThan(0.03);

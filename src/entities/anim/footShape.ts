@@ -12,7 +12,7 @@ const inv = new THREE.Matrix4();
 
 /** the shoe of side 0 (left) and 1 (right) for this figure, or null when the figure has no skinned mesh or no ankle bones (the caller keeps the default shoe) */
 export function measureFeet(group: THREE.Object3D | undefined, ankles: THREE.Object3D[] | undefined): [FootDims, FootDims] | null {
-  if (!group || !ankles || ankles.length < 2) return null;
+  if (!group || !ankles || ankles.length < 2 || process.env.GAIT3_NOFEET) return null;
   let mesh: THREE.SkinnedMesh | null = null;
   group.traverse((o) => { if (!mesh && (o as THREE.SkinnedMesh).isSkinnedMesh) mesh = o as THREE.SkinnedMesh; });
   const m = mesh as THREE.SkinnedMesh | null;

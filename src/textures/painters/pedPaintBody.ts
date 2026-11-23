@@ -10,6 +10,8 @@ import { paintSkinBody, paintShoeSkin, paintBottom, paintTop } from './pedPaintC
 import { hijabCloth } from './pedPaintFace';
 import { rgb } from './pedPaintShared';
 
+/** FIT: the base of the neck, where a top's neckline sits at the centre back, from the person's own shoulder joint (shY) and head size (hs = head height / 0.2285) */
+export const neckBaseY = (shY: number, hs: number, kind: string): number => shY + (kind === 'hoodie' || kind === 'puffer' || kind === 'tracksuit' || kind === 'jacket' ? 0.079 : 0.065) * hs;
 const eps = 0.0035;
 const lShoe = new Px(), lBot = new Px(), lTop = new Px();
 
@@ -23,7 +25,7 @@ export function paintBody(K: Look, t: Tex, o: Px): void {
   const fr0 = front(z);
   const cdip = k === 'scrubs' ? 0.075 : k === 'blouse' ? 0.04 : k === 'dress' ? (top.style === 'wrap' ? 0.1 : 0.045) : k === 'uniform' ? 0.02 : k === 'jersey' ? 0.04 : k === 'tee' ? 0.032 : 0.008;
   // FIT: the neck line is measured from THIS body's shoulder joint and head size (it was 1.498 / 1.512 m for everyone: a bib up to the chin on women, elders and children, mid-neck on tall men)
-  const hk = K.hs, neckY = K.shY + (k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || k === 'jacket' ? 0.079 : 0.065) * hk - cdip * hk * fr0 * (1 - sst(0.04 * hk, 0.1 * hk, ax))
+  const hk = K.hs, neckY = neckBaseY(K.shY, hk, k) - cdip * hk * fr0 * (1 - sst(0.04 * hk, 0.1 * hk, ax))
     + (K.open && fr0 > 0.3 ? -0.05 * hk * (1 - sst(0.0, 0.09 * hk, ax)) : 0) + 0.03 * hk * sst(0.05 * hk, 0.1 * hk, ax);
   const shoeTop = K.shoeTop;
   const hemBot = bot.kind === 'shorts' ? K.knY + shortsLen(bot.cut) : bot.kind === 'skirt' ? 9 : -9;

@@ -71,12 +71,12 @@ export function footPoints(p: Person): FootPts {
   return R;
 }
 
-export interface Frame3 { v: number; pts: FootPts }
+export interface Frame3 { v: number; pts: FootPts; w: number[] }
 /** a run: the figure travels along -z at `speed(t)` (as the game's entities do), every frame recorded */
 export function runFrames(p: Person, speed: (t: number) => number, seconds: number, dt = 1 / 60, setup?: (c: AnimController) => void): Frame3[] {
   const g = p.m.group, out: Frame3[] = []; let z = 0;
   g.position.set(0, 0, 0); g.rotation.y = 0; setup?.(p.ctl);
-  for (let i = 0; i < Math.round(seconds / dt); i++) { const v = speed(i * dt); z -= v * dt; g.position.z = z; p.ctl.update(dt, { speed: v }); out.push({ v, pts: footPoints(p) }); }
+  for (let i = 0; i < Math.round(seconds / dt); i++) { const v = speed(i * dt); z -= v * dt; g.position.z = z; p.ctl.update(dt, { speed: v }); out.push({ v, pts: footPoints(p), w: [...p.ctl.footLock] }); }
   return out;
 }
 export interface Stance3 { side: number; i0: number; i1: number; slide: number; v: number }

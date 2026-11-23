@@ -813,7 +813,8 @@ export function gridTargets(shape, key) {
 const sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /**
  * 1 where a build delta is kept, 0 where it is dropped: the front of the face (eyes, lids, nose, mouth) is placed from head landmarks by pedEyes.ts and
- * pedHead.ts and must not move with build; the jaw, the jowls, the cheeks out to the side, the neck and the back of the head keep their build.
+ * pedHead.ts and must not move with build; nor does the cranium above the eyes (bone; hair and hats fit the head rings). The jaw, the jowls, the cheeks
+ * out to the side, the neck and the back of the skull below the eyes keep their build.
  */
 export function faceKeep(body) {
   const P = body.positions, W = body.w12, lm = body.landmarks, n = P.length / 3, keep = new Float32Array(n).fill(1);
@@ -824,7 +825,9 @@ export function faceKeep(body) {
   for (let v = 0; v < n; v++) {
     const x = Math.abs(P[v * 3]), y = P[v * 3 + 1], z = P[v * 3 + 2];
     const f = sst(earZ - 0.01, earZ - 0.035, z) * sst(mouthY - 0.035, mouthY - 0.015, y) * sst(lm.eyeY + 0.06, lm.eyeY + 0.035, y) * sst(lm.eyeX + 0.055, lm.eyeX + 0.03, x) * Math.min(1, W[v * 12 + I.head] * 1.5);
-    keep[v] = 1 - f;
+    // the cranium above the eyes is bone: it does not grow with weight or muscle, and hair, hats and the hijab are fitted to the shape's head rings
+    const cran = sst(lm.eyeY - 0.01, lm.eyeY + 0.02, y) * Math.min(1, Math.max(0, (W[v * 12 + I.head] - 0.5) * 4));
+    keep[v] = (1 - f) * (1 - cran);
   }
   return keep;
 }

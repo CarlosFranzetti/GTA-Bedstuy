@@ -98,7 +98,7 @@ export function torsoHalfWidthAt(p: PedModel, height: number): number {
     bands = new Float32Array(Math.ceil(s.landmarks.crownY / 0.02) + 1);
     for (let i = 0; i < n; i++) {
       let wt = 0; for (let k = 0; k < 4; k++) if (L.joints[i * 4 + k] === 1 || L.joints[i * 4 + k] === 2) wt += L.weights[i * 4 + k];
-      if (wt < 0.5) continue;
+      if (wt < 0.85) continue;      // the deltoid and the back of the armpit are partly torso-weighted: only the trunk itself
       const b = Math.round(L.position[i * 3 + 1] / 0.02); if (b >= 0 && b < bands.length) bands[b] = Math.max(bands[b], Math.abs(L.position[i * 3]));
     }
     for (let b = 1; b < bands.length; b++) if (!bands[b]) bands[b] = bands[b - 1];
