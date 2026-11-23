@@ -31,7 +31,8 @@ import { hijabShell } from './pedGarments';
 import { peopleMode } from '@/textures/painters/pedMode';
 import { legTubes, isCoveredLeg, StripMesh, addStrip, type Row, type LegTube, type LegDetail } from './pedLegs';
 import { addPolarStrip, cuffRows, hemRows, straightenArms, swingSkirt, type CuffStyle } from './pedCuts';
-import { bodyTypeOf, bodyTypeId, type BodyType } from './pedBodyTypes';
+import { bodyTypeOf, bodyTypeId, bodyBuildOf, type BodyType } from './pedBodyTypes';
+import { gridPointOf } from './pedGrid';
 import { fitMass, replayMass, sexOf, type MassFit } from './pedMass';
 import { applyTorso } from './pedTorso';
 import { applyLimbs } from './pedLimbs';
@@ -337,8 +338,10 @@ export const GRID_REACH = { lo: -1.05, weightHi: 1.4, muscleHi: 1 };
 export const buildDebug = new Map<string, { weight: number; muscle: number }>();      // harnesses: a build by spec id (scripts/dev/base-sheet.html)
 export function buildOf(spec: PedSpec): { weight: number; muscle: number } {
   const o = buildDebug.get(spec.id); if (o) return o;
-  const bt = bodyTypeOf(spec);
-  return { weight: bt.weight, muscle: bt.muscle };
+  if (bodyOld()) { const bt = bodyTypeOf(spec); return { weight: bt.weight, muscle: bt.muscle }; }
+  // SOMATO designs a person as a BMI and a muscle tendency (bodyBuildOf); pedGrid.ts places that on the source's measured grid
+  const p = bodyBuildOf(spec), sx = spec.sex === 'f' ? 'f' : spec.sex === 'x' ? 'x' : 'm';
+  return gridPointOf(p.bmi, p.muscle, p.age, sx);
 }
 /** bilinear weights of the grid keys for a build, as the source blends its macro targets: min / average / max = max(0, -t), 1 - |t|, max(0, t) */
 export function gridCoeffs(b: { weight: number; muscle: number }): Array<[string, number]> {
@@ -949,6 +952,8 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
     // (5th to 95th percentile 1.65 to 1.87 m and 1.53 to 1.74 m), the type pulls a third of its factor; over 1.90 m is under 2 in 100, nobody over 1.93 m
     if (grown && skinMode) { const med = spec.sex === 'f' ? 1.626 : spec.sex === 'x' ? 1.69 : 1.755; target = med * (1 + (bh - 1) * 0.35 + gz() * (spec.sex === 'f' ? 0.040 : 0.0385)) * (age === 'old' ? 0.985 : 1); }
     if (grown) target = Math.min(spec.sex === 'f' ? 1.82 : 1.93, Math.max(1.48, target));
+    // BASE (round 3): stature is SOMATO's draw (survey P5 to P95 by age and sex, the type's tendency included); the gz() draws above still run so the rng stream is unchanged
+    if (skinMode && !bodyOld()) target = bodyBuildOf(spec).statureM;
     // the head is sized by HEADS OF STATURE (adults 7.2, GTA IV proportion), not by a factor on the MakeHuman head (which is a small head: 7.9 heads);
     // the taller head lifts the crown, so the stature is brought back to the target
     const headK = headScaleFor(shape, spec, bt), crownRise = 1 + ((headK - 1) * (shape.landmarks.crownY - shape.rig.head[1])) / shape.height;
