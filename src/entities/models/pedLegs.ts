@@ -192,7 +192,6 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   }
   // the waistband: under the hem of the top, never above the hip joint's height plus a hand
   const yW2 = yTop + 0.02; void yWaist;
-  if (typeof location !== 'undefined' && location.search.includes('legdbg')) console.error('legdbg', spec.id, { ySeat, yTop, yW2, hipY, yWaist });
   const seatYs = yW2 > yTop + 0.02 ? (detail === 'hi' ? [lerp(yTop, yW2, 0.5), yW2] : [yW2]) : [];
   const ringAt2 = (y: number): { x: number; zF: number; zB: number } | null => {
     let x = 0, zF = Infinity, zB = -Infinity;

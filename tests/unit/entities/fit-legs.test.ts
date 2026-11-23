@@ -88,15 +88,13 @@ describe('FIT-LEGS: trousers on the built body', () => {
 
 describe('FIT-LEGS: shoes', () => {
   it('a sneaker is at most 0.168 of stature long on every build, on the ground, and the trouser hem is above the sole', () => {
-    const allShoes: string[] = [];
-    void allShoes;
     for (const sp of specs()) {
       const ctx = ctxOf(sp), stature = ctx.lm.crownY, out: string[] = [];
       for (const p of shoePieces('sneakerLow', ctx)) {
         const pos = p.geo.getAttribute('position').array as Float32Array; let z0 = Infinity, z1 = -Infinity;
         for (let i = 0; i < pos.length; i += 3) { z0 = Math.min(z0, pos[i + 2]); z1 = Math.max(z1, pos[i + 2]); }
         out.push(((z1 - z0) / stature).toFixed(3));
-        allShoes.push(`${sp.id} ${out.join(',')}`); expect((z1 - z0) / stature, `${sp.id} shoe share`).toBeLessThan(0.168);
+        expect((z1 - z0) / stature, `${sp.id} shoe share`).toBeLessThan(0.168);
       }
     }
     expect(HEM_Y).toBeGreaterThan(0.05);

@@ -11,8 +11,8 @@ export type ShoeId = typeof SHOE_IDS[number];
 
 interface Style { len: number; T: number[]; W: number[]; H: number[]; /** sole height and how far the sole edge sticks out */ sh: number; s: number; /** the arch lifted off the ground (dress shoes) and the toe spring */ arch: number; toeUp: number; /** the heel stands this high */ heel?: number; shaft?: { top: number; pad: number; cuff?: number; /** stays outside cut trouser legs (jeans tucked into the boot) */ tuck?: boolean } }
 const T5 = [0, 0.14, 0.42, 0.75, 1];
-/** shoe length over stature as lofted from the heel line; the measured shoe is about 0.010 longer (heel curve and toe cap): 0.161 to 0.165 of stature, a real shod foot is 0.16 to 0.165 (FIT-LEGS, was 0.158: 0.168 to 0.170 measured) */
-export const SHOE_LEN = 0.151;
+/** shoe length over stature as lofted from the heel line; the measured shoe is about 0.010 longer (heel curve and toe cap): 0.163 to 0.166 of stature (a real shod foot is 0.16 to 0.165); FIT-LEGS, was 0.158 = 0.168 to 0.170 measured */
+export const SHOE_LEN = 0.154;
 const STYLES: Record<Exclude<ShoeId, 'sandal' | 'slide'>, Style> = {
   sneakerLow: { len: 0.25, T: T5, W: [0.019, 0.039, 0.046, 0.04, 0.034], H: [0.036, 0.068, 0.088, 0.124, 0.148], sh: 0.012, s: 0.006, arch: 0, toeUp: 0.012 },
   sneakerHigh: { len: 0.25, T: T5, W: [0.019, 0.039, 0.046, 0.04, 0.034], H: [0.036, 0.062, 0.078, 0.108, 0.132], sh: 0.012, s: 0.006, arch: 0, toeUp: 0.012, shaft: { top: 0.205, pad: 0.009 } },
