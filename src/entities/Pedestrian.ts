@@ -724,9 +724,9 @@ export class Pedestrian implements Entity {
       this.findBlocker(gx, gz);
     }
     if (this.blockSlide.x !== 0 || this.blockSlide.z !== 0) { gx = this.blockSlide.x; gz = this.blockSlide.z; }
-    // GAIT: a person sets off with weight: the speed climbs from what they have (rest, or a run they were already in) at a walker's 3.4 m/s2 (a
-    // run-away 9), so a walk reaches pace in about 0.35 s and a flight in 0.45 s; slowing down is still immediate (the goal is reached or lost)
-    const cur = hyp(b.vel.x, b.vel.z), k = cur < speed ? Math.min(speed, cur + (this.state === 'fleeing' ? 9 : 3.4) * dt) : speed;
+    // the SIMULATION changes speed at once (seeded traffic sims depend on where a person is at every tick); the soft set-off is
+    // drawn by the animation layer only (AnimController eases its own pace, lean and stride)
+    const k = speed;
     b.vel.x = gx * k;
     b.vel.z = gz * k;
     b.pos.x += b.vel.x * dt;

@@ -166,7 +166,8 @@ export function registerShape(s: MhShape): void { shapes.set(s.name, s); }
 /** body shape of a person: group, sex and age pick one of the shipped MakeHuman shapes (nearest when a combination is not shipped) */
 export function shapeFor(spec: PedSpec): string {
   const g = spec.group === 'hj' || !spec.group ? 'wh' : spec.group, sex = spec.sex ?? 'm', age = spec.age ?? 'adult';
-  if (age === 'kid' || age === 'teen') return g === 'ea' || sex === 'f' ? 'teen_b' : 'teen_a';
+  if (age === 'kid') return shapes.has('kid_a') ? (sex === 'f' ? 'kid_b' : 'kid_a') : g === 'ea' || sex === 'f' ? 'teen_b' : 'teen_a';      // BASE (round 3): children are the source's child shapes
+  if (age === 'teen') return g === 'ea' || sex === 'f' ? 'teen_b' : 'teen_a';
   if (sex === 'x') return 'mx_x';
   const dark = g === 'ba' || g === 'ca';
   if (age === 'old') return sex === 'f' ? (dark ? 'ba_f_old' : 'wh_f_old') : (dark || g === 'la' ? 'ba_m_old' : 'wh_m_old');
@@ -335,13 +336,16 @@ export const GRID_KEYS = ['00', '01', '02', '10', '12', '20', '21', '22'] as con
 /** how far past the grid's corners (|weight| or |muscle| = 1) a build may go: the source shapes extrapolate cleanly to here (BASE sheets, round 3) */
 export const GRID_REACH = { lo: -1.05, weightHi: 1.4, muscleHi: 1 };
 /** the build a person is drawn with: grid coordinates, -1 = the source's min shape, 0 average, 1 max (SOMATO owns the numbers in pedBodyTypes.ts) */
+/** the most the street draws, by age: proportions, not bodybuilders (the owner: his references are "a bit extreme in muscular detail"); at muscle +1 the
+ * trapezius swallows the neck. Children and teenagers stay on their own band's grid (kid_* and teen_* shapes) and plain: no muscle shape past 0.3 / 0.5. */
+export const STREET_CAP: Record<'adult' | 'old' | 'teen' | 'kid', { weight: number; muscle: number }> = { adult: { weight: 1.4, muscle: 0.8 }, old: { weight: 1.4, muscle: 0.6 }, teen: { weight: 1.1, muscle: 0.5 }, kid: { weight: 1, muscle: 0.3 } };
 export const buildDebug = new Map<string, { weight: number; muscle: number }>();      // harnesses: a build by spec id (scripts/dev/base-sheet.html)
 export function buildOf(spec: PedSpec): { weight: number; muscle: number } {
   const o = buildDebug.get(spec.id); if (o) return o;
   if (bodyOld()) { const bt = bodyTypeOf(spec); return { weight: bt.weight, muscle: bt.muscle }; }
   // SOMATO designs a person as a BMI and a muscle tendency (bodyBuildOf); pedGrid.ts places that on the source's measured grid
-  const p = bodyBuildOf(spec), sx = spec.sex === 'f' ? 'f' : spec.sex === 'x' ? 'x' : 'm';
-  return gridPointOf(p.bmi, p.muscle, p.age, sx);
+  const p = bodyBuildOf(spec), sx = spec.sex === 'f' ? 'f' : spec.sex === 'x' ? 'x' : 'm', g = gridPointOf(p.bmi, p.muscle, p.age, sx), cap = STREET_CAP[p.age];
+  return { weight: Math.min(cap.weight, g.weight), muscle: Math.min(cap.muscle, g.muscle) };
 }
 /** bilinear weights of the grid keys for a build, as the source blends its macro targets: min / average / max = max(0, -t), 1 - |t|, max(0, t) */
 export function gridCoeffs(b: { weight: number; muscle: number }): Array<[string, number]> {

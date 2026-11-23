@@ -1,13 +1,15 @@
 import { describe, it, beforeAll } from 'vitest';
-import { loadShapes, buildPerson, runFrames, stances } from './gait3-rig';
+import { loadShapes, buildPerson, runFrames, stances, reviewerStances, SIX } from './gait3-rig';
 beforeAll(async () => { await loadShapes(); });
+const f = (x: number) => (x * 100).toFixed(1);
 describe('gait3 probe', () => {
-  it('heel glide', () => {
-    const p = buildPerson('ba-hoodie-fade'), fr = runFrames(p, () => 1.4, 8);
-    for (const s of stances(fr, (q) => q.meshHeel).filter((q) => q.i0 > 90).slice(0, 5)) {
-      const row: string[] = [];
-      for (let i = s.i0 - 3; i <= s.i1 + 3; i += 2) { const f = fr[i].pts, sd = s.side; row.push(`${i}:h${(f.meshHeel[sd].y * 100).toFixed(1)}/b${(f.meshBall[sd].y * 100).toFixed(1)}/z${((f.meshHeel[sd].z - fr[i].pts.meshHeel[sd].z) * 100).toFixed(0)}`); }
-      console.log('stance side', s.side, 'slide', (s.slide * 100).toFixed(1), row.join(' '));
+  for (const id of SIX) it(id, () => {
+    for (const v of [1.0, 1.4, 1.9]) {
+      const p = buildPerson(id), fr = runFrames(p, () => v, 8).slice(90);
+      const miny = (k: 'meshBall' | 'meshHeel' | 'ankle') => Math.min(...fr.flatMap((q) => [q.pts[k][0].y, q.pts[k][1].y]));
+      const rv = reviewerStances(fr), bs = stances(fr, (q) => q.meshBall), bs2 = stances(fr, (q) => q.meshBall, miny('meshBall') + 0.015);
+      const rs = rv.st.map((s) => s.slide);
+      console.log(`${id} v${v} scale ${p.m.group.scale.y.toFixed(3)} minBall ${f(miny('meshBall'))} minHeel ${f(miny('meshHeel'))} minAnkle ${f(miny('ankle'))} | revStances ${rs.length} meanSlide ${f(rs.reduce((a, b) => a + b, 0) / (rs.length || 1))} maxSlide ${f(Math.max(0, ...rs))} clear ${f(rv.clearance)} | ball0 n${bs.length} max ${f(Math.max(0, ...bs.map((s) => s.slide)))} | ballRel n${bs2.length} max ${f(Math.max(0, ...bs2.map((s) => s.slide)))}`);
     }
-  });
+  }, 300000);
 });

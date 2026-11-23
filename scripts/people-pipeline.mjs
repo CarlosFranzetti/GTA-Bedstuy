@@ -91,6 +91,8 @@ export const SHAPES = {
   wh_m_old: shape('wh', 'male', 'old'), wh_f_old: shape('wh', 'female', 'old'),
   teen_a: shape('mx', 'male', 'teen'), teen_b: shape('ea', 'female', 'teen'),
   mx_x: shape('mx', 'x', 'young', {}, 1.72),
+  // BASE (round 3): children from the source's own child targets (about 8 to 10 years; flat chest, round trunk, big head, short legs); their grid is the child band only
+  kid_a: shape('mx', 'male', 'child', {}, 1.34), kid_b: shape('mx', 'female', 'child', {}, 1.32),
 };
 /**
  * Triangle budget per LOD and REGION (stage 14: "better polygons", the triangles go where the eye goes). Each region is simplified on its

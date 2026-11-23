@@ -13,12 +13,12 @@
 export type AgeClassG = 'adult' | 'old' | 'teen' | 'kid';
 export type SexG = 'm' | 'f' | 'x';
 type Tab3 = [[number, number, number], [number, number, number], [number, number, number]];
-/** rows muscle -1, 0, +1; columns weight -1, 0, +1. Children use the teen girl's table until child shapes exist. */
+/** rows muscle -1, 0, +1; columns weight -1, 0, +1. Children: the kid_a / kid_b shapes (the source's child band). */
 export const GRID_BMI: Record<AgeClassG, Record<SexG, Tab3>> = {
   adult: { m: [[13.8, 23.7, 39.6], [19.2, 21.1, 23.2], [18.0, 19.9, 30.7]], f: [[12.4, 21.5, 33.9], [16.5, 19.5, 22.3], [16.7, 19.0, 24.5]], x: [[13.0, 22.5, 36.8], [17.7, 20.2, 22.5], [17.3, 19.3, 27.4]] },
   old: { m: [[13.6, 21.9, 39.0], [18.7, 20.7, 22.2], [17.6, 19.6, 29.4]], f: [[12.4, 20.6, 32.9], [16.1, 18.7, 20.3], [16.4, 17.8, 23.2]], x: [[13.0, 21.3, 36.0], [17.4, 19.7, 21.3], [17.0, 18.7, 26.3]] },
   teen: { m: [[13.2, 21.0, 33.0], [17.5, 19.0, 20.6], [16.7, 18.6, 24.7]], f: [[10.9, 19.0, 29.9], [14.9, 17.1, 19.8], [15.1, 16.2, 20.0]], x: [[12.0, 20.0, 31.5], [16.2, 18.0, 20.2], [15.9, 17.4, 22.4]] },
-  kid: { m: [[10.9, 19.0, 29.9], [14.9, 17.1, 19.8], [15.1, 16.2, 20.0]], f: [[10.9, 19.0, 29.9], [14.9, 17.1, 19.8], [15.1, 16.2, 20.0]], x: [[10.9, 19.0, 29.9], [14.9, 17.1, 19.8], [15.1, 16.2, 20.0]] },
+  kid: { m: [[12.0, 17.3, 25.1], [15.0, 16.0, 17.0], [14.7, 16.5, 18.0]], f: [[10.4, 16.9, 25.6], [14.1, 15.3, 17.7], [14.3, 14.0, 16.0]], x: [[11.2, 17.1, 25.4], [14.6, 15.7, 17.4], [14.5, 15.3, 17.0]] },
 };
 /** how far the coordinates may go: past weight 1 only with average muscle or less (beyond the strong-and-heavy corner knees and thighs break into ledges); muscle not past 1 */
 export const GRID_SAFE = { weight: [-1.05, 1.4] as const, muscle: [-1.05, 1] as const };
