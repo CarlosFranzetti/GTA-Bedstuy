@@ -2,7 +2,7 @@
 
 Read this first. It is the project's standing memory: the owner's rules, how we work, where things are, and what is open.
 Update it when a rule changes or a decision is made. Keep it short; history lives in `docs/swarm/transcript.md` and the PRD.
-Last full update: 23 Nov 2026 (after round 3 of the body team; nothing from rounds 2 and 3 is deployed yet).
+Last full update: 23 Nov 2026 (rounds 2 and 3 of the body team are live since about 04:00 UTC, commit `ffdf96a`).
 
 ## The project in one paragraph
 
@@ -360,6 +360,11 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
     round, not caused by it.
   - Dead fields in `pedBodyTypes.ts` (listed in `BODY-BASE.md`): BASE's edit there was refused by the permission system;
     nobody worked around it.
+  - Found on 23 Nov while confirming the deploy, older than this round and not fixed: the hosted entry script carries
+    Vercel's build variables (`VITE_VERCEL_*`: deployment and project ids, commit sha, the first lines of the commit
+    message, the repository owner's name), because one function reads `import.meta.env` as a whole object (the street
+    animation pack's path, `anim/street.bin`). No email, no session link and no model name were in it (the lead searched
+    the live file). Reading `import.meta.env.VITE_HOSTED` directly there would stop it; it needs a build and boot check.
 - Waiting on the owner: the ten reference pictures again (lost in the restart; they never go in the repository); whether
   the dead fields in `pedBodyTypes.ts` may be cleaned up; the Hasidic neighbour's outfit (held back until he is asked);
   `hintsWithSave` (above); the list at the end of this file.
