@@ -5,7 +5,9 @@
 //
 //   VITE_HOSTED=1 npx vite build --outDir <dist> --emptyOutDir
 //   scripts/swarm-render.sh node scripts/dev/boot-check.mjs <outDir> --dist <dist> [--mode desktop|phone] [--map grid|real]
-//                                                                    [--q low] [--port 4477] [--peds 6] [--hour 15]
+//                                                                    [--q low] [--port 4477] [--peds 6] [--hour 15] [--noframes]
+// --noframes skips the pictures: on this box reading a frame back from the phone-sized grid page runs the container out of
+// memory (the live build of 22 Nov does the same), so the phone grid boot is checked without them.
 // Rendering here is in software: never read frames per second from this. Exit code 1 when the boot is not clean.
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
@@ -57,6 +59,7 @@ try {
   const p1 = await page.evaluate(() => { const b = window.__gtaDebug.player.body.pos; return { x: b.x, z: b.z }; });
   report.playerMovedM = Math.round(Math.hypot(p1.x - p0.x, p1.z - p0.z) * 100) / 100;
   // frames: the player and the nearest pedestrians, front and back, from about 2.6 m at chest height
+  if (a.includes('--noframes')) throw 'noframes';
   const list = await page.evaluate(({ nPeds }) => {
     const d = window.__gtaDebug, pp = d.player.body.pos, peds = (d.traffic.peds ?? []);
     const out = [{ name: 'player', x: pp.x, z: pp.z, h: d.player.body.heading ?? 0, y: 0.15, info: '' }];
@@ -80,7 +83,7 @@ try {
   report.lastStep = 'view';
   save('view', '', await page.evaluate(() => { const d = window.__gtaDebug; d.clearFreeCam(); d.renderOnce(); return d.renderer.domElement.toDataURL('image/jpeg', 0.9); }));
   report.heapMB.end = await heap(); report.lastStep = 'done';
-} catch (e) { errors.push('script: ' + String(e).slice(0, 400)); }
+} catch (e) { if (e !== 'noframes') errors.push('script: ' + String(e).slice(0, 400)); }
 report.errors = errors; report.nanWarnings = warnings;
 report.clean = errors.length === 0 && warnings.length === 0 && report.nonFiniteMatrices === 0 && report.splashGone === true;
 console.log(JSON.stringify(report, null, 1));
