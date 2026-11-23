@@ -1,0 +1,63 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>wardrobe sheet</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// WARDROBE seat sheet: every whole outfit, or a random street of n people, as a front-facing grid (no game, no world).
+// Dev server only: vite --port N, then /scripts/wardrobe-sheet.html?mode=outfits|street&n=60&cols=12&seed=3&season=mild&way=0&w=2800
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { composeSpec, setWardrobeSeason } from '@/textures/painters/pedWardrobe';
+import { registerSpec, pedVariantIndex } from '@/textures/painters/ped';
+import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
+import { setPeopleMode } from '@/textures/painters/pedMode';
+import { OUTFITS } from '@/textures/painters/pedOutfits';
+await loadPeople();
+
+const q = new URLSearchParams(location.search);
+const mode = q.get('mode') ?? 'street', N = Number(q.get('n') ?? 60), COLS = Number(q.get('cols') ?? 12), SEED = Number(q.get('seed') ?? 1);
+const SEASON = q.get('season') ?? 'mild', WAYQ = q.get('way') ?? '0', YAW = Number(q.get('yaw') ?? 0), FROM = Number(q.get('from') ?? 0);
+const W = Number(q.get('w') ?? 2400), ROWS = Math.ceil((mode === 'outfits' ? Math.min(N, OUTFITS.length - FROM) : N) / COLS), H = Math.round(W / COLS * ROWS * 1.18);
+setPeopleMode('skin'); setWardrobeSeason(SEASON);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8aa0b4);
+const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.5;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.4); sun.position.set(-3, 6, 9); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.8));
+const materials = new MaterialLibrary(new Rng(7)); materials.carPaintDetail(); materials.setEnvironment(scene.environment);
+
+const GROUPS = ['ba', 'ca', 'la', 'wh', 'ea', 'sa', 'me', 'mx'];
+const WHO = [['m', 'adult'], ['f', 'adult'], ['m', 'adult'], ['f', 'adult'], ['m', 'old'], ['f', 'old'], ['m', 'teen'], ['f', 'teen'], ['m', 'kid'], ['f', 'kid'], ['m', 'adult'], ['f', 'adult']];
+const ids = [], labels = [];
+if (mode === 'outfits') {
+  OUTFITS.slice(FROM, FROM + N).forEach((o, i) => {
+    const way = WAYQ === 'all' ? i % o.ways.length : Number(WAYQ);
+    const age = o.a === 'k' || o.a === 'kt' ? 'kid' : o.a === 't' ? 'teen' : o.a.includes('o') && !o.a.includes('a') ? 'old' : 'adult', sex = o.sx ?? (i % 2 ? 'f' : 'm');
+    const season = o.season[0] > o.season[2] + 0.5 ? 'cold' : o.season[2] > o.season[0] + 0.5 ? 'warm' : SEASON;
+    const sp = composeSpec(40 + FROM + i, { group: GROUPS[(FROM + i) % 6], sex, age: age === 'teen' && o.a.includes('a') ? 'adult' : age }, { outfit: o.id, way, season });
+    sp.id += '-of-' + o.id + way; registerSpec(sp); ids.push(sp.id); labels.push(`${o.id}/${way}`);
+  });
+} else {
+  for (let i = 0; i < N; i++) {
+    const [sex, age] = WHO[i % WHO.length];
+    const sp = composeSpec(SEED * 100003 + i * 7919, { group: GROUPS[i % 8], sex, age }, { season: SEASON, noOutfit: q.get('noOutfit') === '1' });
+    registerSpec(sp); ids.push(sp.id); labels.push(sp.id.split('-').slice(0, 4).join('-'));
+  }
+}
+const SP = 1.0, ROWH = 2.0; let tris = 0;
+ids.forEach((id, i) => {
+  const v = pedVariantIndex(id), m = buildPedModel(materials, new Rng(v + 1), { variant: v }); tris += m.triangles;
+  const c = i % COLS, r = Math.floor(i / COLS);
+  m.group.position.set((c - (COLS - 1) / 2) * SP, -r * ROWH, 0); m.group.rotation.y = Math.PI + YAW;
+  { const sp = m.group.userData.splay ?? 0; m.arms[0].rotation.z = -sp; m.arms[1].rotation.z = sp; }
+  m.group.traverse((o) => { if (o.isLOD) { o.update = () => {}; o.levels.forEach((l, k) => { l.object.visible = k === 0; }); } });
+  scene.add(m.group);
+});
+const hw = COLS * SP / 2, hh = ROWS * ROWH / 2, cam = new THREE.OrthographicCamera(-hw, hw, 1.0 + 0.62 * 0 + ROWH * 0 + (ROWS * ROWH) - hh + hh - ROWS * ROWH + 1.0 + 0.0, 0, 0.1, 50);
+cam.left = -hw; cam.right = hw; cam.top = 1.0 + 0.22; cam.bottom = cam.top - ROWS * ROWH - 0.0; cam.position.set(0, 0, 10); cam.lookAt(0, 0, 0); cam.updateProjectionMatrix();
+for (let i = 0; i < 3; i++) renderer.render(scene, cam);
+window.__ready = { ids, labels, tris, calls: renderer.info.render.calls, size: [W, H] };
+</script></body></html>

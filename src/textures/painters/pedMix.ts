@@ -222,8 +222,11 @@ export function isAccent(h: string): boolean {
 export function colourFamily(h: string): string {
   const L = lstar(h), [hue, s] = hsv(h);
   if (L < 20) return 'black';
-  if (s < 0.14) return L < 38 ? 'charcoal' : L < 72 ? 'grey' : 'offwhite';
-  if (hue >= 195 && hue <= 262) return L < 34 ? 'navy' : 'denim';
+  const blue = hue >= 195 && hue <= 262;
+  if (L >= 66 && blue) return 'paleblue';
+  if (L >= 66 && s < 0.1) return 'offwhite';
+  if (s < 0.14 || (blue && s < 0.28)) return L < 38 ? 'charcoal' : L < 66 ? 'grey' : 'cream';        // a blue-grey is still a grey
+  if (blue) return L < 34 ? 'navy' : 'denim';
   if (hue >= 60 && hue < 195) return 'olive';
   if (hue >= 18 && hue < 60) return L > 62 ? 'cream' : s > 0.3 && L < 50 ? 'brown' : 'tan';
   if (L < 40) return 'burgundy';

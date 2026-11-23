@@ -79,7 +79,7 @@ export const OUTFITS: readonly Outfit[] = [
   O('transitUniform', 'commuter in uniform: pale shirt, dark trousers, black shoes, a cap, no insignia', 'a', '', 'u5 w1 m1', [1, 1.5, 1], 'uniformShirt/-/suitTrousers/dressShoe/cap/bag',
     'T 98a8b8 B 243a52 S 161616 H 243a52 G 1c1c20 | T b8b8b0 B 2f3442 S 161616 H 2f3442 G 2a2c32'),
   O('winterTeen', 'teenager in winter: puffer, slim joggers, clean white sneakers, a beanie', 't', '', 't5 s3', COLD, 'crewSweat/pufferShort/sweatsCuffed/sneakerLow/beanie/backpack',
-    'T 6c7078 L 1c1c20 B 2a2c32 S b8b8b4 H 1c1c20 G 2f3442 | T 9c9a94 L 2f3a58 B 1c1c20 S aaa8a2 H 7a3028 G 1c1c20 | T 9c9a94 L 3a4a30 B 34363e S b8b8b4 H 2a4a7a G 34363e'),
+    'T 6c7078 L 1c1c20 B 2a2c32 S b8b8b4 H 1c1c20 G 2f3442 | T 9c9a94 L 4a3a34 B 1c1c20 S aaa8a2 H 7a3028 G 1c1c20 | T 9c9a94 L 3a4a30 B 34363e S b8b8b4 H 2a4a7a G 34363e'),
   O('creativeCoat', 'young creative: oversized coat, a knit, wide trousers, dark sneakers', 'a', '', 's3 n3 m1', [2, 2, 0.1], 'sweater/peacoat/jeansWide/sneakerDark/-/tote',
     'T a89e88 L 5a5a40 B 1f2a3a S 161616 G b0aca0 | T 7c8088 L 2f3442 B 5a5448 S 2a2220 G 8a7048 | T b0aca0 L 7a6a4c B 232b3b S 161616 G 1c1c20'),
   O('denimMidSeason', 'young adult in spring or autumn: denim jacket, tee, slim jeans, a cross-body bag', 'a', '', 's5 n2 t1', [0.8, 2, 0.4], 'tee/denimJacket/jeansSlim/sneakerLow/beanie/messenger',
@@ -143,7 +143,7 @@ export const OUTFITS: readonly Outfit[] = [
 
   // ---- young adults, today
   O('pufferWide', 'young: hoodie under a short puffer, wide jeans or cargo, chunky sneakers, a beanie and a small bag', 'at', '', 't3 s4', [3, 0.8, 0], 'hoodieDown/pufferShort/jeansWide|cargo|jeansWide/sneakerHigh|chunkySneaker|sneakerHigh/beanie/messenger',
-    'T 6c7078 L 1c1c20 B 4d6c98 S b8b8b4 H 1c1c20 G 34363e | T 1c1c20 L 3a4a30 B 1c1c20 S aaa6a0 H 2f3442 G 1c1c20 | T b0aca0 L 2f3a58 B 6c7078 S b8b8b4 H 7a3028 G 34363e'),
+    'T 6c7078 L 1c1c20 B 4d6c98 S b8b8b4 H 1c1c20 G 34363e | T 1c1c20 L 3a4a30 B 1c1c20 S aaa6a0 H 2f3442 G 1c1c20 | T b0aca0 L 7a6a4c B 6c7078 S b8b8b4 H 7a3028 G 34363e'),
   O('oversizedWide', 'young creative: roll neck, a camel overcoat, wide trousers, chunky sneakers, a tote', 'a', '', 's3 n3 m1', [3, 1.5, 0], 'turtleneck/overcoat/trousersWide/chunkySneaker/-/tote',
     'T 1c1c20 L 7a6a4c B 3a3e4a S b8b8b4 G b0aca0 | T b0a894 L 2f3442 B 1c1c20 S aaa6a0 G 8a7048 | T 3a3f48 L 5a5a40 B a89e88 S 161616 G 1c1c20'),
   O('croppedJogger', 'young: tee, a cropped work jacket, slim joggers, clean sneakers, a cap', 'a', '', 's4 t1', [1, 2, 0.4], 'tee/cropJacket/sweatsCuffed/sneakerLow/cap|-|cap/messenger',
@@ -171,7 +171,7 @@ export const OUTFITS: readonly Outfit[] = [
   O('kidPlayground', 'child at play: tee, joggers or cargo shorts, sneakers, a backpack', 'k', '', 't5 s3', [1, 1.5, 1.5], 'tee/-/sweatsCuffed|sweatsCuffed|cargoShorts/sneakerLow/cap|-|-/backpack',
     'T 6a8098 B 34363e S b8b8b4 H 1c1c20 G 2f3442 | T 9a8040 B 232b3b S aaa6a0 G 1c1c20 | T b4b0a4 B 4a4a40 S b8b8b4 G 46607a'),
   O('kidPuffer', 'child in winter: sweatshirt, a puffer, jeans, a beanie, a backpack', 'k', '', 't4 s2', COLD, 'crewSweat/pufferShort/jeansStraight/sneakerLow/beanie/backpack',
-    'T 9c9a94 L 7a3028 B 232b3b S aaa6a0 H 1c1c20 G 1c1c20 | T 9c9a94 L 2f3a58 B 1c1c20 S b8b8b4 H 6c7078 G 2f3442 | T b4b0a4 L 3a4a30 B 34506f S b8b8b4 H 3a4a30 G 1c1c20'),
+    'T 9c9a94 L 7a3028 B 232b3b S aaa6a0 H 1c1c20 G 1c1c20 | T 9c9a94 L 5a5448 B 1c1c20 S b8b8b4 H 6c7078 G 2f3442 | T b4b0a4 L 3a4a30 B 34506f S b8b8b4 H 3a4a30 G 1c1c20'),
   O('churchKidBoy', 'boy in his church clothes: shirt, cardigan or jacket, trousers, shoes', 'kt', 'm', 't2 c3', [1.2, 1.5, 0.6], 'shirt/cardigan|blazer/suitTrousers/dressShoe|sneakerDark/-/-',
     'T b8b8b0 L 2f3442 B 2f3442 S 161616 | T a8b4be L 4a3a44 B 3a3e4a S 2a2220'),
   O('churchKidGirl', 'girl in her church clothes: a shirt dress, a cardigan, flat shoes, a small bag', 'kt', 'f', 't2 c3', [1.2, 1.5, 0.6], '@shirtDress/cardigan/-/flat/-/bag',

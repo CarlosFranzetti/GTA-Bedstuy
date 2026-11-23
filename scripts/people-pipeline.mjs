@@ -106,6 +106,11 @@ export const REGION_BUDGET = {
   far: { head: 0, hands: 0, feet: 0, shoulders: 0, body: 400 },
 };
 export const LOD_TRIS = { hi: 3500, mid: 1100, far: 400 };
+/** BASE (round 3): the levels that ship grid deltas (the others take each vertex's delta from the hi vertex at the same place, pedMesh.deltasFor) and the
+ * int8 step of a delta in metres: a fixed GRID_STEP (small values compress well), or the field's largest move / 127 when that is bigger */
+export const GRID_LODS = (process.env.GRID_LODS ?? 'hi').split(',');
+export const GRID_STEP = Number(process.env.GRID_STEP ?? 0.0015);
+const gridStep = (maxAbs) => Math.max(GRID_STEP, maxAbs / 127);
 
 // ------------------------------------------------------------------ parsing
 
@@ -780,26 +785,48 @@ export async function fetchSources(dir = SRC) {
   }
 }
 
-/** build the three LODs of a shape (not yet written) */
-/** morph targets that make a body heavier / more muscular (MakeHuman's own weight and muscle shapes, used at moderate strength at run time instead of inflating the skin) */
-const BODY_DELTA = { w: ['universal-%s-young-averagemuscle-maxweight'], m: ['universal-%s-young-maxmuscle-averageweight'] };
-function deltaTargets(shape, kind) {
-  const out = {};
-  const sexes = shape.sex === 'x' ? { male: 0.5, female: 0.5 } : { [shape.sex === 'f' ? 'female' : 'male']: 1 };
-  for (const [sx, w] of Object.entries(sexes)) for (const t of BODY_DELTA[kind]) out[t.replace('%s', sx)] = w;
+/** the sex and age mix of a shape, as shapeTargets uses it */
+function sexAgeOf(shape) {
+  return { sexes: shape.sex === 'x' ? { male: 0.5, female: 0.5 } : { [shape.sex]: 1 }, ages: shape.age === 'teen' ? { child: 0.5, young: 0.5 } : { [shape.age]: 1 } };
+}
+/** the grid target weights of a shape at one grid point (its own sex and age band) */
+export function gridTargets(shape, key) {
+  const out = {}, { sexes, ages } = sexAgeOf(shape);
+  for (const [sx, ws] of Object.entries(sexes)) for (const [ag, wa] of Object.entries(ages)) out[gridTarget(sx, ag, key)] = ws * wa;
   return out;
+}
+const sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+/**
+ * 1 where a build delta is kept, 0 where it is dropped: the front of the face (eyes, lids, nose, mouth) is placed from head landmarks by pedEyes.ts and
+ * pedHead.ts and must not move with build; the jaw, the jowls, the cheeks out to the side, the neck and the back of the head keep their build.
+ */
+export function faceKeep(body) {
+  const P = body.positions, W = body.w12, lm = body.landmarks, n = P.length / 3, keep = new Float32Array(n).fill(1);
+  const zs = [];
+  for (let v = 0; v < n; v++) if (W[v * 12 + I.head] > 0.5 && Math.abs(P[v * 3]) > 0.06 && Math.abs(P[v * 3 + 1] - lm.eyeY) < 0.05) zs.push(P[v * 3 + 2]);
+  zs.sort((p, q) => p - q);
+  const earZ = zs.length ? zs[zs.length >> 1] : 0, mouthY = lm.chinY + 0.41 * (lm.eyeY - lm.chinY);
+  for (let v = 0; v < n; v++) {
+    const x = Math.abs(P[v * 3]), y = P[v * 3 + 1], z = P[v * 3 + 2];
+    const f = sst(earZ - 0.01, earZ - 0.035, z) * sst(mouthY - 0.035, mouthY - 0.015, y) * sst(lm.eyeY + 0.06, lm.eyeY + 0.035, y) * sst(lm.eyeX + 0.055, lm.eyeX + 0.03, x) * Math.min(1, W[v * 12 + I.head] * 1.5);
+    keep[v] = 1 - f;
+  }
+  return keep;
 }
 
 export function buildShape(src, simplifier, name) {
   const shape = SHAPES[name];
   const body = buildBody(src, shape);
   const fullN = vertexNormals(body.positions, body.indices);          // the smooth normals of the full MakeHuman surface: the low-poly mesh shades like the original
-  const deltas = {};
-  for (const kind of ['w', 'm']) {
-    const alt = buildBody(src, { ...shape, targets: { ...shape.targets, ...deltaTargets(shape, kind) } });
+  // BASE (round 3): the muscle by weight grid of the shape's own sex and age band, as position deltas of the posed body (the face front masked), and joint deltas
+  const keep = faceKeep(body), grid = {}, gridRig = {};
+  const rr = (v) => Math.round(v * 1e4) / 1e4;
+  for (const key of GRID_KEYS) {
+    const alt = buildBody(src, { ...shape, targets: { ...shape.targets, ...gridTargets(shape, key) } });
     const d = new Float32Array(body.positions.length);
-    for (let i = 0; i < d.length; i++) d[i] = alt.positions[i] - body.positions[i];
-    deltas[kind] = d;
+    for (let i = 0; i < d.length; i++) d[i] = (alt.positions[i] - body.positions[i]) * keep[(i / 3) | 0];
+    grid[key] = d;
+    gridRig[key] = Object.fromEntries(Object.entries(body.rig).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.map((x, j) => rr(alt.rig[k][j] - x))]));
   }
   const lods = {};
   let shared = null;
@@ -810,7 +837,8 @@ export function buildShape(src, simplifier, name) {
     const n = u.position.length / 3, orig = new Uint32Array(n);
     for (let i = 0; i < n; i++) orig[i] = u.srcVertex[i] < 0 ? 0 : m.src[u.srcVertex[i]];
     for (let i = 0; i < n; i++) u.normal.set(fullN.subarray(orig[i] * 3, orig[i] * 3 + 3), i * 3);
-    if (lod === 'hi') for (const kind of ['w', 'm']) { const d = new Float32Array(n * 3); for (let i = 0; i < n; i++) d.set(deltas[kind].subarray(orig[i] * 3, orig[i] * 3 + 3), i * 3); u['d' + kind] = d; }
+    u.grid = {};
+    for (const key of GRID_KEYS) { const d = new Float32Array(n * 3); for (let i = 0; i < n; i++) d.set(grid[key].subarray(orig[i] * 3, orig[i] * 3 + 3), i * 3); u.grid[key] = d; }
     lods[lod] = { ...u, triangles: m.indices.length / 3, mesh: m };
   }
   const hiMesh = lods.hi.mesh, lm = body.landmarks;
@@ -819,7 +847,8 @@ export function buildShape(src, simplifier, name) {
   const R = body.rig;
   const maxAbs = (a) => a.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
   const people = {
-    deltaScale: { w: maxAbs(lods.hi.dw) || 1e-6, m: maxAbs(lods.hi.dm) || 1e-6 },
+    // per grid key: the int8 scale (m) shared by the three levels, and the joints' moves
+    gridScale: Object.fromEntries(GRID_KEYS.map((k) => [k, gridStep(Math.max(1e-6, ...Object.values(lods).map((l) => maxAbs(l.grid[k]))))])), gridRig,
     shape: name, group: shape.group, sex: shape.sex, age: shape.age, height: r(body.height),
     rig: Object.fromEntries(Object.entries(R).map(([k, v]) => [k, Array.isArray(v) ? v.map(r) : r(v)])),
     // uAxisHead / uAxisNeck: the head chart's cylinder axis (z) at the head and at the neck, and the front weighting: the beard shell's UVs in pedHead.ts follow the same map
@@ -876,9 +905,9 @@ export async function writeGlb(built, path) {
       .setAttribute('WEIGHTS_0', acc('w', g.weights, 'VEC4'))
       .setIndices(acc('idx', g.indices, 'SCALAR'))
       .setMaterial(mat);
-    if (g.dw) for (const [nm, d, sc] of [['_WGT', g.dw, built.people.deltaScale.w], ['_MUS', g.dm, built.people.deltaScale.m]]) {
-      const q = Int8Array.from(d, (v) => Math.round((v / sc) * 127));
-      prim.setAttribute(nm, doc.createAccessor(nm).setArray(q).setType('VEC3').setNormalized(true).setBuffer(buffer));
+    if (g.grid && GRID_LODS.includes(lod)) for (const key of GRID_KEYS) {
+      const sc = built.people.gridScale[key], q = Int8Array.from(g.grid[key], (v) => Math.max(-127, Math.min(127, Math.round(v / sc))) );
+      prim.setAttribute(`_G${key}`, doc.createAccessor(`_G${key}`).setArray(q).setType('VEC3').setNormalized(true).setBuffer(buffer));
     }
     const mesh = doc.createMesh(lod).addPrimitive(prim);
     scene.addChild(doc.createNode(lod).setMesh(mesh));
