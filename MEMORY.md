@@ -275,25 +275,90 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   `docs/swarm/tasks/SURFACES2.md`); low home 269 -> 223 draws. New wall classes join as sheet layers, not as materials.
 - Free image generators reachable from here refuse without a token; a keyless one stamps a watermark. Not used.
 
+## State on 23 Nov 2026
+
+- DEPLOY: (the lead fills this in after verification)
+- The live site still serves the fifth deploy of 22 Nov (`259e6dc`). Everything below is in the tree as "work in
+  progress" commits and is NOT deployed. Seat results are the seats' reports unless it says the lead saw them. The story:
+  `docs/swarm/transcripts/2026-11-23-body-team.md`; charter and outcome: `docs/swarm/teams/BODY-TEAM.md`; notes:
+  `docs/swarm/tasks/BODY-BASE.md`, `BODY-SOMATO.md`, `BODY-WARDROBE.md`, `BODY-FIT.md` (FIT, FIT-TOPS, FIT-LEGS), `BODY-GAIT3.md`.
+- Bodies from the source's own shapes (BASE), in five lines:
+  1. `scripts/people-pipeline.mjs` hangs the arms with MakeHuman's 163-bone skeleton and weights (dual quaternion).
+  2. It bakes, per shape, the 8 other points of the source's muscle by weight grid (min, average, max) from that shape's
+     sex and age band, as int8 morphs on the close level; mid and far take each vertex's delta from the close level.
+  3. At run time `bodyBuildOf(spec)` (`pedBodyTypes.ts`) gives a BMI, a muscle tendency and a stature from the person's
+     seed; `gridPointOf` (`src/entities/models/pedGrid.ts`) places it on a measured BMI table; `pedMesh.applyBuild` blends.
+  4. The ten hand-written shape deformers are off; `VITE_BODY_OLD=1` brings them back for comparison sheets.
+  5. Joints move with build for the arms only (moving leg joints made feet slide 6 to 20 cm); eyes, nose, mouth and the
+     cranium keep their shape. Muscle caps by age (`pedMesh.STREET_CAP`): adults 0.8, elders 0.6, teens 0.5, children 0.3.
+- The source's axes are not BMI: a man at average muscle measures BMI 19.2 / 21.1 / 23.2 at weight -1 / 0 / +1; the obese
+  figure is minimum muscle with maximum weight (39.6). The +1 muscle shape is not clean (neck swallowed, knee ledges).
+- Children: new shapes `kid_a` (boy, 1.34 m) and `kid_b` (girl, 1.32 m) from the child targets, child grid only, about
+  6.2 heads tall at run time (reads as 7 to 9 years). Teen boys blend child and young 50/50, teen girls 60/40.
+- The pipeline had given every female shape the male build shapes (`sex === 'f'` against `'female'`): fixed.
+- The cast (SOMATO): 30 body types (9 new: ecto, wiry, skinny-fat, soft, obese, fit-teen, heavy-teen, slight-kid,
+  chubby-kid), a seeded spread per person, statures inside the survey's 5th to 95th percentile by sex; adult mix 34 / 34
+  / 32 percent under BMI 25, 25 to 30, over 30 in a 4,000-person test (`tests/unit/entities/somato-cast.test.ts`).
+- Wardrobe (rebuilt after the restart): 61 whole outfits with 2 or 3 colourways (the 17 old ids kept); 26 tops, 28
+  layers, 31 bottoms, 18 shoes, 6 one-pieces; mix rules for the random mix in `src/textures/painters/pedMix.ts`
+  (formality rank, pair scores, decade by age, hat guards, one accent colour, lightness gaps). 39 tests in
+  `tests/unit/textures/wardrobe-mix.test.ts`. Garments needing new geometry are listed in `pedMix.NEEDS_SHAPE`: none built.
+- Clothes on the new bodies: the neckline is placed from each person's shoulder joint and head size (it was 1.498 m for
+  everyone); one function (`pedPaintBody.necklineY`) draws it in paint and geometry and a rib, roll, shirt or turtle
+  collar is swept along it (`pedCuts.necklineLoop`); the hood-down flap is a shoulder cowl; the dark pouch at the trouser
+  fork was the base mesh's own crotch triangles, now cut, and trouser tubes carry seat rows from the built hip
+  (`pedLegs.ts`); shoes 0.163 to 0.166 of stature.
+- Feet (GAIT3): each person's own sole depth, heel, ball and toe are read from the skin (`src/entities/anim/footShape.ts`);
+  children no longer float 1.8 to 2.7 cm; a held foot dragged over 6 cm is lifted and steps. The seat reports ball slide
+  at most 0.3 cm planted, 1.4 cm in any low run, on six built people in walks, starts and stops up to 4.0 m/s. The
+  pedestrian set-off ramp is visual only (`Pedestrian.ts` is back to `const k = speed;`); the seat reports the whole
+  simulation folder green (231 passed, 2 todo).
+- Numbers:
+  - Single-file build: 11,823,623 bytes against the 12,000,000-byte budget at 02:32 UTC, 176 kB left. The people files
+    inline as base64 (BASE's +591 kB raw cost about +790 kB there). The next people or texture growth can break it.
+  - People files: 25 glb, 2,408,828 bytes (1,817,868 before round 3).
+  - Bare body triangles unchanged (BASE): close about 5,300 to 5,350, mid 1,100 to 1,170, far about 400. Close-level total
+    of the nine-person dressed sheet: 56,503 before FIT; 58,892 after the collars and 58,827 at FIT-LEGS's count (the tree
+    moved between counts). No new draw calls or textures per person, by the seats' reports.
+  - The lead booted the hosted build on the real map at about 02:50 UTC from a mid-work snapshot: clean, 303k triangles,
+    200 draw calls, people visible with the new bodies (`docs/swarm/teams/sheets/ingame-street-1.jpg`, `-2.jpg`). The
+    tier is not recorded here (the tool defaults to low on desktop). No phone boot yet.
+- Open (from the seats' "not done" lists):
+  - Clothes: open-front layers (opening width, jacket seams) not done; hood wings ragged at the shoulder tips; no cuff or
+    henley placket geometry; sleeves still read as pipes; `bottom.fit` ignored; the waistband does not drop under a
+    belly; a small dark remnant at the fork on the heavy man and the pear woman, dark back-pocket flaps, a dark notch on
+    shorts and skirts; a pale seam across the elder's knee in a sprint; the skirt is built from the base shape's hip rings
+    and pokes 1 mm out of a coat front on fuller thighs; WARDROBE's pale chest bib on open layers over a pale tee.
+  - Bodies: knees still step (the full-resolution source itself steps 4.9 mm per cm); `neckCm`, `shoulderK`, `legK` are
+    drawn but not applied; slimmer builds keep a 13 to 28 mm thigh gap 2 cm below the fork; a small tear where the obese
+    woman's hand meets her jacket hem was reported to FIT and not reported fixed.
+  - Gait: the elder's stoop is not passed to the body layers (arms hang 13.8 deg behind, limit 12); obese hands against
+    the thighs in a walk not measured; kerbs, turning on the spot and run reversals still not done (round 1).
+  - Red at the seats' last runs: `pedround5` skirts (the fault above), triangle counts within 5 percent, sleeves
+    (`ea-kid`); `pedpieces` athletic (the player's tote strap 1.1 cm into the torso) and broad (no street civilian has the
+    broad type); `body-pose-before-after` ba-work arm 19.9 against 18; `gait3-slide` wh-office stop at 4.0 m/s, 10.3 cm
+    at 02:50 by BASE's run after GAIT3 had it green. Nobody has run every folder on the final tree.
+  - Dead fields in `pedBodyTypes.ts` (listed in `BODY-BASE.md`): BASE's edit there was refused by the permission system;
+    nobody worked around it.
+- Waiting on the owner: the ten reference pictures again (lost in the restart; they never go in the repository); whether
+  the dead fields in `pedBodyTypes.ts` may be cleaned up; the Hasidic neighbour's outfit (held back until he is asked);
+  `hintsWithSave` (above); the list at the end of this file.
+
 ## State on 22 Nov 2026
 
 - FIFTH deploy of 22 Nov (the owner's long list of that afternoon; lanes MENU2, CARS5, CARS6, TRAFFIC2, POLICE2, MOVE2,
   RADIO3, SCMIXES, TALK2, COMBAT2, TUTORIAL, FACES4, TEXTURES2; notes for each in `docs/swarm/tasks/`). What it carries:
-  - Menus: every panel goes through `src/ui/PanelManager.ts` and the `Input.blocked` gate. Opening a panel frees the
-    pointer; Back is Esc, right click, pad B or the Back button; settings apply at once. A new panel must register with
-    `isOpen` and `back` and call `panels.sync()`; panels must NOT add their own Esc handler. Audio has "Engine sound: On / Off"
-    above "Engine volume". Settings, Game has Replay tutorial, Hints and Blood (`gameRows` in `src/main.ts`).
+  - Menus: every panel goes through `src/ui/PanelManager.ts` and the `Input.blocked` gate; a new panel registers `isOpen`
+    and `back`, calls `panels.sync()` and adds NO Esc handler of its own. Audio has "Engine sound: On / Off".
   - Cars: specs re-set from real-world figures (`src/entities/Vehicle.ts`; the old ones were the biggest model of each
     class); a contact shadow beside every car on every tier (`BlobShadows.ts`); seven classes reshaped (sedan, taxi, police
     car, pickup, SUV, big SUV, hatch) with new loft fields in `carBodies.ts`. Not reshaped: coupes, muscle, wagon, minivan,
     crossover, vans, trucks. Sedan 4.78 m and SUV 4.85 m fail seeded tests; 4.82 and 4.95 pass.
   - Traffic: `src/game/trafficHours.ts`: about a quarter fewer moving cars by day, nights lighter still, a rush about 8:45 and
     17:30 that is heavy on about 4 days in 10. Until `setHour` is called the factor is exactly 1 (the sims rely on that).
-  - Police (`src/game/police/`): minor acts build heat, a warning at 40, a star at 100 or for a serious act; crimes need a
-    witness; an officer holds a slow player for 1.5 s (one break-free per chase), then BUSTED and release at the precinct:
-    "Ironside Station House" on the real map (about 1.8 km from home), "Cardinal Row Precinct" (a marked door, no building)
-    on the grid. Lead's fixes after watching it: a new star does not cool until a unit reaches the scene or 75 s pass
-    (`responded`), and an officer gets out of a car that has stopped within 45 m. Three stars max; no roadblocks, no cell.
+  - Police (`src/game/police/`): heat from minor acts (warning at 40, a star at 100 or for a serious act), witnesses
+    needed, a 1.5 s hold then BUSTED and release at "Ironside Station House" (real map) or "Cardinal Row Precinct" (grid);
+    a new star does not cool until a unit reaches the scene or 75 s pass. Three stars max; no roadblocks, no cell.
   - Movement: Jump vaults over a hood or trunk (`src/entities/vault.ts`), auto-vault at a sprint, a pinned player can always
     climb out; lean into turns. The gait work (starts, stops, kerbs) is NOT done.
   - Combat (`src/game/combat/`): everyone has health; temperaments flee, cower, film, fight back; the player has health and
@@ -302,12 +367,9 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
     (`Pedestrian.isMinor`: the blow is ignored and they run). Tests force adults where they need a victim.
   - Tutorial (`src/ui/tutorial/`): 18 steps on a new game, skippable, Replay in Settings; one-time hints. Hints are not shown
     when a save is loaded (`hintsWithSave` flips that: asked the owner).
-  - Radio: `src/audio/sc/mixes.json` holds the checked pools (81 mixes, each page opened on 22 Nov, all 45 minutes or more);
-    stations shuffle their pool and start mid-mix. `hiphop` replaces `stoop` (that account has two uploads from 2017). Live
-    stations rotate between streams. "The Group Chat 99.9" (`script-groupchat.json`) speaks with the browser's
-    SpeechSynthesis, not the neural voice. SoundCloud IS reachable from this box with curl through the proxy: account pages
-    list their ten newest tracks without scripts (`scratchpad/scmix/list.py`, `verify.py`; a lane that says otherwise tested
-    without the proxy).
+  - Radio: `src/audio/sc/mixes.json` holds the checked pools (81 mixes, all 45 minutes or more), shuffled, started
+    mid-mix; `hiphop` replaces `stoop`; live stations rotate streams; "The Group Chat 99.9" speaks with the browser's
+    SpeechSynthesis. SoundCloud IS reachable from this box with curl through the proxy (account pages list ten tracks).
   - Faces: a real eye on the close level (`pedEyes.ts`, shared curve `pedEyeShape.ts`; the atlas strip x 256..512,
     y 320..384 is taken), repainted lips, a painted hairline band. Still: a thin line from the eye toward the ear on some
     heads, pale flaps under some eyes, no blink, the mid level untouched.
@@ -345,15 +407,11 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 - Before that, live since early 22 Nov (`5bc431a`): the real-street map grown to 15.15 km2 (R4), 17 more landmarks under invented names (LANDMARKS2 and 3),
   lit outer-ring lamps, real-map memory back at the old map's level, and (second deploy of the day) real-map traffic that
   steers by a look-ahead point (`TrafficAgent.pursuitPoint`, gated on `lanes.signalLookAheadM`, real map only), slower
-  junction exits at crosswalks, a cop-spawn fallback and merged outer-ring furniture. Verified by the lead on that tree:
-  every test folder green except the known 2 mm shoe-hem check; the real-map sims pass on the whole grown net (their
-  default again; `REAL_NET=core` for the inner rings); both builds; clean boots on desktop and emulated iPhone on both
-  maps. All behind `?map=real`; the default map's traffic is unchanged. Still open on the real map: the far south is
-  over the low draw budget (232 against 220, buildings and shopfronts), the spawn view moves between 202 and 279 draws
-  with traffic, the phone tier draws about 367k triangles at the spawn (budget 300k), 20 sliver blocks are bare, and
-  the new steering has not been watched in the running game. First deploy of the day (ff12a75) went out on the owner's
-  instruction before the last test groups finished and carried one regression (a pedestrian knocked down in the
-  five-minute real-map sim), fixed in the second.
+  junction exits at crosswalks, a cop-spawn fallback and merged outer-ring furniture. Verified by the lead on that tree
+  (every test folder green except the 2 mm shoe-hem check; real-map sims on the whole net, `REAL_NET=core` for the inner
+  rings; both builds; clean boots on desktop and emulated iPhone). Still open on the real map then: the far south over the
+  low draw budget (232 against 220), the phone tier at about 367k triangles at the spawn (budget 300k), 20 bare sliver
+  blocks. The first deploy of the day (ff12a75) went out before the last test groups and its one regression was fixed in the second.
 - Before that: commit `41357ca` (21 Nov night): everything in `6110995` plus the dance-only WAX DELI (18 openly licensed dance
   records 2005 to 2018, ten pre-war dance sides, a SoundCloud listening post of four Kompakt tracks) and Vercel Web
   Analytics code. Verified by the lead on that exact tree. The map-growth (MAP4) and LANDMARKS2 work was left out of it.
@@ -362,10 +420,8 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   Verified by the lead on that exact tree (see its commit message). The car camera is the older 4.6 m / 1.7 m rig: the
   lower 4.1 m / 1.45 m rig hid the road behind the roof. Grid-map era style is off (`GRID_ERA_STYLE`): with it on,
   tests/unit/sim/traffic-5min gridlocks.
-- Unreleased and not yet verified in the running game: phone memory cut, physics rework, wardrobe and 21 body types,
-  weather system, 37 vehicle types, real map grown to about 9.8 km² with traffic, pedestrians and police.
-- Known red: grid-map traffic simulation (gridlock and AI collisions with the new car mix); real-map simulation (cars off
-  road, a red-light run, about 3,000 parked cars); real-map draw-call tests.
+- Listed on 21 Nov as unreleased and unverified (much of it went out on 22 Nov): phone memory cut, physics rework,
+  weather, 37 vehicle types. Red on 21 Nov: grid and real-map traffic sims, real-map draw-call tests.
 - Done 21 Nov, not yet used in the game: the logo (a brownstone with a tall stoop: `docs/brand/`, rules in
   `docs/brand/BRAND.md`), new app icons and favicon; the GTA IV and V style study (`docs/reference/gta4-5-study.md`, with
   its sources file: style reference only, many numbers are marked as estimates).
@@ -373,32 +429,20 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   the shared facade sheet; garment repairs (hems, cuffs, shoulders, trouser seat); player handling model with lean and
   weight (`src/entities/handling.ts`), which made keyboard steering too weak (8 sim tests red: driving-feel, vehicle-qa,
   pursuit) and must be retuned or switched off (`Vehicle.playerHandling = false`) before release.
-- Cut off by the usage limit on 21 Nov with work on disk but no report: GREEN2 (bugs), PHONE2 (notes in
-  `docs/swarm/tasks/PHONE2.md`), CARS4 (car bodies, notes in CARS4.md), SURFACES3 (streets and shopfronts), HANDLING2,
-  STORES (`src/world/shops/`). Restarted as fresh lanes under DIRECTION.md.
-- People heads (FACES, 21 Nov): close-level head budget 1,400 to 3,200 triangles in scripts/people-pipeline.mjs, all 23
-  base meshes rebuilt; head UV axis follows the neck (jaw patch mostly gone); eyes are still painted, hair edges still
-  tear, no new head shapes. What would close the gap: separate player head mesh with a 1024 px texture on medium and
-  high, eyeball and lid geometry with a face bone, an ear UV chart, hair shells that fade into the scalp. `docs/swarm/tasks/FACES.md`.
-- Record shop (RECORDS, 21 Nov): 28 US public-domain recordings (first published 1925 or earlier) under parody sleeves
-  with liner notes, clips in public/records/ loaded on demand, hosted build only. `docs/swarm/tasks/RECORDS.md`.
-- Real map grown again (MAP4, 21 Nov night, not yet verified by the lead): R4 = R3 plus 5 blocks N/E/S/W and 2 streets on the diagonals,
-  15.15 km2 (R3 9.80), 1,406 nodes, 2,360 edges, 32,601 lots in 83 tiles (2.4 MB). Data files are `roadnet-r4.json`, `roadnet-controls-r4.json`,
-  `places-real-r4.json` (the r123 files are gone); outline and distances in `docs/swarm/tasks/MAP4.md`. The 581 R3 block numbers are kept (landmark
-  sites use them): never rebuild the network without `src/world/data/raw/r3-block-keys.json`. Furniture of the outer rings streams per tile
-  (`src/world/roadnet/propsStream.ts`); roads are still all built at boot. Real-map sims run on the core net; `REAL_NET=r4` runs them on R4.
-- LANDMARKS2 (21 Nov night, not released): 13 more real places under invented names in `src/world/landmarks/landmarks2.ts`,
-  7 built from open-licence Commons photos (looked at, nothing sampled; credited in CREDITS). The lead looked at four
-  pairs: the brewery and the post office are fair matches; the church lacks its tower and round window; the tenement row
-  is the wrong colour. Most are in Bushwick: the best-known Bed-Stuy places (Fulton St plaza and theatre, Girls' High,
-  Stuyvesant Heights) lie outside the old outline and wait for MAP4. Names need a one-by-one web recheck before release.
-  Notes: `docs/swarm/tasks/LANDMARKS2.md`.
-- LANDMARKS3 (21 Nov night, not released): repaired Cedarvane Church (tower, round window, turret), Gablewood Row (pale
-  corner house) and Wrenfield Church; 4 Bed-Stuy places added in `landmarks3.ts` (a Victorian Gothic high school, a
-  Moorish-revival apartment house, a stone church, a Stuyvesant Heights brownstone row), so 17 new places since the
-  first 20. Seen only in the standalone harness, never in the running game. Seven invented names still need a web check
-  (listed in `docs/swarm/tasks/LANDMARKS3.md`). The Fulton St plaza and theatre lie outside the lot coverage.
-- Not started: the real map as the main map; medium and high tier performance.
+- Cut off by the usage limit on 21 Nov with no report: GREEN2, PHONE2, CARS4, SURFACES3, HANDLING2, STORES (notes in
+  `docs/swarm/tasks/`); restarted as fresh lanes under DIRECTION.md.
+- People heads (FACES, 21 Nov): close-level head budget 1,400 to 3,200 triangles. What would close the gap, for the faces
+  team: a player head mesh with a 1024 px texture on medium and high, eyeball and lid geometry with a face bone, an ear UV
+  chart, hair shells that fade into the scalp (`docs/swarm/tasks/FACES.md`).
+- Record shop: the 21 Nov RECORDS crate was reworked by RECORDS2 (see "Records" above; `docs/swarm/tasks/RECORDS.md`).
+- Real map R4 (MAP4, 21 Nov night; live since early 22 Nov): 15.15 km2, 1,406 nodes, 2,360 edges, 32,601 lots in 83
+  tiles, data in `roadnet-r4.json`, `roadnet-controls-r4.json`, `places-real-r4.json` (`docs/swarm/tasks/MAP4.md`). The 581
+  R3 block numbers are kept (landmark sites use them): never rebuild the network without
+  `src/world/data/raw/r3-block-keys.json`. Outer-ring furniture streams per tile (`propsStream.ts`); roads are built at boot.
+- LANDMARKS2 and LANDMARKS3 (21 Nov night; live since early 22 Nov): 17 more real places under invented names
+  (`src/world/landmarks/landmarks2.ts`, `landmarks3.ts`), 7 from open-licence Commons photos (looked at, nothing
+  sampled; credited). Seven invented names still need a one-by-one web check (`docs/swarm/tasks/LANDMARKS3.md`).
+- Not started: medium and high tier performance.
 - Waiting on the owner: promoting the link-in-bio page (branch `release-links`); a Hugging Face token or his own
   pictures for the loading posters; a test on a real iPhone (`?debug=mem` shows memory numbers); one story voice clip
   re-bake; deleting old Vercel deployments.
