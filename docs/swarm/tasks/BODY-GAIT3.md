@@ -47,3 +47,8 @@ B = every run of frames with the ball under 1.5 cm, the largest distance between
 ## Run it
 `GAIT3_OUT=/tmp/x.md npx vitest run tests/unit/entities/gait3-slide.test.ts --maxWorkers=1`  (fails on a steady slide over 3 cm or a start / stop over 6 cm)
 `P_ARGS=ba-work,2.4,3.3 P_OUT=/tmp/t.txt npx vitest run tests/unit/entities/gait3-probe.test.ts --maxWorkers=1`  (a per-frame trace of both balls and the lock weights; P_START=1 for a start, P_V speed, P_STOP stop time)
+
+## Verification (23 Nov)
+- `npx vitest run tests/unit/sim --maxWorkers=1`: 21 files, 231 passed, 2 todo, 0 failed (598 s). realtraffic-5min (16) and traffic-5min (14) green on their own too.
+- Stoop (`BodyLayerIn.stoop`) NOT passed: with it wh-elder's arms hang 13.8 deg behind the body against a limit of 12 (body-pose-mesh test); without it all 33 body-pose tests pass. The sign of `hangBack` for a baked stoop needs a real look; not done.
+- Arm clearance of an obese adult's hands against the thighs in a walk: not measured (out of budget).
