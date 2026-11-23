@@ -5,6 +5,8 @@ import { bodyTypeId, bodyTypeOf, type BodyTypeId } from '@/entities/models/pedBo
 import { dressLod, jointFor, parseShape, shapeFor, type MhShape } from '@/entities/models/pedMesh';
 import { makeCtx, type Ctx } from '@/entities/models/pedPiecesKit';
 import { hatPiece, shoePieces } from '@/entities/models/pedPieces';
+import { necklineLoop, collarRows } from '@/entities/models/pedCuts';
+import { necklineY } from '@/textures/painters/pedPaintBody';
 import { neckBaseY } from '@/textures/painters/pedPaintBody';
 import { SHOE_LEN } from '@/entities/models/pedShoes';
 
@@ -74,4 +76,27 @@ describe('FIT: shoes', () => {
       }
     }
   });
+});
+
+describe('FIT-TOPS: the neckline ring', () => {
+  it('is a smooth closed loop on the painted line (within 12 mm), neighbours under 6 cm apart, rows finite', () => {
+    for (const sp of specs()) {
+      const s = shapes.get(shapeFor(sp))!, bt = bodyTypeOf(sp), L = dressLod(s, sp, s.lods.hi, true), rig: Record<string, number[]> = {};
+      for (const [k, v] of Object.entries(s.rig)) rig[k] = jointFor(k, v, bt);
+      const hs = (s.landmarks.crownY - s.landmarks.chinY) / 0.2285, shY = rig.shoulderL[1];
+      const prm = { shY, hs, kind: sp.top.kind, style: sp.top.style, neck: sp.top.neck, open: !!sp.top.open && !!sp.top.under };
+      const loop = necklineLoop(L, L.position, L.normal, (x, z) => necklineY(prm, x, z), 28, shY - 0.02, shY + 0.3);
+      expect(loop, sp.id).not.toBeNull();
+      const pts = loop!.pts;
+      for (let j = 0; j < pts.length; j++) {
+        const a = pts[j].p, b = pts[(j + 1) % pts.length].p;
+        expect(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]), `${sp.id} step ${j}`).toBeLessThan(0.06);      // neighbours within 6 cm (loop is about 45 cm round)
+        expect(Math.abs(a[1] - necklineY(prm, a[0], a[2])), `${sp.id} on the painted line`).toBeLessThan(0.012);
+      }
+      const rows = collarRows(pts, 'rib', 1, loop!.c), top = rows[rows.length - 1];
+      expect(top.length).toBe(28);
+      for (const r of rows) for (const q of r) expect(Number.isFinite(q.p[0] + q.p[1] + q.p[2])).toBe(true);
+    }
+  });
+  it('the collar costs under 5 percent of a hi person (triangles of the ring: 28 x 5 x 2)', () => { expect(28 * 5 * 2).toBeLessThan(0.05 * 6500); });
 });

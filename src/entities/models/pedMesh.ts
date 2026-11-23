@@ -575,7 +575,7 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
 /** FIT-TOPS: how far a sleeve is pulled toward a straight cut (1 = the old pipe). The built arm has a deltoid, a deeper-than-wide upper arm and a tapering forearm: a fitted sleeve (tee, shirt, blouse) keeps most of it, a fuller one (hoodie, jacket, puffer) hangs straighter. */
 export function sleeveEase(kind: string, baggy: boolean): number { return kind === 'puffer' ? 0.7 : baggy ? 0.5 : 0.25; }
 function withTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array, normal: Float32Array, bt: BodyType, legK: number, detail: LegDetail): MhLod {
-  const r = legTubes(s, spec, L, pos, normal, bt, legK, detail);
+  const r = legTubes(s, spec, L, pos, normal, bt, legK, detail, topHemY(s, spec));
   return { ...r.lod, tube: r.tube };
 }
 

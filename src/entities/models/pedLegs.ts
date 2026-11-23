@@ -55,6 +55,8 @@ export interface Row {
   y: number; rx: number; rz: number; cx: number; cz: number;
   /** vertical part of the normal (0 = a wall, +1 = faces up, -1 = faces down) */
   up: number;
+  /** superellipse exponent of the section (2 = ellipse; higher = a rounder rectangle, for the seat and the waist) */
+  pw?: number;
 }
 interface StripOpts { seg: number; mir: number; uv: (u: number, row: number) => [number, number]; skin: (y: number) => { j: number[]; w: number[] } }
 /** one strip of elliptical rows. Angle u runs 0..1 from the seam on the inner side of the leg through the front (u = 0.25), the outside, the back, back to the inside. */
@@ -66,7 +68,8 @@ export function addStrip(m: StripMesh, rows: Row[], o: StripOpts): void {
       const u = j / o.seg, a = u * TAU, c = Math.cos(a), s = Math.sin(a);
       const nx = o.mir * c / Math.max(1e-4, r.rx), nz = -s / Math.max(1e-4, r.rz), nl = Math.hypot(nx, nz) || 1;
       const k = Math.sqrt(Math.max(0, 1 - r.up * r.up));
-      m.vertex([r.cx + o.mir * r.rx * c, r.y, r.cz - r.rz * s], [(nx / nl) * k, r.up, (nz / nl) * k], o.uv(u, i), sk.j, sk.w);
+      const pe = 2 / (r.pw ?? 2), cc = Math.sign(c) * Math.pow(Math.abs(c), pe), ss = Math.sign(s) * Math.pow(Math.abs(s), pe);
+      m.vertex([r.cx + o.mir * r.rx * cc, r.y, r.cz - r.rz * ss], [(nx / nl) * k, r.up, (nz / nl) * k], o.uv(u, i), sk.j, sk.w);
     }
   });
   // winding: faces point along the analytic normals (checked on the first quad)
@@ -110,7 +113,7 @@ function tileUv(rect: { x: number; y: number; w: number; h: number }, u: number,
  * Replace the legs of a dressed LOD by cut trousers. `pos` / `nrm` are the dressed (body type applied) positions and normals of `L`; the result has its own arrays.
  * The seat is the crotch: nothing below it is wider than the tube there.
  */
-export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array, nrm: Float32Array, bt: BodyType, legK: number, detail: LegDetail): { lod: MhLod; tube: LegTube } {
+export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array, nrm: Float32Array, bt: BodyType, legK: number, detail: LegDetail, yWaist?: number): { lod: MhLod; tube: LegTube } {
   const R = s.rig, lm = s.landmarks, K = lm.crownY / 1.78, kind = spec.bottom.kind, cut = CUT[`${kind}:${spec.bottom.cut}`] ?? CUT[kind] ?? CUT.jeans;
   const hipX = Math.abs(R.hipL[0]) * legK, kneeY = R.kneeL[1], anY = lm.ankleY, hipY = R.hipL[1], n = pos.length / 3;
   // the seat fold: the lowest point between the legs of the base mesh (where the thighs part)
@@ -165,11 +168,21 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   const shinY = detail === 'hi' ? [kneeY, kneeY - 0.055, lerp(kneeY, cuffTop, 0.55), cuffTop] : detail === 'mid' ? [kneeY, kneeY - 0.05, cuffTop] : [kneeY, yh];
   const out = new StripMesh();
   const hemR = radius(yh);
+  const backCache = new Map<number, number | null>();
+  const backAt = (y: number): number | null => {
+    const key = Math.round(y * 1000); if (backCache.has(key)) return backCache.get(key)!;
+    let zb = -Infinity;
+    for (let i = 0; i < n; i++) { if (drop[i] || Math.abs(P[i * 3 + 1] - y) > 0.015 || legWeight(L, i) > 0.12 || wsumAt(L, i, [4, 5, 6, 7]) > 0.3 || Math.abs(P[i * 3]) > cx + rxS) continue; zb = Math.max(zb, P[i * 3 + 2]); }
+    const r = isFinite(zb) ? zb : null; backCache.set(key, r); return r;
+  };
   const rowOf = (side: -1 | 1, y: number, grow = 0): Row => {
     const k = radius(y), e = sstep(ySt, yTop, y), dx = flareX * 0.5 * e, rzB = rzS * k + grow;
     // PEOPLE8: from the seat up the inner edge of each tube also grows toward the middle and meets the other tube there (a crotch seam), so no pouch or slit shows between the legs under the belt
     const inn = Math.max(0, cx - rxS * k - grow - 0.004) * e;
-    return { y, rx: rxS * k + grow + dx + inn / 2, rz: lerp(rzB, rzTop + grow, e), cx: side * (cx + dx - inn / 2), cz: lerp(czAt(y), czTop, e), up: 0 };
+    const r: Row = { y, rx: rxS * k + grow + dx + inn / 2, rz: lerp(rzB, rzTop + grow, e), cx: side * (cx + dx - inn / 2), cz: lerp(czAt(y), czTop, e), up: 0 };
+    // FIT-LEGS: the buttock of the built body is deeper than the thigh the tube was sized from: from the seat fold up, the back of the tube follows the body's own back (the front is left alone)
+    if (y > ySt - 0.01) { const zb = backAt(y); if (zb !== null) { const w = sstep(ySt - 0.01, ySt + 0.03, y), bk = lerp(r.cz + r.rz, Math.max(r.cz + r.rz, zb + 0.004 + grow), w), f = r.cz - r.rz; r.rz = (bk - f) / 2; r.cz = (bk + f) / 2; } }
+    return r;
   };
   // the old pelvis vertices that belong to the leg (the stub above the cut) must not stand outside the tube: a vertex of the coarse base mesh out at the hip is what made the flaps
   for (let i = 0; i < n; i++) {
@@ -177,6 +190,17 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
     const r = rowOf(P[i * 3] < 0 ? -1 : 1, Math.min(P[i * 3 + 1], yTop)), q = Math.hypot((P[i * 3] - r.cx) / (r.rx + 0.003), (P[i * 3 + 2] - r.cz) / (r.rz + 0.003));
     if (q > 1) { P[i * 3] = r.cx + (P[i * 3] - r.cx) / q; P[i * 3 + 2] = r.cz + (P[i * 3 + 2] - r.cz) / q; }
   }
+  // the waistband: under the hem of the top, never above the hip joint's height plus a hand
+  const yW2 = Math.min(hipY + 0.06 * K, Math.max(yTop + 0.03, (yWaist ?? hipY) + 0.015));
+  const seatYs = yW2 > yTop + 0.02 ? (detail === 'hi' ? [lerp(yTop, yW2, 0.5), yW2] : [yW2]) : [];
+  const ringAt2 = (y: number): { x: number; zF: number; zB: number } | null => {
+    let x = 0, zF = Infinity, zB = -Infinity;
+    for (let i = 0; i < n; i++) {
+      if (drop[i] || Math.abs(P[i * 3 + 1] - y) > 0.014 || wsumAt(L, i, [4, 5, 6, 7]) > 0.3) continue;
+      x = Math.max(x, Math.abs(P[i * 3])); zF = Math.min(zF, P[i * 3 + 2]); zB = Math.max(zB, P[i * 3 + 2]);
+    }
+    return isFinite(zF) && zB > zF && x > 0.05 ? { x, zF, zB } : null;
+  };
   for (const side of [-1, 1] as const) {
     const ax = side * cx, mir = side < 0 ? 1 : -1, b0 = side < 0 ? 8 : 10, b1 = b0 + 1;
     const skin = (y: number): { j: number[]; w: number[] } => {
@@ -190,6 +214,18 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
     addStrip(out, wall(thighY), { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.thigh, u, (thighY[i] - kneeY) / (chartTop - kneeY)) });
     const shinFt = (y: number): number => (y - HEM_Y) / (kneeY - HEM_Y);
     addStrip(out, wall(shinY), { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.shin, u, shinFt(shinY[i])) });
+    // FIT-LEGS: the seat. From the top of the thigh tube up to the waistband each leg's tube grows into one half of the body's own hip section (measured on the built body at that height,
+    // so a heavy man's trousers go round his belly and seat), a rounded rectangle whose inner edge meets the other leg's at the middle: no pouch, no slot, a closed fork
+    if (seatYs.length) {
+      const top = row(yTop), topOut = Math.abs(top.cx) + top.rx, seatRows: Row[] = [{ ...top, up: 0, pw: 2 }];
+      for (const y of seatYs) {
+        const m = ringAt2(y);
+        const out2 = Math.max(topOut, (m ? m.x : topOut) + 0.004), inn = 0.004, zF = m ? m.zF - 0.004 : top.cz - top.rz, zB = m ? m.zB + 0.004 : top.cz + top.rz;
+        seatRows.push({ y, rx: (out2 - inn) / 2, cx: side * (out2 + inn) / 2, rz: Math.max(top.rz * 0.9, (zB - zF) / 2), cz: (zB + zF) / 2, up: 0, pw: 3.2 });
+      }
+      const sk2 = (y: number): { j: number[]; w: number[] } => { const k = sstep(yTop, yTop + (yW2 - yTop) * 1.0, y), wh = 0.4 + 0.6 * k; return { j: [b0, 1, 0, 0], w: [1 - wh, wh, 0, 0] }; };
+      addStrip(out, seatRows, { seg, mir, skin: sk2, uv: (u, i) => tileUv(SK_TILES.thigh, u, (seatRows[i].y - kneeY) / (chartTop - kneeY)) });
+    }
     if (crop > 0) {
       const ra = Math.max(0.022, an[1] * 0.92), rza = Math.max(0.026, an[3] * 0.92), arow = (y: number): Row => ({ y, rx: ra, rz: rza, cx: side * cx, cz: czA, up: 0 });
       addStrip(out, [arow(yh - 0.004), arow(HEM_Y)], { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.shin, u, shinFt(i ? HEM_Y : yh - 0.004)) });
@@ -225,27 +261,18 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   }
   out.pos.push(...stub.pos); out.nrm.push(...stub.nrm); out.uv.push(...stub.uv); out.jnt.push(...stub.jnt); out.wgt.push(...stub.wgt);
   const tubeIdx = out.idx.length, stubBase = out.count - stub.count;
-  const dbg = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('legdbg') : null;   // TEMP
-  if (dbg !== '1') for (const i of stub.idx) out.idx.push(i + stubBase);
+  for (const i of stub.idx) out.idx.push(i + stubBase);
   void tubeIdx;
   // assemble: kept old vertices (with the join adjustment) + the tubes
   const m = out.count, total = n + m;
   const pos2 = new Float32Array(total * 3), nrm2 = new Float32Array(total * 3), uv2 = new Float32Array(total * 2), j2 = new Uint16Array(total * 4), w2 = new Float32Array(total * 4);
   pos2.set(P); nrm2.set(N); uv2.set(L.uv); j2.set(L.joints); w2.set(L.weights);
-  // FIT-LEGS: the pelvis of the base mesh between the legs (the seat and the fork) stays as skin geometry, but its atlas charts hold the crotch patch (dark, with belt and fly texels):
-  // it showed as a pouch under the waistband. Give those vertices the trouser tube's own mapping (front 0.25, back 0.75 of the thigh tile) so the cloth reads as one piece.
-  const yRe = hipY + 0.0;
-  for (let i = 0; i < n; i++) {
-    const y = P[i * 3 + 1];
-    if (drop[i] || Math.abs(P[i * 3]) > 0.075 || y < ySeat - 0.04 || y > yRe) continue;
-    const uvk = tileUv(SK_TILES.thigh, P[i * 3 + 2] < czTop ? 0.25 : 0.75, Math.min(0.98, (y - kneeY) / (chartTop - kneeY)));
-    uv2[i * 2] = uvk[0]; uv2[i * 2 + 1] = uvk[1];
-    // shade it like the front or back of the tubes beside it: a wall facing front or back, tilted outward a little toward the legs
-    const fz = P[i * 3 + 2] < czTop ? -1 : 1, nx = P[i * 3] * 4, nl = Math.hypot(nx, 1);
-    nrm2[i * 3] = nx / nl; nrm2[i * 3 + 1] = 0; nrm2[i * 3 + 2] = fz / nl;
-  }
   pos2.set(out.pos, n * 3); nrm2.set(out.nrm, n * 3); uv2.set(out.uv, n * 2); j2.set(out.jnt, n * 4); w2.set(out.wgt, n * 4);
-  if (dbg === '2') { const r2: number[] = []; for (let t = 0; t < rest.length; t += 3) { const a = rest[t], b = rest[t + 1], c = rest[t + 2]; if (Math.max(Math.abs(P[a * 3]), Math.abs(P[b * 3]), Math.abs(P[c * 3])) < 0.06 && P[a * 3 + 1] < hipY && P[b * 3 + 1] < hipY && P[c * 3 + 1] < hipY) continue; r2.push(a, b, c); } rest.length = 0; rest.push(...r2); }
+  // FIT-LEGS: the base mesh's own crotch (a pelvis patch with the atlas' fly and belt texels, standing proud of the leg tubes) is cut away between the legs from just under the seat to the
+  // waistband: the seat rows of the tubes above close that space with trouser cloth. Triangles that touch the torso or an arm stay.
+  { const r2: number[] = [], inMid = (v: number): boolean => Math.abs(P[v * 3]) < 0.075 && P[v * 3 + 1] > ySeat - 0.05 && P[v * 3 + 1] < yW2 && wsumAt(L, v, [2, 4, 5, 6, 7]) < 0.3;
+    for (let t = 0; t < rest.length; t += 3) { const a = rest[t], b = rest[t + 1], c = rest[t + 2]; if (seatYs.length && inMid(a) && inMid(b) && inMid(c)) continue; r2.push(a, b, c); }
+    rest.length = 0; for (const v of r2) rest.push(v); }
   const idx = new Uint32Array(rest.length + out.idx.length);
   idx.set(rest); for (let i = 0; i < out.idx.length; i++) idx[rest.length + i] = out.idx[i] + n;
   const lod = compact(pos2, nrm2, uv2, j2, w2, idx);

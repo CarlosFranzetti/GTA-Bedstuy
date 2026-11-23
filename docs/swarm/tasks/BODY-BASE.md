@@ -86,6 +86,31 @@ All ten retired by default: torso, wedge, shtop, depth, hipx, arms, legs, flatte
 - `pedbodytypes.test.ts`: joints no longer follow the old factors by default (asserted both ways); the dressing test pins the grid centre.
 - `body-pose-mesh.test.ts`: arm-out limits grow 1.5 deg per BMI point over 25 (heavy trunks now push the arms out, as on a heavy person).
 - `population.test.ts`: ea-kid is `kid_a` now.
+- `body-pose-before-after.test.ts`: same BMI allowance on 'upper arm not held out'.
+- `pedmesh.test.ts`: children may be 1.2 m tall at heightScale 1 (their own 1.32 to 1.34 m shapes); the min-y message names the shape.
+- `pedround4.test.ts` (FIT's file, one line): the trouser seat width floor scales with the shape's stature (a child's seat is narrower).
+- `body-review-measure.test.ts`: at least 10 of the 12 old types have a roster civilian (SOMATO's mapping dropped two, e.g. broad).
+- Joint moves per build are ARMS ONLY now: moving hips, knees and ankles per build made feet slide 6 to 20 cm in GAIT3's
+  `gait3-slide.test.ts` (the foot planting reads the shape's ankle height). Legs and spine keep the shape's own joints.
+- The cranium above the eyes is masked from the build too (bone; hair, hats and the kippah fit the head rings): fixed `pedpieces` kippah.
+- Hi foot budget 30 -> 40 triangles: `ca_f`'s sole was decimated away (lowest vertex 10 cm up).
+
+Whole folders (run of 02:40 UTC, before the fixes above, then the affected files re-run green): textures 427/427 green. Entities:
+still red and NOT mine to change: `pedround5` sleeves (red before round 3), `pedround5` skirts (a coat's skirt front 0.7 mm behind a
+thicker thigh: FIT), `pedpieces` athletic (the player's tote strap 1.1 cm inside the torso at the shoulder, limit 1 cm: FIT),
+`pedpieces` broad (no roster civilian of type broad: SOMATO's mapping); `fit-probe` and `gait3-feet` were being written by other seats
+during the run.
+
+Last re-run (02:50 UTC): base-build, gait3-slide (except below), anim-bodies, body-pose-mesh, clothes-defects, pedhead, pedeyes green.
+New red at 02:50: `gait3-slide` wh-office 'stop4.0: B max 10.3 cm' (it was green after the arms-only fix). Not my foot-budget change
+(rebuilding wh_m with the old budget gives the same); GAIT3 (anim) and FIT (pedLegs.ts, withTubes) were editing at the time: open.
+`pedround5` 'triangle counts within 5 %' is red too: FIT's garments or the two new child shapes (not checked).
+
+## Builds (02:32 UTC)
+
+- Single-file build: `index.html` 11,823,623 bytes against the 12,000,000-byte budget (176 kB left). The people glbs inline as base64,
+  so my +591 kB raw costs about +790 kB there.
+- Hosted build (`VITE_HOSTED=1`): passes.
 
 ## Next
 

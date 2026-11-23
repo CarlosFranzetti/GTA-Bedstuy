@@ -104,7 +104,7 @@ describe('round 5: shoes, hems, seat, sleeves', () => {
           }
           const id = `${spec.id}/${d}/${side}`;
           expect(w.length, id).toBeGreaterThanOrEqual(2);
-          for (let i = 1; i < w.length; i++) expect(w[i], id + ' never wider going down').toBeLessThanOrEqual(w[i - 1] + 0.006);
+          for (let i = 1; i < w.length; i++) expect(w[i], id + ' never more than 14 mm wider going down (FIT-TOPS: the sleeve follows the built arm: deltoid, tapering forearm; it was a 6 mm pipe)').toBeLessThanOrEqual(w[i - 1] + 0.014);
           for (let i = 1; i + 1 < w.length; i++) expect(w[i] - (w[i - 1] + w[i + 1]) / 2, id + ' no bulge').toBeLessThan(0.008);
         }
       }
@@ -143,6 +143,6 @@ describe('round 5: shoes, hems, seat, sleeves', () => {
     const base = { hi: 354255, mid: 130114, far: 30468 }, tot = { hi: 0, mid: 0, far: 0 };
     PED_SPECS.forEach((p, v) => { const m = buildMhPedModel(materials, new Rng(v + 1), { variant: v })!; const lv: number[] = []; m.group.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) lv.push((o as THREE.SkinnedMesh).geometry.index!.count / 3); }); tot.hi += lv[0]; tot.mid += lv[1]; tot.far += lv[2]; });
     console.log('tris5', JSON.stringify(tot));
-    expect(tot.hi / base.hi).toBeLessThan(1.85) /* FACES: close-level head 1.4k -> 3.2k triangles (every hi body +1.8k) */ /* PEOPLE6: new shoe pieces and collars; per-person budgets live in pedwardrobe.test.ts. was: 5 % for round 5 itself, plus the hair pass that followed (measured 5.2 % over the old totals on 18 Nov) */; expect(tot.mid / base.mid).toBeLessThan(1.3) /* PEOPLE6: new shoe pieces and collars; per-person budgets live in pedwardrobe.test.ts. was: 5 % for round 5 itself, plus the hair pass that followed (measured 5.2 % over the old totals on 18 Nov) */; expect(tot.far / base.far).toBeLessThan(1.3) /* PEOPLE6: new shoe pieces and collars; per-person budgets live in pedwardrobe.test.ts. was: 5 % for round 5 itself, plus the hair pass that followed (measured 5.2 % over the old totals on 18 Nov) */;
+    expect(tot.hi / base.hi).toBeLessThan(1.95) /* FIT-TOPS: neck collar ring about +3.5 % of a hi person */ /* FACES: close-level head 1.4k -> 3.2k triangles (every hi body +1.8k) */ /* PEOPLE6: new shoe pieces and collars; per-person budgets live in pedwardrobe.test.ts. was: 5 % for round 5 itself, plus the hair pass that followed (measured 5.2 % over the old totals on 18 Nov) */; expect(tot.mid / base.mid).toBeLessThan(1.4) /* FIT-TOPS: collar ring at the mid level */ /* PEOPLE6: new shoe pieces and collars; per-person budgets live in pedwardrobe.test.ts. was: 5 % for round 5 itself, plus the hair pass that followed (measured 5.2 % over the old totals on 18 Nov) */; expect(tot.far / base.far).toBeLessThan(1.3) /* PEOPLE6: new shoe pieces and collars; per-person budgets live in pedwardrobe.test.ts. was: 5 % for round 5 itself, plus the hair pass that followed (measured 5.2 % over the old totals on 18 Nov) */;
   });
 });
