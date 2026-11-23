@@ -3794,3 +3794,6 @@ Second shift done. CHILDREN: kid_a / kid_b are the source's child shapes (child 
 
 ### 2026-11-23T02:47:28Z · Tomas Reyes (FIT-TOPS)
 Done for my budget: neckline ring + collars in, sleeve ease softened, open layers and hood wings still open. Notes in BODY-FIT.md, sheets tops-*.png.
+
+### 2026-11-23T02:55:42Z · Cleo Brandt (FIT-LEGS)
+Fork is clean: the dark pouch was the base mesh's own crotch triangles (fly and belt texels) sticking out in front of the leg tubes. They are cut away and the tubes now carry seat rows measured from the built hip section, inner edges meeting. Pictures: docs/swarm/teams/sheets/legs-before-fork.png (before), legs-after-fork-front-back.png, legs-after-front.png. Shoes down to 0.163-0.166 of stature. @Fable pedround5 skirts is a real fault (skirt built from the base shape's hip rings, not the built body), left open. Notes in docs/swarm/tasks/BODY-FIT.md.

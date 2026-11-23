@@ -35,3 +35,18 @@ Seat FIT-TOPS: upper body of dressed people (necklines, collars, sleeves, open l
 3. Open layers (NOT done), hood wings at the shoulder tips (NOT done, spiky on the slim man's hoodie), cuff changes (none), placket/henley geometry (none; neck 'henley' is a rib collar).
 4. Tests: fit-garments.test.ts +2 (ring is a loop within 12 mm of the painted line, steps under 6 cm, rows finite; budget). pedround5: tri limits hi 1.85 -> 1.95, mid 1.3 -> 1.4 (collar), sleeve growth 6 -> 14 mm. Skirt-in-walk test red, not mine.
 5. Pictures: `docs/swarm/teams/sheets/tops-after-front.png`, `tops-after-back.png`, `tops-after-neck-closeup.png` (before: `fit-after-neck-front.png`). On the front sheet, yellow bits at wrists and odd trouser ankles are from other seats' work in the same tree, identical with my sleeve change switched off.
+
+## FIT-LEGS (bottoms: fork, seat, shoes; 23 Nov 2026)
+Files: `src/entities/models/pedLegs.ts`, `pedShoes.ts` (SHOE_LEN), one line in `pedMesh.ts` (`withTubes` passes `topHemY`; unused now, kept as the signature). Test: `tests/unit/entities/fit-legs.test.ts` (5 claims, green).
+- THE FORK POUCH WAS THE BASE MESH'S OWN CROTCH. Found by dropping pieces one at a time (`legdbg` switch, removed): the kept pelvis triangles between the legs (the atlas' fly and belt texels, standing proud of the leg tubes) showed as a dark pouch under the waistband. Not the relocated thigh stub, not a UV fault in the painter.
+- Fix: those triangles (|x| < 0.11, from 5 cm under the seat fold to the top of the tubes) are cut away. The thigh stub is dropped too. Each leg's tube now has SEAT ROWS above its old top: a superellipse section (exponent 3.2, a rounded rectangle) taken from the BUILT body's own hip section at that height (so a heavy build's trousers go round the belly and seat), inner edges 8 mm apart at the middle. Below that the V of the fork closes by the old `inn` blend. The back of the thigh tube rows follows the built buttock (`backAt`).
+- Row has a new optional `pw` (exponent); `legTubes` takes an optional 8th argument.
+- Shoes: sneaker length share was 0.168 to 0.170 measured (the 0.185 of the earlier note was before the base rebuild); SHOE_LEN 0.158 -> 0.154, now 0.163 to 0.166. pedround4's 0.24 m floor needs 0.154 (elder 0.2407).
+- Tests: pedround4 green again (it pinned the old shoe length). pedround5 skirts: red and a REAL fault, not a compensation: `bodyParts` builds the skirt from the BASE shape's `hipRings`, so a build with fuller thighs than the base pokes 1 mm out of a coat front. Needs the built hip ring (not done). pedround5 sleeves: not mine.
+- Triangles: nine-person hi sheet 56,493 before this seat, 58,827 after (+4 percent; the other seats were editing the same tree). Test caps: hi < 7,400, mid < 1,800, far < 800 per person.
+- Pictures: `legs-before-fork.png`, `legs-after-fork-front-back.png`, `legs-after-front.png`, `-back.png`, `legs-after-front-back-side-crops.png`, `legs-sprint.png`, `legs-walk.png`.
+### Not done / still wrong
+- `bottom.fit` (taper, wide or slim by spec) still ignored; CUT table by kind:cut unchanged. No belt-line change: the waistband sits where the top's hem ends (the tube top, about the navel on a man), not lower under a belly.
+- A small dark remnant at the fork on the heavy man and the pear woman from the front (leftover pelvis triangles outside |x| < 0.11), and small dark back-pocket flaps on the seat from behind.
+- Shorts and skirts: the base mesh is bare there; the fork shows a small dark notch on shorts (same crotch patch, not cut because shorts do not go through `legTubes`). Not fixed.
+- Elder in a sprint: a thin pale seam across the knee (thigh to shin texture tile edge). Seat did not tear in walk or sprint.

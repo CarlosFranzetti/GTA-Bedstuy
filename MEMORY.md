@@ -2,7 +2,7 @@
 
 Read this first. It is the project's standing memory: the owner's rules, how we work, where things are, and what is open.
 Update it when a rule changes or a decision is made. Keep it short; history lives in `docs/swarm/transcript.md` and the PRD.
-Last full update: 22 Nov 2026.
+Last full update: 23 Nov 2026 (after round 3 of the body team; nothing from rounds 2 and 3 is deployed yet).
 
 ## The project in one paragraph
 
@@ -41,21 +41,25 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
-- 22 Nov, late night, with ten reference pictures (other games' screenshots, kept in the session scratch folder only,
-  never in the repository): "fix shoulder blades and curve in the upper back. Elders, teenagers and children get special
-  shaping. Neck thickness variations. Whats with the misshapen arms, thighs and crotch. Do some research on human anatomy
-  and have the bodies resemble actual human forms; that said be economical with polygons." "these images are a bit
-  extreme ... in terms of muscular detail but as far as proportions go this is what needs to happen, same goes for the
-  vehicles shapes and textures overall, likewise for the streets and roads and clothing"; "next round we need to tackle
-  textures"; "strive for this kind of detail on faces and clothing but conserve polygons". Also: "add a motorbike and
-  maybe a skateboard"; "more like 60 outfits, and tops bottoms hats shoes sneakers can be mixed as well". Round 2 of the
-  body team (`docs/swarm/teams/BODY-TEAM.md`): seats TORSO, LIMBS, AGES, FIT, WARDROBE. Queued: textures (clothing,
-  faces, streets), vehicles to the same references plus a motorbike and a skateboard.
+- 23 Nov, small hours, on the sheet of round 2's first limb pass, which he marked by hand: "what's with the strange fold
+  between arm and torso; also the thighs aren't accurate yet. This causes the clothing to look strange. Let's get closer
+  to the reference images. Proportions and variation: there are many human body types, ectomorph, endomorph, etc., obese
+  and skinny, tall and short. Mix it up but do it more accurately; it needs to more closely resemble the human form. I'm
+  not saying go read Gray's Anatomy, but follow the images I sent." Round 3 of the body team (bodies from the source
+  figure's own shapes, a cast of body types; `docs/swarm/teams/BODY-TEAM.md`, "Round 3").
 
-- 22 Nov, late evening, on seeing the body team's first line-up: "whats with the elongated bodies i said gta V is bible
-  and also style guide". People were tall, narrow and thin-limbed. Rule for people from now on: solid, ordinary builds
-  (civilian survey medians for width and depth, statures inside the 5th to 95th percentile, thick enough necks and
-  limbs, more stocky and heavy people than slim ones). Written into `docs/swarm/teams/BODY-TEAM.md`.
+- 22 Nov, late night, with ten reference pictures (other games' screenshots; never in the repository; lost in the 23 Nov
+  restart, he has been asked to send them again): real anatomy ("fix shoulder blades and curve in the upper back",
+  "Neck thickness variations", "Whats with the misshapen arms, thighs and crotch", "be economical with polygons");
+  "Elders, teenagers and children get special shaping"; "more like 60 outfits, and tops bottoms hats shoes sneakers can
+  be mixed as well"; "add a motorbike and maybe a skateboard". On the pictures: "a bit extreme ... in terms of muscular
+  detail but as far as proportions go this is what needs to happen, same goes for the vehicles shapes and textures
+  overall, likewise for the streets and roads and clothing"; "next round we need to tackle textures"; "strive for this
+  kind of detail on faces and clothing but conserve polygons". Round 2 of the body team.
+
+- 22 Nov, late evening, on the body team's first line-up: "whats with the elongated bodies i said gta V is bible and also
+  style guide". Rule for people since: solid, ordinary builds (survey medians for width and depth, statures inside the
+  5th to 95th percentile, thick enough necks and limbs, more stocky and heavy people than slim ones).
 
 - 22 Nov, evening (after the fifth deploy): "continue with the swarm and refinements. Start with movement and then the
   eyes. Faces are still too caricature but the features are a marked improvement, the eyes are wonky again. Refer to
@@ -63,7 +67,7 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
   reference: rule 1 stands). HOW HE WANTS US TO WORK NOW: one topic at a time, each with a team of five agents in
   parallel who talk to each other (`docs/swarm/teams/`), plus no more than three research agents (clothing that is more
   stylish and realistic, faces that make sense, body types that are more human, textures); updates, demos and questions
-  to him along the way; when a topic has made progress an Opus agent updates the docs, then push and deploy, then that
+  to him along the way; when a topic has made progress one careful agent updates the docs, then push and deploy, then that
   topic pauses and the next team of five starts. Topic 1: movement and body geometry (`docs/swarm/teams/BODY-TEAM.md`).
   Topic 2: faces, eyes and details. Then vehicles, the camera and the engine sound that still stutters. He wants the
   teams' conversations as human-readable transcripts (`docs/swarm/transcripts/`).
@@ -158,6 +162,16 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   it current (a lane that is cut off leaves only its files). Give tight briefs,
   ask for scoped tests and one in-game capture, and tell lanes to hand back a solid partial result rather than run out.
   Resuming a lane with a very large context is costly; start a fresh one with a good brief instead.
+- Since 22 Nov one topic runs at a time as a team of seats with a charter in `docs/swarm/teams/` (body team:
+  `BODY-TEAM.md`), each seat's notes in `docs/swarm/tasks/BODY-<SEAT>.md`, the plain-English retelling in
+  `docs/swarm/transcripts/`.
+- A seat that runs out of budget is split into narrower seats, not resumed: on 23 Nov FIT stopped after two fixes and
+  became FIT-TOPS (necklines, collars, sleeves, open layers) and FIT-LEGS (trouser fork, seat, taper, shoes).
+- Two seats may share one file when the lead names the regions: in `src/entities/models/pedMesh.ts` BASE owns the body
+  above `if (dress)` in `dressLodBody` (shape parsing, the grid, the rig) and FIT owns the garment code from there down.
+  Small Edits only, re-read before each edit, never rewrite the file.
+- AUTOSAVE: while lanes run, a background loop commits and pushes "Lanes' work in progress: autosave" every four minutes
+  (start it at the top of every session; it dies with the container). Tools worth keeping live in `scripts/dev/`.
 - A stop hook asks for a commit and push after every turn.
 
 ## Records (21 Nov, reworked by RECORDS2)
@@ -201,8 +215,14 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   non-localhost requests in scripts. All lanes share one memory limit: run a capture alone if the page is killed.
 - Rendering here is in software: never report frames per second. Report triangles and draw calls from `renderer.info`.
 - The title screen needs SPACE (or Enter, a tap, gamepad A or Start, a click on the prompt) to start; scripts must press it.
-- Useful scripts kept in the session scratchpad (not in the repo, may be lost): boot smoke, pedestrian probe, action check,
-  phone memory probe, map screenshot. Recreate from their descriptions in `docs/swarm/RULES.md` if missing.
+- Boot check (the lead's pre-deploy check, in the repository since 23 Nov): build with
+  `VITE_HOSTED=1 npx vite build --outDir <dist> --emptyOutDir`, then
+  `scripts/swarm-render.sh node scripts/dev/boot-check.mjs <outDir> --dist <dist> [--mode desktop|phone] [--map grid|real] [--q low]`.
+  It boots headless with the canvas hidden, presses Space, steps the game by hand, reports page errors, non-finite
+  matrices, people and cars, triangles and draw calls (exit 1 when not clean) and photographs the player and the nearest
+  pedestrians front and back. Body sheets: `scripts/dev/base-shoot.sh`; dressed sheets: `scripts/dev/fit-shoot.sh`.
+  The older scratch scripts (pedestrian probe, action check, phone memory probe, map screenshot) were lost in the
+  restart; recreate them from `docs/swarm/RULES.md` into `scripts/dev/` when needed.
 
 ## Where things are
 
@@ -210,7 +230,9 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 - `src/world/`: the grid map (`?map=grid`; the only map of the single-file build and the default on phones) and `src/world/roadnet/**`, the real-street map (the
   main map on hosted and native builds since 22 Nov, `src/world/mapChoice.ts`; each map has its own save slots, `GameSave.savePrefix`; default-path modules never import roadnet except type-only: `docs/swarm/plans/briefs/_realmap-rules.md`).
 - `src/entities/`: player, pedestrians, vehicles, traffic agents; `models/` builds people (closed skin from MakeHuman
-  data, garment geometry, separate hair, hats and bags, three detail levels) and cars (lofted bodies).
+  data with its muscle by weight grid, `pedGrid.ts`; body types and the cast in `pedBodyTypes.ts`; garment geometry,
+  separate hair, hats and bags, three detail levels) and cars (lofted bodies). Outfits and mix rules:
+  `src/textures/painters/pedOutfits.ts`, `pedWardrobe.ts`, `pedMix.ts`.
 - `src/entities/anim/`: motion-capture clips, posture correction, hand-keyed action poses.
 - `src/textures/`: procedural painters, material library, `texTier.ts` (texture size by tier), people skin painters.
 - `src/render/`: pipeline, quality tiers (phone, low, medium, high), culling and streaming, HDR guard, loading screen.
@@ -223,7 +245,7 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 
 ## Hard-won lessons
 
-- THE CONTAINER CAN RESTART AT ANY TIME AND WIPES EVERYTHING NOT PUSHED, including the scratch folder (23 Nov, 23:54 UTC:
+- THE CONTAINER CAN RESTART AT ANY TIME AND WIPES EVERYTHING NOT PUSHED, including the scratch folder (22 Nov, 23:54 UTC:
   a wardrobe of 65 outfits, the owner's reference pictures and every capture script were lost). So: a background loop
   commits and pushes work in progress every four minutes while lanes run (start it at the top of every session; it dies
   with the container); tools worth keeping live in `scripts/dev/`, not the scratch folder; after a restart run `npm ci`.
@@ -231,6 +253,14 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 - Bodies: a girth table is not a silhouette. Round 2's limb pass matched the survey numbers and looked worse. Build comes
   from the source's own muscle and weight shapes (`scripts/people-pipeline.mjs`), not from deformers stacked at run time.
   Always look at front, back and side sheets before believing a number.
+- Turn run-time shape passes off one at a time and look before blaming the bake: the shoulder fold the owner marked was
+  made at run time (shoulders widened 1.21 times, the arm pushed out, a corner cut), not by the pipeline's arm hang.
+- Check field values against the data: the pipeline tested `sex === 'f'` while shapes carry `'female'`, so every female
+  shape got the male weight and muscle shapes until BASE caught it on 23 Nov.
+- A foot-slide number is only as good as its stance detector. "Ankle within 3 cm of its lowest height" also counts the
+  heel roll and the end of the swing and reported 31.6 cm; the planted ball moved 0.1 to 0.6 cm. Measure the ball.
+- A seat that hits its budget leaves little behind (FIT: two fixes of six). Brief narrow seats, and split a seat that
+  stops rather than resume it.
 
 - A whole-screen flicker in Chrome came from Inf or NaN in the HDR buffer smeared by bloom. Every shader that reads
   scene colour passes it through `hdrSafe` (`src/render/HdrGuard.ts`).
@@ -295,28 +325,15 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
     Each map has its own save slots (`gta-bedstuy.save.v2.` grid, `...v2.real.` real); a grid-only player starts fresh at home
     on the real map with cash, records, look and station carried over. The grid's meshes are no longer built when the real
     map is chosen (`buildGridModelOnly`). The single-file build is always the grid. Numbers: `docs/swarm/tasks/MAINMAP.md`.
-  - Pedestrians on the real map now stand round the player. Before, `TrafficSystem.pickRingNode` drew 64 random sidewalk
-    nodes from the whole 15 km2 net, almost never hit the 62 to 115 m ring, and fell back to anywhere: nobody within 150 m of
-    the player (measured on the live build too). Now, on the real map only, it searches the ring itself and the opening
-    crowd is placed within 240 m of the start. The grid map's picks are untouched: its seeded five-minute traffic run jams
-    on seed 7 if they change. No unit test for this yet; measured in the running game (14 people within 150 m at the
-    start, 27 after a minute).
-  - Sound (AUDIOFIX, `docs/swarm/tasks/AUDIOFIX.md`): parked and waiting cars get no engine voice (they took every AI slot
-    and droned); pause and resume no longer leaves the audio context suspended; nothing is scheduled while paused; all
-    engines go through one engine bus at 0.55 (45 percent lower); Settings, Audio, "Engine Sound" (0 = Off creates no engine
-    voice); a silent radio station retries once at 20 s and tunes on at 40 s with a notice. NOT HEARD by anyone here, and
-    the real streams and SoundCloud cannot be reached from this box.
-  - Camera (CAMFIX, `docs/swarm/tasks/CAMFIX.md`): first person, hood and cinematic are clean cuts (the hood blend flew the
-    lens through the car); getting in or out is one 0.6 s eased blend; chase views blend in 0.25 s; stepping out holds the
-    view. Rig numbers unchanged. 143 harness tests in `tests/unit/entities/camfix*.ts`.
-  - Faces (FACES2 then FACES3, `docs/swarm/tasks/FACES2.md`, `FACES3.md`; FACES3 went live in the fourth deploy of 22 Nov):
-    about 30 seeded shape traits per person (`pedHead.ts` `faceTraits`, `morphHead`, called from `pedMesh.dressLod`), age in
-    shape and skin, no extra triangles, draws or textures. The pale patch by the ear was the head UNWRAP: the cylinder axis
-    stood in front of the ears, so nostril and eye-socket triangles wrapped across half the tile and overwrote the cheeks in
-    the bake. Fixed in `unwrapUVs` (`scripts/people-pipeline.mjs`, axis at the ear plane), all 23 base meshes rebuilt.
-    Mouths rest neutral (`mouthUp`), the hair rim is lifted 3.2 mm so skin no longer pokes through, both eyes look the same
-    way. Still short: lips are thin dark lines, a hard hairline edge, no eyeball or lid geometry, a dark cheek wedge on the
-    mid level (phone tier), banding at the neck and collar, some heavy builds still pout at three-quarter view.
+  - Pedestrians on the real map stand round the player: on the real map only, `TrafficSystem.pickRingNode` searches the
+    62 to 115 m ring itself (before, nobody was within 150 m) and the opening crowd is placed within 240 m of the start.
+    The grid's picks are untouched (its seeded traffic run jams on seed 7 if they change). Measured in the running game.
+  - Sound (AUDIOFIX): parked and waiting cars get no engine voice; pause no longer leaves the audio suspended; one engine
+    bus at 0.55; a silent station retries at 20 s and tunes on at 40 s. NOT HEARD by anyone here.
+  - Camera (CAMFIX): clean cuts for first person, hood and cinematic; a 0.6 s blend in and out of cars; 143 harness tests.
+  - Faces (FACES2, FACES3; notes in `docs/swarm/tasks/`): about 30 seeded shape traits per person (`pedHead.ts`), age in
+    shape and skin; the pale patch by the ear was the head UNWRAP (fixed in `unwrapUVs`, axis at the ear plane). Still
+    short: thin dark lips, a hard hairline, no eyeball or lid geometry, a dark cheek wedge on the mid level, neck banding.
   - Trees (TREES, `docs/swarm/tasks/TREES.md`): crowns of 4 or 5 overlapping leaf clouds (`src/world/props/treeCloud.ts`),
     flared trunks, park groves, hedges and shrubs; about the same triangles per tree on phone and low.
   - Anti-aliasing is off by default on every tier (owner); SMAA is a choice in Settings.
