@@ -191,7 +191,8 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
     if (q > 1) { P[i * 3] = r.cx + (P[i * 3] - r.cx) / q; P[i * 3 + 2] = r.cz + (P[i * 3 + 2] - r.cz) / q; }
   }
   // the waistband: under the hem of the top, never above the hip joint's height plus a hand
-  const yW2 = Math.min(hipY + 0.06 * K, Math.max(yTop + 0.03, (yWaist ?? hipY) + 0.015));
+  const yW2 = yTop + 0.02; void yWaist;
+  if (typeof location !== 'undefined' && location.search.includes('legdbg')) console.error('legdbg', spec.id, { ySeat, yTop, yW2, hipY, yWaist });
   const seatYs = yW2 > yTop + 0.02 ? (detail === 'hi' ? [lerp(yTop, yW2, 0.5), yW2] : [yW2]) : [];
   const ringAt2 = (y: number): { x: number; zF: number; zB: number } | null => {
     let x = 0, zF = Infinity, zB = -Infinity;
@@ -271,7 +272,7 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   pos2.set(out.pos, n * 3); nrm2.set(out.nrm, n * 3); uv2.set(out.uv, n * 2); j2.set(out.jnt, n * 4); w2.set(out.wgt, n * 4);
   // FIT-LEGS: the base mesh's own crotch (a pelvis patch with the atlas' fly and belt texels, standing proud of the leg tubes) is cut away between the legs from just under the seat to the
   // waistband: the seat rows of the tubes above close that space with trouser cloth. Triangles that touch the torso or an arm stay.
-  { const r2: number[] = [], inMid = (v: number): boolean => Math.abs(P[v * 3]) < 0.075 && P[v * 3 + 1] > ySeat - 0.05 && P[v * 3 + 1] < yW2 && wsumAt(L, v, [2, 4, 5, 6, 7]) < 0.3;
+  { const r2: number[] = [], inMid = (v: number): boolean => Math.abs(P[v * 3]) < 0.11 && P[v * 3 + 1] > ySeat - 0.05 && P[v * 3 + 1] < yW2 && wsumAt(L, v, [4, 5, 6, 7]) < 0.3;
     for (let t = 0; t < rest.length; t += 3) { const a = rest[t], b = rest[t + 1], c = rest[t + 2]; if (seatYs.length && inMid(a) && inMid(b) && inMid(c)) continue; r2.push(a, b, c); }
     rest.length = 0; for (const v of r2) rest.push(v); }
   const idx = new Uint32Array(rest.length + out.idx.length);
