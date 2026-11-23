@@ -16,6 +16,24 @@ How to read it:
   see `MEMORY.md`, "State".
 - The first commits (24 Oct 2026) predate `vercel.json`, which was added on 28 Oct 2026.
 
+Note (23 Nov 2026): the weekly lists below stop at 18 Nov. Five deploys went out on 22 Nov (the last is `259e6dc`, live now);
+they are described in `MEMORY.md`, "State on 22 Nov 2026", and have not yet been added here.
+
+
+## Unreleased (committed as work in progress on 22 and 23 Nov 2026, not live, not yet verified by the lead)
+
+The body team's rounds 2 and 3. Details: `MEMORY.md`, "State on 23 Nov 2026"; the story: `docs/swarm/transcripts/2026-11-23-body-team.md`.
+
+- People's bodies are built from the source figure's own muscle by weight shapes; the ten hand-written shape deformers are off
+- Thirty body types (nine new) with a seeded spread per person; heights inside the normal range; a heavier street mix
+- Children have their own figures; teenagers blend child and adult shapes; muscle is capped by age
+- Women get women's build shapes (the pipeline had given them the men's)
+- Sixty-one whole outfits and mix rules for tops, layers, bottoms, shoes and hats
+- Necklines and collars follow each person's body; the hood no longer makes a flap on the chest
+- Trousers have a clean fork and a seat that follows the hips; shoes a little shorter
+- Each person's own foot; feet hold through starts and stops; the pedestrian set-off is drawn by the animation only
+- Boot-check tool kept in the repository (`scripts/dev/boot-check.mjs`)
+
 
 ## Week of 16 Nov 2026 (2 commits)
 

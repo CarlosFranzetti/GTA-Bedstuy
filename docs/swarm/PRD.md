@@ -497,3 +497,50 @@ Reading of each ask (the technical writer's, for the lead to confirm):
 10. "The phone is meh so let's fix that": the phone version needs a pass on controls, layout and memory (lane PHONE2; `?debug=mem` for numbers).
 11. Polish, across all of the above.
 
+
+## Stage 20 asks (owner, 22 Nov late night and 23 Nov)
+The owner's asks of 22 Nov (morning, afternoon and evening) are recorded in `MEMORY.md`, "What the owner wants", and have not
+been copied here as stages. This stage starts with the message he sent late on 22 Nov with ten reference pictures (other
+games' screenshots: proportions to learn from, nothing taken; never in the repository).
+
+Verbatim (from `docs/swarm/teams/BODY-TEAM.md`): "Fix shoulder blades and curve in the upper back. Elders, teenagers and
+children get special shaping. Neck thickness variations. What's with the misshapen arms, thighs and crotch? Can you do some
+research on human anatomy and have the bodies resemble actual human forms; that said, be economical with polygons. In terms of
+clothing I want more like 60 outfits, and tops, bottoms, hats, shoes, sneakers can be mixed as well for more variety." On the
+pictures: "as far as proportions go this is what needs to happen; same goes for the vehicles' shapes and textures overall;
+likewise for the streets and roads and clothing. Next round we need to tackle textures. Absolutely strive for this kind of
+detail on faces and clothing but conserve polygons." Also (`MEMORY.md`): "add a motorbike and maybe a skateboard".
+23 Nov, on the marked sheet of the first limb pass: "what's with the strange fold between arm and torso; also the thighs aren't
+accurate yet. This causes the clothing to look strange. Let's get closer to the reference images. Proportions and variation:
+there are many human body types, ectomorph, endomorph, etc., obese and skinny, tall and short. Mix it up but do it more
+accurately; it needs to more closely resemble the human form. I'm not saying go read Gray's Anatomy, but follow the images I sent."
+
+State as of 23 Nov, about 03:00 UTC. "In the tree" means committed as work in progress, NOT deployed and not yet verified by the
+lead. Seat notes: `docs/swarm/tasks/BODY-*.md`; the story: `docs/swarm/transcripts/2026-11-23-body-team.md`.
+
+- [x] (in the tree) The fold between arm and torso: it was made by run-time deformers, which are off; arms hung with the source
+  skeleton.
+- [x] (in the tree) Bodies resemble real human forms: built from the source figure's own muscle by weight shapes; the ten
+  hand-written deformers retired (`VITE_BODY_OLD=1` restores them).
+- [x] (in the tree) Many body types, mixed: a cast of 30 types (ectomorph-like, endomorph-like, obese, skinny, tall, short,
+  stocky and the rest) with a seeded spread per person; adult BMI mix about a third each under 25, 25 to 30, over 30.
+- [~] (partly) Shoulder blades, upper back curve, neck thickness variation: they now come from the source shapes, which vary
+  with build. No seat worked on them as such after round 2's trunk seat was lost in the restart; the cast's neck offset is drawn
+  but not applied; the elder's stoop is not passed to the body layers.
+- [~] (partly) Arms, thighs and crotch: no jodhpurs, ledges or fold on the bare sheets; the trouser fork pouch is fixed. Knees
+  still step; slimmer builds keep a small thigh gap below the fork; a dark notch remains on shorts and skirts.
+- [x] (in the tree) Children get their own shapes (two new child figures, about 6.2 heads tall); teenagers blend child and young
+  shapes; muscle is capped by age (elders, teens, children).
+- [~] (partly) Elders: muscle cap and the old shapes; the stoop pass is off (see above).
+- [x] (in the tree) Economical with polygons: bare body triangles unchanged per level; dressed people about 4 percent more for
+  the new collars and trouser seat; no new draw calls or textures per person (the seats' reports).
+- [x] (in the tree) About 60 outfits: 61 whole outfits with 2 or 3 colourways each.
+- [x] (in the tree) Tops, bottoms, hats and shoes mix: mix rules in `src/textures/painters/pedMix.ts` (formality, decade by age,
+  hat guards, colour).
+- [~] (partly) Clothing to the reference proportions: necklines and collars as geometry, hood cowl, trouser fork and seat, shoe
+  size done; open-front layers, sleeves, cuffs, `bottom.fit` and the new garment shapes in `pedMix.NEEDS_SHAPE` not done.
+- [ ] (not started) Detail on faces to the references (the faces and eyes team is next).
+- [ ] (not started) Vehicles' shapes and textures to the references; the car classes not yet reshaped.
+- [ ] (not started) A motorbike, and maybe a skateboard.
+- [ ] (not started) Textures: clothing, faces, streets and roads ("next round").
+- [ ] Reference pictures: lost in the container restart of 22 Nov, 23:54 UTC; the owner has been asked to send them again.

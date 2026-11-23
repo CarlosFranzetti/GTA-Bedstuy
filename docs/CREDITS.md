@@ -255,6 +255,17 @@ Photos were looked at (and measured by eye) only; nothing is cut from them. No t
 |---|---|---|---|
 | MakeHuman base mesh, default rig + weights, macro targets (data files only; the AGPL application code is not used) | https://github.com/makehumancommunity/makehuman (`makehuman/data/3dobjs/base.obj`, `rigs/default.*`, `targets/macrodetails/*`), (c) Data Collection AB, Joel Palmius, Jonas Hauquier, original Manuel Bastioni | CC0 1.0 (released September 2020) | `src/assets/models/people/src/` (+ LICENSE.txt); derived `people/*.glb` via `scripts/people-pipeline.mjs` |
 
+What is used since 23 Nov 2026 (round 3 of the body team), all from the same CC0 data and all kept in
+`src/assets/models/people/src/`: the base mesh (`base.obj.gz`); the default skeleton (`default.mhskel`, 163 bones) and its
+vertex weights (`default_weights.mhw.gz`), now also used to hang the arms; and 66 macro targets from `targets/macrodetails/`:
+the 18 group targets (`african-`, `asian-`, `caucasian-` x `male`/`female` x `child`/`young`/`old`) and the 48 `universal-`
+targets, the full grid of min, average and max muscle by min, average and max weight for both sexes at child, young and old
+(the average-muscle, average-weight point has no file). The two child figures `kid_a.glb` and `kid_b.glb` are derived from the
+child targets. The derived `.glb` files carry the grid as extra vertex attributes. `LICENSE.txt` quotes the files' own
+headers: "This asset was explicitly released as CC0 in september 2020", and says: "Only these DATA files are used. The
+MakeHuman application code is AGPL and is neither copied nor used." Licence text:
+https://creativecommons.org/publicdomain/zero/1.0/
+
 ## HD voices (VOX): on-device neural text-to-speech
 
 Opt-in "HD voices" for the music-station DJs and WBSY Talk. Nothing below is bundled in the game: the library is loaded from a public CDN and the model from Hugging Face at run time, and cached by the browser. Full decision record: `docs/reference/VOICES.md`.

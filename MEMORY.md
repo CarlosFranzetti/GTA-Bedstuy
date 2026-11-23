@@ -48,8 +48,8 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
   not saying go read Gray's Anatomy, but follow the images I sent." Round 3 of the body team (bodies from the source
   figure's own shapes, a cast of body types; `docs/swarm/teams/BODY-TEAM.md`, "Round 3").
 
-- 22 Nov, late night, with ten reference pictures (other games' screenshots; never in the repository; lost in the 23 Nov
-  restart, he has been asked to send them again): real anatomy ("fix shoulder blades and curve in the upper back",
+- 22 Nov, late night, with ten reference pictures (other games' screenshots; never in the repository; lost in the restart at 23:54
+  UTC that night; he has been asked to send them again): real anatomy ("fix shoulder blades and curve in the upper back",
   "Neck thickness variations", "Whats with the misshapen arms, thighs and crotch", "be economical with polygons");
   "Elders, teenagers and children get special shaping"; "more like 60 outfits, and tops bottoms hats shoes sneakers can
   be mixed as well"; "add a motorbike and maybe a skateboard". On the pictures: "a bit extreme ... in terms of muscular
@@ -257,8 +257,9 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   made at run time (shoulders widened 1.21 times, the arm pushed out, a corner cut), not by the pipeline's arm hang.
 - Check field values against the data: the pipeline tested `sex === 'f'` while shapes carry `'female'`, so every female
   shape got the male weight and muscle shapes until BASE caught it on 23 Nov.
-- A foot-slide number is only as good as its stance detector. "Ankle within 3 cm of its lowest height" also counts the
-  heel roll and the end of the swing and reported 31.6 cm; the planted ball moved 0.1 to 0.6 cm. Measure the ball.
+- A foot-slide number is only as good as its stance detector. "The ankle bone within 3 cm of the lowest ankle height of
+  the run" also counts the heel roll and the end of the swing and reported 31.6 cm; the planted ball moved 0.1 to 0.6 cm.
+  Measure the ball.
 - A seat that hits its budget leaves little behind (FIT: two fixes of six). Brief narrow seats, and split a seat that
   stops rather than resume it.
 
