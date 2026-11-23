@@ -30,7 +30,8 @@ import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone,
 import { hijabShell } from './pedGarments';
 import { peopleMode } from '@/textures/painters/pedMode';
 import { legTubes, isCoveredLeg, StripMesh, addStrip, type Row, type LegTube, type LegDetail } from './pedLegs';
-import { addPolarStrip, cuffRows, hemRows, straightenArms, swingSkirt, type CuffStyle } from './pedCuts';
+import { addCollarStrip, addPolarStrip, collarRows, cuffRows, hemRows, necklineLoop, straightenArms, swingSkirt, type CollarStyle, type CuffStyle } from './pedCuts';
+import { necklineY } from '@/textures/painters/pedPaintBody';
 import { bodyTypeOf, bodyTypeId, bodyBuildOf, type BodyType } from './pedBodyTypes';
 import { gridPointOf } from './pedGrid';
 import { fitMass, replayMass, sexOf, type MassFit } from './pedMass';
@@ -565,12 +566,14 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
       if (t > 0) { out[i * 3] += normal[i * 3] * t; out[i * 3 + 1] += normal[i * 3 + 1] * t * 0.3; out[i * 3 + 2] += normal[i * 3 + 2] * t; }
     }
     // the clothed arm is a straight cut: its radius never grows from the shoulder down to the cuff (pedCuts.straightenArms)
-    if (top.sleeves === 'long' || top.sleeves === 'short') straightenArms(L, out, shY - 0.08 * K, (top.sleeves === 'long' ? wrY + 0.03 : sleeveCut + 0.01), 1);
+    if (top.sleeves === 'long' || top.sleeves === 'short') straightenArms(L, out, shY - 0.08 * K, (top.sleeves === 'long' ? wrY + 0.03 : sleeveCut + 0.01), sleeveEase(top.kind, baggy));
     normal = shadeNormals(L, out);
     return covered ? withTubes(s, spec, L, out, normal, bt, legK, detail) : { ...L, position: out, normal };
   }
   return covered ? withTubes(s, spec, L, pos, normal, bt, legK, detail) : { ...L, position: pos, normal };
 }
+/** FIT-TOPS: how far a sleeve is pulled toward a straight cut (1 = the old pipe). The built arm has a deltoid, a deeper-than-wide upper arm and a tapering forearm: a fitted sleeve (tee, shirt, blouse) keeps most of it, a fuller one (hoodie, jacket, puffer) hangs straighter. */
+export function sleeveEase(kind: string, baggy: boolean): number { return kind === 'puffer' ? 0.7 : baggy ? 0.5 : 0.25; }
 function withTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array, normal: Float32Array, bt: BodyType, legK: number, detail: LegDetail): MhLod {
   const r = legTubes(s, spec, L, pos, normal, bt, legK, detail);
   return { ...r.lod, tube: r.tube };
@@ -594,8 +597,28 @@ function stripGeometry(m: StripMesh): THREE.BufferGeometry {
   g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(m.jnt, 4)); g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(m.wgt, 4)); g.setIndex(m.idx);
   return g;
 }
+/**
+ * FIT-TOPS: the collar ring of a top. The neckline is traced ON the dressed body (pedCuts.necklineLoop, the same function the painter uses for the painted edge) and a collar profile is swept along it
+ * (a rib band, a thin roll, a standing shirt collar, a roll neck). It lies over the painted edge, so the paint's stair-steps are never seen. One merged mesh, the garment's own atlas: no new draw call.
+ */
+function neckCollar(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.BufferGeometry | null {
+  const top = spec.top, k = top.kind;
+  if (k === 'apron' || k === 'vest' || spec.hat === 'hijab') return null;
+  const R = peopleRig(s, spec), hs = (s.landmarks.crownY - s.landmarks.chinY) / 0.2285, shY = R.shoulderL[1];
+  const style: CollarStyle = top.neck === 'roll' ? 'turtle' : top.neck === 'band' || top.neck === 'henley' ? 'rib'
+    : k === 'jacket' || k === 'uniform' || k === 'blouse' || ['shirt', 'workshirt', 'polo', 'blazer', 'denim'].includes(top.style ?? '') ? 'shirt'
+    : k === 'dress' || k === 'scrubs' || k === 'jersey' ? 'roll' : 'rib';
+  const prm = { shY, hs, kind: k, style: top.style, neck: top.neck, open: !!top.open && !!top.under };
+  const loop = necklineLoop(L, L.position, L.normal, (x, z) => necklineY(prm, x, z), hi ? 28 : 16, shY - 0.02, shY + 0.3);
+  if (!loop) return null;
+  const rows = collarRows(loop.pts, style, Math.max(0.85, Math.min(1.15, hs)), loop.c);
+  const m = new StripMesh(), q = SK_RECTS.torso;
+  addCollarStrip(m, hi ? rows : rows.filter((_, i) => i % 2 === 0 || i === rows.length - 1), L, (u) => [(q.x + 3 + u * (q.w - 6)) / ATLAS, 1 - (q.y + 3 + 0.5 * (q.h - 6)) / ATLAS]);
+  return stripGeometry(m);
+}
 function clothExtras(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [], seg = hi ? 18 : 10, k = spec.top.kind, hemTop = topHemY(s, spec), anY = s.landmarks.ankleY;
+  const collar = neckCollar(s, spec, L, hi); if (collar) out.push(collar);
   if (['jacket', 'hoodie', 'puffer', 'cardigan', 'tracksuit', 'uniform'].includes(k) && !spec.top.long) {
     const notArm = (i: number): boolean => wsumAt(L, i, W_ARMS) < 0.3;
     const r = bodyRing(L, hemTop - 0.06, hemTop + 0.1, notArm), r2 = bodyRing(L, hemTop + 0.1, hemTop + 0.16, notArm);

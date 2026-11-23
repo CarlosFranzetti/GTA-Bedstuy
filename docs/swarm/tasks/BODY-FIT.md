@@ -25,3 +25,9 @@ Existing tests: pedpieces (athletic, broad: fail with and without my change), pe
 
 ## Sheets
 `docs/swarm/teams/sheets/fit-hood-flap-before.png`, `fit-hood-cowl-after.png`, `fit-after-neck-front.png`, `fit-after-hood-side.png`.
+
+## FIT-TOPS (seat, round 3, 23 Nov 2026)
+Seat FIT-TOPS: upper body of dressed people (necklines, collars, sleeves, open layers). Scratch: `.../scratchpad/fit-tops/`.
+1. NECKLINE RING (done, seen). `pedPaintBody.necklineY(params, x, z)` is now ONE function for the painted neckline and the geometry (round U instead of a box; V for open layers; styles roll, band, henley, scoop, wide through `neckDip`). `pedCuts.necklineLoop` cuts the zero line of y - necklineY through the dressed body's triangles, takes one crossing per ray round the loop (28 hi, 16 mid) so the curve is smooth by construction, with the surface normal; `collarRows` sweeps a profile (rib, roll, shirt, turtle) along it; `addCollarStrip` skins each vertex like the body vertex it lies on. Called from `neckCollar` in pedMesh.clothExtras (hi and mid; far has no extras). Band is 3.3 cm (rib) so it covers the painted edge's saw-teeth; it narrows on the flat of the shoulder.
+   Kind to collar: tee, hoodie, puffer, tracksuit, cardigan, sweater = rib; jacket, uniform, blouse, shirt/workshirt/polo/blazer/denim = shirt; dress, scrubs, jersey = roll; neck 'roll' = turtle; apron, vest, hijab = none.
+   Cost: hi nine-person sheet 56,685 -> 58,892 triangles (+3.9 %), no new draw or texture.

@@ -225,13 +225,27 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   }
   out.pos.push(...stub.pos); out.nrm.push(...stub.nrm); out.uv.push(...stub.uv); out.jnt.push(...stub.jnt); out.wgt.push(...stub.wgt);
   const tubeIdx = out.idx.length, stubBase = out.count - stub.count;
-  for (const i of stub.idx) out.idx.push(i + stubBase);
+  const dbg = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('legdbg') : null;   // TEMP
+  if (dbg !== '1') for (const i of stub.idx) out.idx.push(i + stubBase);
   void tubeIdx;
   // assemble: kept old vertices (with the join adjustment) + the tubes
   const m = out.count, total = n + m;
   const pos2 = new Float32Array(total * 3), nrm2 = new Float32Array(total * 3), uv2 = new Float32Array(total * 2), j2 = new Uint16Array(total * 4), w2 = new Float32Array(total * 4);
   pos2.set(P); nrm2.set(N); uv2.set(L.uv); j2.set(L.joints); w2.set(L.weights);
+  // FIT-LEGS: the pelvis of the base mesh between the legs (the seat and the fork) stays as skin geometry, but its atlas charts hold the crotch patch (dark, with belt and fly texels):
+  // it showed as a pouch under the waistband. Give those vertices the trouser tube's own mapping (front 0.25, back 0.75 of the thigh tile) so the cloth reads as one piece.
+  const yRe = hipY + 0.0;
+  for (let i = 0; i < n; i++) {
+    const y = P[i * 3 + 1];
+    if (drop[i] || Math.abs(P[i * 3]) > 0.075 || y < ySeat - 0.04 || y > yRe) continue;
+    const uvk = tileUv(SK_TILES.thigh, P[i * 3 + 2] < czTop ? 0.25 : 0.75, Math.min(0.98, (y - kneeY) / (chartTop - kneeY)));
+    uv2[i * 2] = uvk[0]; uv2[i * 2 + 1] = uvk[1];
+    // shade it like the front or back of the tubes beside it: a wall facing front or back, tilted outward a little toward the legs
+    const fz = P[i * 3 + 2] < czTop ? -1 : 1, nx = P[i * 3] * 4, nl = Math.hypot(nx, 1);
+    nrm2[i * 3] = nx / nl; nrm2[i * 3 + 1] = 0; nrm2[i * 3 + 2] = fz / nl;
+  }
   pos2.set(out.pos, n * 3); nrm2.set(out.nrm, n * 3); uv2.set(out.uv, n * 2); j2.set(out.jnt, n * 4); w2.set(out.wgt, n * 4);
+  if (dbg === '2') { const r2: number[] = []; for (let t = 0; t < rest.length; t += 3) { const a = rest[t], b = rest[t + 1], c = rest[t + 2]; if (Math.max(Math.abs(P[a * 3]), Math.abs(P[b * 3]), Math.abs(P[c * 3])) < 0.06 && P[a * 3 + 1] < hipY && P[b * 3 + 1] < hipY && P[c * 3 + 1] < hipY) continue; r2.push(a, b, c); } rest.length = 0; rest.push(...r2); }
   const idx = new Uint32Array(rest.length + out.idx.length);
   idx.set(rest); for (let i = 0; i < out.idx.length; i++) idx[rest.length + i] = out.idx[i] + n;
   const lod = compact(pos2, nrm2, uv2, j2, w2, idx);

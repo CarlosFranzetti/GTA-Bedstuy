@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { bodyBuildOf } from '@/entities/models/pedBodyTypes';
 import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import { buildMhPedModel, clearPeople, parseShape, registerShape, shapeByName } from '@/entities/models/pedMesh';
@@ -88,7 +89,8 @@ describe('arm angle before and after', () => {
       expect(a.stand.flex, id + ' standing forearm bend').toBeLessThan(35);
       expect(a.walk.flexLo, id + ' walking elbow never locked straight').toBeGreaterThan(12);
       expect(a.stand.out, id + ' upper arm a few degrees clear of the body').toBeGreaterThan(3);
-      expect(a.stand.out, id + ' upper arm not held out').toBeLessThan(18);
+      // round 3 (BASE): a heavy trunk from the source grid holds the arms out, as on a heavy person: +1.5 deg per BMI point over 25
+      expect(a.stand.out, id + ' upper arm not held out').toBeLessThan(18 + 1.5 * Math.max(0, bodyBuildOf(PED_SPECS.find((q) => q.id === id)!).bmi - 25));
     }
     if (process.env.POSE_OUT) (await nodeFs()).writeFileSync(process.env.POSE_OUT, rows.join('\n'));
   }, 120000);

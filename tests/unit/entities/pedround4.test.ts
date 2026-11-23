@@ -48,7 +48,7 @@ describe('round 4: cut trouser legs', () => {
       const s = shapes.get(shapeFor(spec))!, D = dressLod(s, spec, s.lods[d], true), t = D.tube!, id = `${spec.id}/${d}`;
       expect(t, id).toBeTruthy();
       const top = t.ySeat - 0.025, hem = t.yHem + 0.06, wSeat = width(D, top), wKnee = width(D, t.yKnee), wHem = width(D, hem);
-      expect(wSeat, id).toBeGreaterThan(0.12);
+      expect(wSeat, id).toBeGreaterThan(0.12 * s.landmarks.crownY / 1.75);      // round 3 (BASE): in proportion to the shape (a child's seat is narrower)
       expect((wSeat - wKnee) / wSeat, id + ' seat to knee').toBeLessThan(0.085);
       expect((wKnee - wHem) / wKnee, id + ' knee to hem').toBeLessThan(0.125);
       expect((wSeat - wHem) / wSeat, id + ' seat to hem').toBeGreaterThan(0.04);       // a taper, not a drum

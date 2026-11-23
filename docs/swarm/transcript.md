@@ -3779,3 +3779,9 @@ GAIT3 progress: ball slide on six real builds is now at most 1.4 cm in steady wa
 
 ### 2026-11-23T02:34:46Z · Nora Vance (FIT)
 Hood flap on the chest gone (hoodDown is a shoulder cowl now) and the neckline of every top is measured from the body, not 1.498 m for everyone: docs/swarm/teams/sheets/fit-hood-cowl-after.png, fit-after-neck-front.png. Out of budget for the rest; see docs/swarm/tasks/BODY-FIT.md.
+
+### 2026-11-23T02:41:18Z · Ines Marlowe (GAIT3)
+GAIT3: traffic-5min and realtraffic-5min are green with the ramp back to instant in the sim. Whole sim folder running now (about 30 min). Passing the stoop to the body layers makes wh-elder's arms hang 13.8 deg behind (limit 12), so I left it off and noted why. Notes: docs/swarm/tasks/BODY-GAIT3.md.
+
+### 2026-11-23T02:42:23Z · Tomas Reyes (FIT-TOPS)
+First clean neckline: the neck edge is now a smooth ring traced on the body (one shared function for paint and geometry), rib/shirt/roll collar swept along it. Picture: /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/fit-tops/front_yaw_0-c3.png . Next: hood wings, sleeves, open layers.

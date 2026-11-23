@@ -141,7 +141,7 @@ describe('shipped people glbs', () => {
       expect(s.lods.mid.index.length / 3).toBeGreaterThan(800); expect(s.lods.mid.index.length / 3).toBeLessThanOrEqual(1250);
       expect(s.lods.far.index.length / 3).toBeGreaterThan(250); expect(s.lods.far.index.length / 3).toBeLessThanOrEqual(450);
       const b = new THREE.Box3().setFromArray(s.lods.hi.position);
-      expect(b.min.y, s.name).toBeGreaterThan(-0.02); expect(b.min.y).toBeLessThan(0.04);   // the skin's own feet are decimated to almost nothing (the shoes replace them)
+      expect(b.min.y, s.name).toBeGreaterThan(-0.02); expect(b.min.y, s.name).toBeLessThan(0.04);   // the skin's own feet are decimated to almost nothing (the shoes replace them)
       expect(b.max.y, s.name).toBeCloseTo(s.height, 1);
       // the nose / toes point to -z: the front extends further than the back at head height
       let zmin = 0;
@@ -173,7 +173,7 @@ describe('shipped people glbs', () => {
       expect(m.triangles).toBeGreaterThan(2500);
       expect(m.triangles).toBeLessThan(7400);   // FACES4: +680 for the two eye patches, -350 skin triangles dropped under them (7000 before). FACES: close-level head 3.2k, so // ~3.9k skin (head 1.5k, hands 0.7k, shoulders 0.4k, rest 1.25k) + shoes, hems, cuffs + hair / hat / hood volumes
       const box = new THREE.Box3().setFromObject(m.group);
-      expect(box.max.y).toBeGreaterThan(1.4); expect(box.max.y).toBeLessThan(2.1);
+      expect(box.max.y).toBeGreaterThan(PED_SPECS[v].age === 'kid' ? 1.2 : 1.4); expect(box.max.y).toBeLessThan(2.1);      // round 3 (BASE): children are their own 1.32 to 1.34 m shapes
     }
   }, 180000);   // FACES4: every variant now also builds its eye patch (about 0.1 s each); on a loaded box the 30 s default timed out
 

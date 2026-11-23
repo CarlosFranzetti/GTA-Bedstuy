@@ -105,7 +105,7 @@ export const SHAPES = {
  * The far LOD ignores regions (one global pass to `body`).
  */
 export const REGION_BUDGET = {
-  hi: { head: 3200, hands: 560, feet: 30, shoulders: 420, body: 1100 },
+  hi: { head: 3200, hands: 560, feet: 40, shoulders: 420, body: 1100 },
   mid: { head: 400, hands: 110, feet: 20, shoulders: 110, body: 480 },
   far: { head: 0, hands: 0, feet: 0, shoulders: 0, body: 400 },
 };

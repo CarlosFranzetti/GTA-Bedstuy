@@ -234,3 +234,104 @@ export function swingSkirt(g: BufferGeometry, yTop: number, yHem: number): Buffe
   g.setAttribute('skinIndex', new BufferAttribute(si, 4)); g.setAttribute('skinWeight', new BufferAttribute(sw, 4));
   return g;
 }
+
+
+// ---------------------------------------------------------------- FIT-TOPS: the neckline as a ring
+
+/** a point on the neckline curve of the dressed body, with the surface normal there */
+export interface NeckPoint { p: [number, number, number]; n: [number, number, number]; /** vertex of the body that skins it */ v: number }
+
+/**
+ * The neckline as a closed curve ON the dressed body: the zero line of f = y - fn(x, z) cut through the triangles (the same function the skin painter uses for the painted edge, so the ring lies
+ * exactly where the paint ends). For each of `seg` rays round the loop's centre the nearest crossing is taken, so the curve is smooth by construction (one point per angle) whatever the
+ * triangles look like. Returns null if the body has no such loop.
+ */
+export function necklineLoop(L: MhLod, pos: ArrayLike<number>, nrm: ArrayLike<number>, fn: (x: number, z: number) => number, seg: number, yLo: number, yHi: number): { pts: NeckPoint[]; c: { cx: number; cz: number } } | null {
+  const I = L.index, n = pos.length / 3, f = new Float32Array(n);
+  for (let i = 0; i < n; i++) f[i] = pos[i * 3 + 1] - fn(pos[i * 3], pos[i * 3 + 2]);
+  type Seg = { a: number[]; b: number[]; na: number[]; nb: number[]; va: number; vb: number };
+  const segs: Seg[] = [];
+  for (let t = 0; t < I.length; t += 3) {
+    const v = [I[t], I[t + 1], I[t + 2]];
+    if (v.every((q) => pos[q * 3 + 1] < yLo || pos[q * 3 + 1] > yHi)) continue;
+    const hit: Array<{ p: number[]; n: number[]; v: number }> = [];
+    for (let e = 0; e < 3; e++) {
+      const p = v[e], q = v[(e + 1) % 3];
+      if ((f[p] > 0) === (f[q] > 0)) continue;
+      const u = f[p] / (f[p] - f[q]);
+      hit.push({ p: [0, 1, 2].map((k) => pos[p * 3 + k] + (pos[q * 3 + k] - pos[p * 3 + k]) * u), n: [0, 1, 2].map((k) => nrm[p * 3 + k] + (nrm[q * 3 + k] - nrm[p * 3 + k]) * u), v: u < 0.5 ? p : q });
+    }
+    if (hit.length === 2) segs.push({ a: hit[0].p, b: hit[1].p, na: hit[0].n, nb: hit[1].n, va: hit[0].v, vb: hit[1].v });
+  }
+  if (segs.length < 8) return null;
+  let cx = 0, cz = 0; for (const s of segs) { cx += s.a[0] + s.b[0]; cz += s.a[2] + s.b[2]; }
+  cx /= segs.length * 2; cz /= segs.length * 2;
+  const pts: NeckPoint[] = [];
+  for (let j = 0; j < seg; j++) {
+    const a = (j / seg) * TAU, dx = Math.cos(a), dz = -Math.sin(a);
+    let best = Infinity, bs: Seg | null = null, bu = 0;
+    for (const s of segs) {
+      const ex = s.b[0] - s.a[0], ez = s.b[2] - s.a[2], den = dx * ez - dz * ex;
+      if (Math.abs(den) < 1e-12) continue;
+      const wx = s.a[0] - cx, wz = s.a[2] - cz, tt = (wx * ez - wz * ex) / den, u = (wx * dz - wz * dx) / den;
+      if (tt >= 0 && u >= -1e-6 && u <= 1 + 1e-6 && tt < best) { best = tt; bs = s; bu = u; }
+    }
+    if (!bs) return null;
+    const lerp = (a0: number[], b0: number[]): [number, number, number] => [a0[0] + (b0[0] - a0[0]) * bu, a0[1] + (b0[1] - a0[1]) * bu, a0[2] + (b0[2] - a0[2]) * bu];
+    const nn = lerp(bs.na, bs.nb), l = Math.hypot(nn[0], nn[1], nn[2]) || 1;
+    pts.push({ p: lerp(bs.a, bs.b), n: [nn[0] / l, nn[1] / l, nn[2] / l], v: bu < 0.5 ? bs.va : bs.vb });
+  }
+  return { pts, c: { cx, cz } };
+}
+
+/** collar profile: [distance along the surface from the neckline (+ toward the head), lift off the surface, vertical part of the normal] */
+export type CollarStyle = 'rib' | 'roll' | 'shirt' | 'turtle';
+export const COLLAR_PROFILES: Record<CollarStyle, Array<[number, number, number]>> = {
+  rib: [[-0.017, -0.001, -0.2], [-0.013, 0.0035, -0.3], [-0.006, 0.0050, 0], [0.006, 0.0050, 0], [0.013, 0.0035, 0.3], [0.017, -0.001, 0.2]],
+  roll: [[-0.010, -0.001, -0.2], [-0.006, 0.0028, -0.3], [0, 0.0036, 0], [0.006, 0.0028, 0.3], [0.010, -0.001, 0.2]],
+  shirt: [[-0.014, -0.001, -0.2], [-0.008, 0.0035, -0.3], [0.004, 0.0075, 0], [0.020, 0.0130, 0.1], [0.030, 0.0100, 0.5], [0.032, 0.0020, 0.4]],
+  turtle: [[-0.014, -0.001, -0.2], [-0.010, 0.0040, -0.3], [0.010, 0.0065, 0], [0.032, 0.0070, 0], [0.050, 0.0060, 0.2], [0.056, 0.0020, 0.6]],
+};
+
+/** the rows of the collar: the profile swept along the neckline loop; `scale` stretches it to a smaller or larger head */
+export function collarRows(pts: NeckPoint[], style: CollarStyle, scale: number, c: { cx: number; cz: number }): Array<Array<{ p: [number, number, number]; n: [number, number, number]; up: number; v: number }>> {
+  const prof = COLLAR_PROFILES[style], m = pts.length;
+  // surface direction toward the head at each point: world up flattened into the tangent plane (falls back to inward when the surface lies flat)
+  const dirs = pts.map((q, j) => {
+    const a = pts[(j + m - 1) % m].p, b = pts[(j + 1) % m].p, T = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], tl = Math.hypot(T[0], T[1], T[2]) || 1;
+    T[0] /= tl; T[1] /= tl; T[2] /= tl;
+    let d = [0, 1, 0]; const un = d[1] * q.n[1], ut = d[1] * T[1];
+    d = [d[0] - un * q.n[0] - ut * T[0], d[1] - un * q.n[1] - ut * T[1], d[2] - un * q.n[2] - ut * T[2]];
+    let dl = Math.hypot(d[0], d[1], d[2]);
+    if (dl < 0.35) { d = [c.cx - q.p[0], 0, c.cz - q.p[2]]; const du = d[0] * q.n[0] + d[2] * q.n[2]; d = [d[0] - du * q.n[0], -du * q.n[1], d[2] - du * q.n[2]]; dl = Math.hypot(d[0], d[1], d[2]) || 1; }
+    return [d[0] / dl, d[1] / dl, d[2] / dl];
+  });
+  return prof.map(([s, o, up]) => pts.map((q, j) => {
+    const d = dirs[j], flat = Math.min(1, Math.max(0, (q.n[1] - 0.35) / 0.5)), ss = s * scale * (1 - 0.75 * flat), oo = o * scale;      // on the flat top of the shoulder the tangent plane leaves the body: the band narrows there
+    return { p: [q.p[0] + d[0] * ss + q.n[0] * oo, q.p[1] + d[1] * ss + q.n[1] * oo, q.p[2] + d[2] * ss + q.n[2] * oo] as [number, number, number], n: q.n, up, v: q.v };
+  }));
+}
+
+/** sweeps `rows` (from collarRows) into one closed ring strip; each vertex takes the skin weights of the body vertex it lies on, so the collar moves with the neck and shoulders */
+export function addCollarStrip(m: StripMesh, rows: ReturnType<typeof collarRows>, L: MhLod, uv: (u: number, row: number) => [number, number]): void {
+  const base = m.count, seg = rows[0].length, S = seg + 1;
+  rows.forEach((row, i) => {
+    for (let j = 0; j <= seg; j++) {
+      const q = row[j % seg], k = Math.sqrt(Math.max(0, 1 - q.up * q.up)), nn: [number, number, number] = [q.n[0] * k, q.n[1] * k + q.up, q.n[2] * k];
+      const jn: number[] = [], wt: number[] = [];
+      for (let b = 0; b < 4; b++) { jn.push(L.joints[q.v * 4 + b]); wt.push(L.weights[q.v * 4 + b]); }
+      m.vertex(q.p, nn, uv(j / seg, i), jn, wt);
+    }
+  });
+  let flip = false;
+  if (rows.length > 1) {
+    const a = base + Math.floor(seg / 8), b = a + 1, c = a + S, p = (v: number): number[] => [m.pos[v * 3], m.pos[v * 3 + 1], m.pos[v * 3 + 2]];
+    const A = p(a), B = p(b), C = p(c), e1 = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], e2 = [C[0] - A[0], C[1] - A[1], C[2] - A[2]];
+    const gn = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    flip = gn[0] * m.nrm[a * 3] + gn[1] * m.nrm[a * 3 + 1] + gn[2] * m.nrm[a * 3 + 2] < 0;
+  }
+  for (let i = 0; i + 1 < rows.length; i++) for (let j = 0; j < seg; j++) {
+    const a = base + i * S + j, b = a + 1, c = a + S, d = c + 1;
+    if (flip) m.idx.push(a, c, b, b, c, d); else m.idx.push(a, b, c, b, d, c);
+  }
+}
