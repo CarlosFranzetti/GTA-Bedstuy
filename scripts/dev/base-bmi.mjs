@@ -12,6 +12,6 @@ const at = (shape, w, m) => {
 };
 for (const name of (process.argv[2] ?? 'wh_m,wh_f,ba_m,ba_f,ea_m,wh_m_old,wh_f_old,teen_a,teen_b').split(',')) {
   const s = SHAPES[name];
-  const r = [[-1, 0], [0, 0], [1, 0], [1.4, 0], [0, -1], [0, 1], [1, -1], [1, 1], [-1, 1]].map(([w, m]) => `${w}/${m}:${at(s, w, m).toFixed(1)}`);
+  const r = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1], [1.4, 0], [1.4, -1]].map(([w, m]) => `${w}/${m}:${at(s, w, m).toFixed(1)}`);
   console.log(name.padEnd(9), r.join('  '));
 }
