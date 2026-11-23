@@ -58,7 +58,7 @@ describe('street population (pedRoster)', () => {
     expect(shapeFor(PED_SPECS[pedVariantIndex('hj-man')])).toBe('wh_m');
     expect(shapeFor(PED_SPECS[pedVariantIndex('wh-elder')])).toBe('wh_m_old');
     expect(shapeFor(PED_SPECS[pedVariantIndex('mx-androgynous')])).toBe('mx_x');
-    expect(shapeFor(PED_SPECS[pedVariantIndex('ea-kid')])).toBe('teen_b');
+    expect(shapeFor(PED_SPECS[pedVariantIndex('ea-kid')])).toBe('kid_a');      // round 3 (BASE): children are the source's child shapes (kid_a boy, kid_b girl), no longer a scaled teenager
     const shapes = new Set(PED_SPECS.slice(0, CIVILIAN_COUNT).map((s) => shapeFor(s)));
     expect(shapes.size).toBeGreaterThanOrEqual(14);
   });

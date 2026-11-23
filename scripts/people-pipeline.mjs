@@ -352,7 +352,7 @@ function descendants(skel, root) {
 }
 
 /** BASE (round 3): how the A pose is lowered. Degrees of the turn given to the clavicle (the rest goes to the upper arm, about the shoulder joint). */
-export const HANG = { clavicleDeg: 3, out: 0.012 };
+export const HANG = { clavicleDeg: 3, out: 0.012, thighInDeg: Number(process.env.THIGH_IN ?? 0) };
 
 // ------------------------------------------------------------------ the shape
 
@@ -422,9 +422,13 @@ function hangWithSkeleton(pos, src, J, rig) {
     set(`lowerarm01.${side}`, m2);
     rig['shoulder' + side] = xfApply(m1, H('upperarm01')); rig['elbow' + side] = e2; rig['wrist' + side] = xfApply(m2, H('wrist'));
     const hip = H('upperleg01'), ank = H('foot');
-    const ml = xfTurn(ID, Z, -Math.atan2(ank[0] - hip[0], -(ank[1] - hip[1])), hip);
+    const a0 = -Math.atan2(ank[0] - hip[0], -(ank[1] - hip[1])), adduct = sg * HANG.thighInDeg * DEG;
+    // the thigh turns a little further in (the femur's natural angle: the thighs meet at the top) and the shin turns back by as much, so the ankle stays under the hip
+    const ml = xfTurn(ID, Z, a0 + adduct, hip);
     set(`upperleg01.${side}`, ml);
-    rig['hip' + side] = hip; rig['knee' + side] = xfApply(ml, H('lowerleg01')); rig['ankle' + side] = xfApply(ml, ank);
+    const kn = xfApply(ml, H('lowerleg01')), ms = xfTurn(ml, Z, -adduct, kn);
+    set(`lowerleg01.${side}`, ms);
+    rig['hip' + side] = hip; rig['knee' + side] = kn; rig['ankle' + side] = xfApply(ms, ank);
   }
   skinDQ(pos, src.vb, xf);
 }

@@ -2,7 +2,7 @@ import { faceDebug } from '@/entities/models/pedHead';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { BODY_TYPES, bodyTypeId, type BodyTypeId } from '@/entities/models/pedBodyTypes';
-import { dressLod, jointFor, parseShape } from '@/entities/models/pedMesh';
+import { dressLod, jointFor, parseShape, bodyStack, buildDebug } from '@/entities/models/pedMesh';
 import { PED_SPECS } from '@/textures/painters/ped';
 
 describe('body types', () => {
@@ -25,8 +25,13 @@ describe('body types', () => {
     expect(bodyTypeId({ id: 'x', build: 'avg', sex: 'm', age: 'kid', role: 'civilian' })).toBe('kid');
   });
   it('joints follow the type: shoulders move out with the shoulder width, legs with the hips, the spine stays put', () => {
+    // round 3 (BASE): by default the build comes from the source grid and its joint moves (pedMesh.gridJoint); the old factors move joints only with VITE_BODY_OLD=1
+    expect(jointFor('shoulderL', [-0.18, 1.4, 0], BODY_TYPES.broad)[0]).toBe(-0.18);
+    expect(jointFor('hipL', [-0.09, 0.95, 0], BODY_TYPES.pear)[0]).toBe(-0.09);
+    bodyStack.arms = true; bodyStack.legs = true;
     expect(jointFor('shoulderL', [-0.18, 1.4, 0], BODY_TYPES.broad)[0]).toBeLessThan(-0.18);
     expect(jointFor('hipL', [-0.09, 0.95, 0], BODY_TYPES.pear)[0]).toBeLessThan(-0.09);
+    bodyStack.arms = false; bodyStack.legs = false;
     expect(jointFor('torso', [0, 1.1, 0], BODY_TYPES.heavy)).toEqual([0, 1.1, 0]);
   });
   it('dressing keeps the head, neck and hands bare and swells the torso of a puffer', async () => {
@@ -36,8 +41,9 @@ describe('body types', () => {
     // bare legs (shorts): the trousered legs are rebuilt as tubes (pedLegs.ts, vertices renumbered), so this per-vertex comparison uses the unchanged topology
     // FACES2: dressLod now also gives the head its own shape (pedHead.ts); this test is about the clothing, so the face morph is off here (pedhead.test.ts covers the morph)
     faceDebug.morph = false;
+    buildDebug.set(spec.id, { weight: 0, muscle: 0 });      // round 3: the build moves the skull and neck too; this test is about the clothing, so the grid centre
     const L = s.lods.hi, D = dressLod(s, { ...spec, body: 'avg', bottom: { ...spec.bottom, kind: 'shorts' as const } }, L, true);
-    faceDebug.morph = true;
+    faceDebug.morph = true; buildDebug.delete(spec.id);
     let headMoved = 0, handMoved = 0, torsoOut = 0, torsoN = 0;
     for (let i = 0; i < L.position.length / 3; i++) {
       const y = L.position[i * 3 + 1], dx = D.position[i * 3] - L.position[i * 3], dz = D.position[i * 3 + 2] - L.position[i * 3 + 2], d = Math.hypot(dx, dz);

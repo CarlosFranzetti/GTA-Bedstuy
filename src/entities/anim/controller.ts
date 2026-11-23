@@ -15,6 +15,7 @@ import { applyBodyLayers, armClearRad, makeBodyLayerState, type BodyLayerIn } fr
 import { applyRunStyle, runStyleWeight } from './runStyle';
 import { armSegments, torsoHalfWidthAt } from '../models/pedProportions';
 import type { PedModel } from '../models/pedBody';
+import { measureFeet } from './footShape';
 
 export interface PoseTarget {
   hips: THREE.Object3D; torso: THREE.Object3D; head: THREE.Object3D; rig: THREE.Object3D;
@@ -296,6 +297,10 @@ export class AnimController {
   cheap = false;
   /** tests and the showcase: false measures the clips' own foot skate with the lock off */
   footLockOn = true;
+  /** how fast the legs' pace may climb (m/s2, in the clips' proportions): 16 for the player (whose entity ramps itself), a pedestrian sets 3.4 (9 when fleeing): its position changes at once in the simulation, the soft set-off is drawn here only */
+  rampUp = 16;
+  /** how fast it may fall (m/s2): 22 for the player, a pedestrian that stops dead in the simulation lets its legs run down over a step or two */
+  rampDown = 22;
   /** 0 turns the lean into a turn off (tests); 1 is the shipped amount */
   leanGain = 1;
   /** the foot lock's weights (0 free, 1 held) for tests and the showcase */
@@ -307,7 +312,9 @@ export class AnimController {
     const t = target;
     // this body's own proportions (the bind pose of the rig): hip height, thigh, shin to the ankle, and where the head sits against the torso
     const hipY = t.legs[0].position.y, thigh = Math.max(0.2, -t.knees[0].position.y);
-    this.dims = { thigh, shin: Math.max(0.2, hipY - thigh - ANKLE_H) };
+    // this person's own shoe (the sole's depth under the ankle bone differs from a boy to a heavy man), read from the skin
+    const feet = measureFeet(t.group, t.ankles);
+    this.dims = { thigh, shin: Math.max(0.2, hipY - thigh - (feet ? (feet[0].ankleH + feet[1].ankleH) / 2 : ANKLE_H)) };
     const sy = t.group?.scale.y ?? 1;
     this.legScale = ((this.dims.thigh + this.dims.shin) * sy) / (REF.thigh + REF.shin);
     this.fp = this.dims.thigh + this.dims.shin;
@@ -321,6 +328,7 @@ export class AnimController {
     this.realDims = {
       hip: [t.legs[0].position.clone(), t.legs[1].position.clone()], knee: [t.knees[0].position.clone(), t.knees[1].position.clone()],
       ankle: [0, 1].map((i) => (t.ankles && t.ankles[i].position.length() > 0.1 ? t.ankles[i].position.clone() : V(0, -this.dims.shin, 0))) as [THREE.Vector3, THREE.Vector3], hasAnkle,
+      foot: feet ?? undefined,
     };
     this.lock = new FootLock(this.realDims);
     for (let i = 0; i < 2; i++) { // straighten the rest leg: thigh and shin both vertical, the foot's pitch unchanged
@@ -386,7 +394,7 @@ export class AnimController {
     const raw = Math.max(0, inp.speed) / this.legScale; // in the clips' proportions
     // an input that jumps (a pedestrian stopped dead, a car door) is eased: at most 16 m/s^2 up and 22 down, so the blends below never see a step
     const prevS = this.speedS;
-    this.speedS = this.speedS < 0 ? raw : this.speedS + Math.max(-22 * dt, Math.min(16 * dt, raw - this.speedS));
+    this.speedS = this.speedS < 0 ? raw : this.speedS + Math.max(-this.rampDown * dt, Math.min(this.rampUp * dt, raw - this.speedS));
     const speed = this.speedS;
     if (prevS >= 0 && dt > 0) this.accelS += ((speed - prevS) / dt - this.accelS) * Math.min(1, dt * 8);
     const g = this.gait;

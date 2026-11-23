@@ -15,8 +15,8 @@ import * as THREE from 'three';
 import { boneChannel } from './clipPack';
 
 /** the shoe against its ankle pivot: the ankle's height above the sole, and where the heel, ball and toe are along the foot (forward is -z) */
-export const FOOT = { ankleH: 0.075, heel: 0.07, ball: -0.12, toe: -0.2 };
-const SOLE_Z = [FOOT.heel, FOOT.ball, FOOT.toe];
+export const FOOT: FootDims = { ankleH: 0.075, heel: 0.07, ball: -0.12, toe: -0.2 };
+export interface FootDims { ankleH: number; heel: number; ball: number; toe: number }
 /**
  * How much of the full leg (thigh + shin) a held foot may be asked to reach: the pelvis sinks so the reach stays under REACH_NEED, and the solve never stretches past
  * REACH_SOLVE. They were 0.985 and 0.992, which made a straight standing leg bend 15 to 20 degrees (cos(10 deg) = 0.985): the standing squat. At 0.9994 the least bend is about 4 degrees.
@@ -30,6 +30,8 @@ export interface LegDims {
   ankle: [THREE.Vector3, THREE.Vector3];
   /** whether the skeleton has ankle bones (else the shoe is fixed on the shin) */
   hasAnkle: boolean;
+  /** this person's own shoe per side (footShape.ts); absent = the default FOOT */
+  foot?: [FootDims, FootDims];
 }
 
 const eul = new THREE.Euler();
@@ -50,7 +52,8 @@ export function soleRel(p: Float32Array, d: LegDims, useAnkle: boolean): number 
     v1.copy(d.ankle[s]).applyQuaternion(qLK).add(v3.copy(d.knee[s]).applyQuaternion(qL));
     const ay = v1.y;
     if (d.hasAnkle && useAnkle) qW.copy(qLK).multiply(quat(qA, p, boneChannel(('ankle' + SIDES[s]) as 'ankleL'))); else qW.copy(qLK);
-    for (const z of SOLE_Z) { v2.set(0, -FOOT.ankleH, z).applyQuaternion(qW); low = Math.min(low, ay + v2.y); }
+    const F = d.foot ? d.foot[s] : FOOT;
+    for (let k = 0; k < 3; k++) { v2.set(0, -F.ankleH, k === 0 ? F.heel : k === 1 ? F.ball : F.toe).applyQuaternion(qW); low = Math.min(low, ay + v2.y); }
   }
   return low;
 }
@@ -65,7 +68,8 @@ export function ballRel(p: Float32Array, d: LegDims, side: 0 | 1, out: number[])
   qLK.copy(qL).multiply(qK);
   v1.copy(d.ankle[side]).applyQuaternion(qLK).add(v3.copy(d.knee[side]).applyQuaternion(qL)).add(d.hip[side]);
   if (d.hasAnkle) qW.copy(qLK).multiply(quat(qA, p, boneChannel(('ankle' + SIDES[side]) as 'ankleL'))); else qW.copy(qLK);
-  v2.set(0, -FOOT.ankleH, FOOT.ball).applyQuaternion(qW);
+  const F = d.foot ? d.foot[side] : FOOT;
+  v2.set(0, -F.ankleH, F.ball).applyQuaternion(qW);
   out[0] = v1.x + v2.x; out[1] = v1.y + v2.y; out[2] = v1.z + v2.z;
 }
 
@@ -125,12 +129,13 @@ export class FootLock {
       const A = this.av.copy(d.ankle[s]).applyQuaternion(qLK).add(this.kv.copy(d.knee[s]).applyQuaternion(qL)).add(hip);
       if (d.hasAnkle) qW.copy(qLK).multiply(quat(qA, p, ao)); else qW.copy(qLK);
       // the ball of the foot is what stays put in mid-stance (the foot rolls over it; the ankle travels forward by a foot length), so it is the held point
-      this.tv.set(0, -FOOT.ankleH, FOOT.ball).applyQuaternion(qW);
+      const F = d.foot ? d.foot[s] : FOOT;
+      this.tv.set(0, -F.ankleH, F.ball).applyQuaternion(qW);
       const bx = A.x + this.tv.x, bz = A.z + this.tv.z;
       // the foot is down when its lowest sole point is (heel, ball or toe), whichever that is
       const hs = A.y + this.tv.y;
       let low = hs;
-      for (const z of [FOOT.heel, FOOT.toe]) { this.tv.set(0, -FOOT.ankleH, z).applyQuaternion(qW); low = Math.min(low, A.y + this.tv.y); }
+      for (const z of [F.heel, F.toe]) { this.tv.set(0, -F.ankleH, z).applyQuaternion(qW); low = Math.min(low, A.y + this.tv.y); }
       if (!this.held[s]) { if ((hs < 0.027 || (low < 0.012 && hs < 0.045)) && enable > 0.5) { this.held[s] = true; this.ax[s] = bx; this.az[s] = bz; } }
       else {
         // the ground moves back under the figure; a turn swings it round the figure's origin (a ground point turns the other way from the heading)

@@ -166,7 +166,7 @@ export function registerShape(s: MhShape): void { shapes.set(s.name, s); }
 /** body shape of a person: group, sex and age pick one of the shipped MakeHuman shapes (nearest when a combination is not shipped) */
 export function shapeFor(spec: PedSpec): string {
   const g = spec.group === 'hj' || !spec.group ? 'wh' : spec.group, sex = spec.sex ?? 'm', age = spec.age ?? 'adult';
-  if (age === 'kid') return shapes.has('kid_a') ? (sex === 'f' ? 'kid_b' : 'kid_a') : g === 'ea' || sex === 'f' ? 'teen_b' : 'teen_a';      // BASE (round 3): children are the source's child shapes
+  if (age === 'kid') return sex === 'f' ? 'kid_b' : 'kid_a';      // BASE (round 3): children are the source's child shapes
   if (age === 'teen') return g === 'ea' || sex === 'f' ? 'teen_b' : 'teen_a';
   if (sex === 'x') return 'mx_x';
   const dark = g === 'ba' || g === 'ca';

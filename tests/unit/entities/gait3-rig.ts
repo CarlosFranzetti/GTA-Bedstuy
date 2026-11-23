@@ -84,16 +84,17 @@ export interface Stance3 { side: number; i0: number; i1: number; slide: number; 
  * Planted = the point is within `h` of the ground and not rising (still or moving down); the stance ends when it leaves the ground or starts to rise.
  * Slide = how far the point travels over the ground (x, z) from the first planted frame to the last. Stances shorter than 3 frames are ignored.
  */
-export function stances(fr: Frame3[], pick: (p: FootPts) => THREE.Vector3[], h = 0.015): Stance3[] {
+export function stances(fr: Frame3[], pick: (p: FootPts) => THREE.Vector3[], h = 0.015, notRising = true): Stance3[] {
   const out: Stance3[] = [];
   for (let side = 0; side < 2; side++) {
     let st = -1;
     const close = (e: number): void => { if (st >= 0 && e - st >= 3) { const a = pick(fr[st].pts)[side], b = pick(fr[e].pts)[side]; out.push({ side, i0: st, i1: e, slide: Math.hypot(b.x - a.x, b.z - a.z), v: fr[Math.round((st + e) / 2)].v }); } st = -1; };
     for (let i = 0; i < fr.length; i++) {
-      const y = pick(fr[i].pts)[side].y, py = i ? pick(fr[i - 1].pts)[side].y : y, planted = y < h && y <= py + 0.0005;
+      const y = pick(fr[i].pts)[side].y, py = i ? pick(fr[i - 1].pts)[side].y : y, planted = y < h && (!notRising || y <= py + 0.0005);
       if (planted && st < 0) st = i; else if (!planted && st >= 0) close(i - 1);
     }
     if (st >= 0) st = -1;       // a stance cut off by the end of the run is dropped
+    void close;
   }
   return out.sort((a, b) => a.i0 - b.i0);
 }

@@ -1,17 +1,18 @@
 // @ts-ignore
 import { appendFileSync } from 'node:fs';
 import { describe, it, beforeAll } from 'vitest';
-import { loadShapes, buildPerson, runFrames, stances, reviewerStances, SIX } from './gait3-rig';
+import { loadShapes, buildPerson, runFrames } from './gait3-rig';
 beforeAll(async () => { await loadShapes(); });
-const f = (x: number) => (x * 100).toFixed(1);
 describe('gait3 probe', () => {
-  for (const id of SIX) it(id, () => {
-    for (const v of [1.0, 1.4, 1.9]) {
-      const p = buildPerson(id), fr = runFrames(p, () => v, 8).slice(90);
-      const miny = (k: 'meshBall' | 'meshHeel' | 'ankle') => Math.min(...fr.flatMap((q) => [q.pts[k][0].y, q.pts[k][1].y]));
-      const rv = reviewerStances(fr), bs = stances(fr, (q) => q.meshBall), bs2 = stances(fr, (q) => q.meshBall, miny('meshBall') + 0.015);
-      const rs = rv.st.map((s) => s.slide);
-      appendFileSync(process.env.P_OUT ?? '/dev/null', (`${id} v${v} scale ${p.m.group.scale.y.toFixed(3)} minBall ${f(miny('meshBall'))} minHeel ${f(miny('meshHeel'))} minAnkle ${f(miny('ankle'))} | revStances ${rs.length} meanSlide ${f(rs.reduce((a, b) => a + b, 0) / (rs.length || 1))} maxSlide ${f(Math.max(0, ...rs))} clear ${f(rv.clearance)} | ball0 n${bs.length} max ${f(Math.max(0, ...bs.map((s) => s.slide)))} | ballRel n${bs2.length} max ${f(Math.max(0, ...bs2.map((s) => s.slide)))}`) + '\n');
+  it('trace', () => {
+    const [id, t0, t1] = (process.env.P_ARGS ?? 'ba-hoodie-fade,2.4,3.4').split(',');
+    const stopAt = Number(process.env.P_STOP ?? 2.5), v0 = Number(process.env.P_V ?? 1.4);
+    const p = buildPerson(id), fr = runFrames(p, (t) => (t < stopAt ? v0 : 0), 5, 1 / 60, (c) => { c.rampUp = 16; if (process.env.P_NOSHOT) (c as any).playOnce = () => false; });
+    const L: string[] = []; let tot = [0, 0]; const rr = (n: number) => n;
+    for (let i = Math.round(Number(t0) * 60); i < Math.round(Number(t1) * 60); i += 2) {
+      const f = fr[i], b = f.pts.meshBall, w = (p.ctl as any).lock.w;
+      L.push(`${(i / 60).toFixed(2)} v${f.v} ballL y${(b[0].y * 100).toFixed(1)} z${(b[0].z * 100).toFixed(0)} w${w[0].toFixed(2)} | ballR y${(b[1].y * 100).toFixed(1)} z${(b[1].z * 100).toFixed(0)} w${w[1].toFixed(2)}`);
     }
-  }, 300000);
+    appendFileSync(process.env.P_OUT ?? '/dev/null', L.join('\n') + '\n');
+  });
 });
