@@ -261,7 +261,8 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   }
   out.pos.push(...stub.pos); out.nrm.push(...stub.nrm); out.uv.push(...stub.uv); out.jnt.push(...stub.jnt); out.wgt.push(...stub.wgt);
   const tubeIdx = out.idx.length, stubBase = out.count - stub.count;
-  for (const i of stub.idx) out.idx.push(i + stubBase);
+  // FIT-LEGS: the re-charted thigh stub (old leg triangles above the cut) is replaced by the seat rows of the tubes; kept only when there are none
+  if (!seatYs.length) for (const i of stub.idx) out.idx.push(i + stubBase);
   void tubeIdx;
   // assemble: kept old vertices (with the join adjustment) + the tubes
   const m = out.count, total = n + m;
