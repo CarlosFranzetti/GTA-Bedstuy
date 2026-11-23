@@ -139,7 +139,8 @@ describe('PEOPLE6 wardrobe: geometry budgets (hi < 5,600, mid < 2,000, far < 400
       const v = registerSpec(sp), m = buildMhPedModel(materials, new Rng(i + 1), { variant: v })!;
       const [hi, mid, far] = levels(m.group);
       worstHi = Math.max(worstHi, hi); worstMid = Math.max(worstMid, mid);
-      if (hi >= 7300 || mid >= 2000 || far > 400)      // 23 Nov, lead's decision: the close level may carry a collar band and trouser seat rows (about 4 percent more); mid and far are unchanged bad.push(`${sp.id} ${hi}/${mid}/${far}`);
+      // 23 Nov, lead's decision: the close level may carry a collar band and trouser seat rows (about 4 percent more); mid and far are unchanged
+      if (hi >= 7300 || mid >= 2000 || far > 400) bad.push(`${sp.id} ${hi}/${mid}/${far}`);
     }
     setWardrobeSeason('mild');
     expect(bad, `worst hi ${worstHi}, mid ${worstMid}`).toEqual([]);
