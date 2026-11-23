@@ -15,9 +15,12 @@ import { registerSpec } from '@/textures/painters/ped';
 import { buildPerson, loadPeople, dressLod } from '@/entities/models/pedMesh';
 import * as PM from '@/entities/models/pedMesh';
 import { setPeopleMode } from '@/textures/painters/pedMode';
+const q = new URLSearchParams(location.search);
+// &stack=none | all | -arms,-torso | +legs (start from none) : the run-time deformers of pedMesh.bodyStack
+if (q.get('stack')) { const st = q.get('stack').split(','); for (const k of PM.BODY_DEFORMERS) { if (st[0] === 'none' || st[0].startsWith('+')) PM.bodyStack[k] = false; if (st[0] === 'all') PM.bodyStack[k] = true; }
+  for (const e of st) { if (e.startsWith('-')) PM.bodyStack[e.slice(1)] = false; if (e.startsWith('+')) PM.bodyStack[e.slice(1)] = true; } }
 await loadPeople();
 setPeopleMode('skin');
-const q = new URLSearchParams(location.search);
 const W = Number(q.get('w') ?? 1400), H = Number(q.get('h') ?? 720);
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H); document.body.appendChild(renderer.domElement);

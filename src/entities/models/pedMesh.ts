@@ -269,16 +269,31 @@ const gauss = (d: number, w: number): number => Math.exp(-(d / w) * (d / w));
 const wsumAt = (L: MhLod, i: number, set: readonly number[]): number => { let t = 0; for (let k = 0; k < 4; k++) if (set.includes(L.joints[i * 4 + k])) t += L.weights[i * 4 + k]; return t; };
 const W_TORSO = [2], W_HIPS = [1], W_ARMS = [4, 5, 6, 7], W_LEGS = [8, 9, 10, 11];
 
+/**
+ * BASE (round 3): the run-time deformers that shape a body after the source's own build morphs, each switchable. Round 3 retires the shape-making ones
+ * (the build comes from MakeHuman's muscle by weight grid); `VITE_BODY_OLD=1` restores the whole old stack for comparison sheets. Harnesses may flip
+ * entries before building (scripts/dev/base-sheet.html `stack=`); geometry is cached, so flip before the first build.
+ *   torso   width profile of the trunk (hips, waist, chest, shoulders factors)      wedge  the waist pulled in (bt.waist)
+ *   shtop   trapezius slope and the rounded shoulder corner                          depth  chest depth, belly forward, back and seat
+ *   hipx    hips widen the top of the thigh                                          arms   arm shift with the shoulders, thickness, slab, ARM_IN
+ *   legs    legX (legs out with the hips) and legProfile (thickness along the leg)   flatten  flattenTorso (smooths pecs and blades under clothes)
+ *   mass    pedMass girth fit                                                        r2     round-2 hooks (pedTorso, pedLimbs, pedAges)
+ */
+export const BODY_DEFORMERS = ['torso', 'wedge', 'shtop', 'depth', 'hipx', 'arms', 'legs', 'flatten', 'mass', 'r2'] as const;
+export type BodyDeformer = typeof BODY_DEFORMERS[number];
+const bodyOld = (): boolean => (import.meta.env?.VITE_BODY_OLD ?? '') === '1';
+export const bodyStack: Record<BodyDeformer, boolean> = Object.fromEntries(BODY_DEFORMERS.map((k) => [k, true])) as Record<BodyDeformer, boolean>;
+void bodyOld;
 /** where the joints go for a body type: shoulders and arms follow the shoulder width, legs the hip width */
 export function jointFor(name: string, p: number[], bt: BodyType, pivot?: number[]): number[] {
-  if (/^(shoulder|elbow|wrist)/.test(name)) return leanPoint([p[0] * bt.shoulders - Math.sign(p[0] || 1) * ARM_IN * (name.startsWith('elbow') ? 0.5 : name.startsWith('wrist') ? 1 : 0), p[1], p[2]], bt, pivot);
+  if (/^(shoulder|elbow|wrist)/.test(name)) return leanPoint(bodyStack.arms ? [p[0] * bt.shoulders - Math.sign(p[0] || 1) * ARM_IN * (name.startsWith('elbow') ? 0.5 : name.startsWith('wrist') ? 1 : 0), p[1], p[2]] : p, bt, pivot);
   if (name === 'head') return leanPoint(p, bt, pivot);
   if (/^(hip[LR]|knee|ankle)/.test(name)) return [p[0] * legX(bt), p[1], p[2]];
   return p;
 }
 /** the arm hangs a little inward from the deltoid to the hand (m, at the wrist): the shoulder keeps its width, the waist and hips read narrower */
 const ARM_IN = 0.014;
-const legX = (bt: BodyType): number => 1 + (bt.hips - 1) * 0.8;
+const legX = (bt: BodyType): number => (bodyStack.legs ? 1 + (bt.hips - 1) * 0.8 : 1);
 /** forward lean of the upper body about the waist (rad): the stoop of an older person is part of the body, so it shows in any pose */
 export const leanOf = (bt: BodyType): number => -bt.stoop * 0.85;
 function leanPoint(p: number[], bt: BodyType, pivot?: number[]): number[] {
@@ -435,12 +450,12 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
     // torso: one continuous width profile (hips, waist, chest, shoulders) so nothing pinches; weight sits at the belly, the chest and the back
     const sum = (bt.hips - 1) * gauss(y - (hipY + 0.02), 0.16) + (fWaist - 1) * gauss(y - yWaist, 0.13) + (bt.chest - 1) * 0.8 * gauss(y - yChest, 0.12)
       + (bt.shoulders - 1) * sstep(yChest - 0.02, shY, y) * (1 - sstep(shY + 0.02, neckY, y));
-    x *= 1 + sum * torsoLike;
+    if (bodyStack.torso) x *= 1 + sum * torsoLike;
     // the wedge: the waist comes in (men more than women); the shoulder line slopes from the neck down to the deltoid and the corner is rounded off
     // (the base mesh has a flat, wide trapezius that reads as a padded box once it is dressed)
-    if (waistK < 1) x *= 1 - (1 - waistK) * gauss(y - (yWaist + 0.03 * K), 0.11 * K) * torsoLike;
+    if (waistK < 1 && bodyStack.wedge) x *= 1 - (1 - waistK) * gauss(y - (yWaist + 0.03 * K), 0.11 * K) * torsoLike;
     const shTop = sstep(shY - 0.07 * K, shY + 0.03 * K, y) * (1 - sstep(neckY - 0.01, neckY + 0.06, y)) * Math.min(1, wT + wA);
-    if (shTop > 0) {
+    if (shTop > 0 && bodyStack.shtop) {
       const xo = armX * bt.shoulders, ax = Math.abs(x), reach = sstep(0.07, xo + 0.01, ax), corner = sstep(xo - 0.035, xo + 0.035, ax);
       // BODY (second shift): the trapezius slopes from the neck to the shoulder point (men more, women less) and the deltoid cap is round, not a squared corner
       const slope = spec.sex === 'f' ? 0.030 : 0.042, cap = spec.sex === 'f' ? 0.015 : 0.02;
@@ -448,13 +463,15 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
       x -= sx * 0.026 * corner * K * sstep(shY - 0.02, shY + 0.04, y + 0.03) * shTop;
     }
     const front = z < cz0;
+    if (bodyStack.depth) {
     z = cz0 + (z - cz0) * (1 + (bt.chest - 1) * (front ? 0.9 : 0.5) * gauss(y - yChest, 0.13) * torsoLike);
     if (front) z -= (bt.belly + 0.012) * gauss(y - yBelly, 0.12) * Math.min(1, wT + wH) * Math.max(0, 1 - (Math.abs(x) / 0.25) ** 2);
     else z += Math.max(0, bt.hips - 1) * 0.1 * gauss(y - (hipY - 0.03), 0.1) * Math.min(1, wH + wL) + Math.max(0, bt.belly) * 0.25 * gauss(y - (yChest - 0.05), 0.12) * torsoLike;   // back and seat
+    }
     // the hips and the top of the thigh follow the hips
-    if (wL > 0.01) x *= 1 + (bt.hips - 1) * 0.6 * gauss(y - (hipY - 0.04), 0.1) * wL;
+    if (wL > 0.01 && bodyStack.hipx) x *= 1 + (bt.hips - 1) * 0.6 * gauss(y - (hipY - 0.04), 0.1) * wL;
     // arms: the whole arm shifts out with the shoulder; the upper arm carries the thickness, the forearm tapers
-    if (wA > 0.01) {
+    if (wA > 0.01 && bodyStack.arms) {
       const fx = 1 + (bt.shoulders - 1) * wA;
       const t = sstep(shY, wrY, y), axX = sx * (armX + (wristX - armX) * (1 - t)) * bt.shoulders;
       x -= sx * ARM_IN * sstep(shY - 0.03, wrY, y) * wA;
@@ -467,7 +484,7 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
       z -= 0.014 * K * sstep(elY + 0.03, elY - 0.08, y) * wA;
     }
     // legs: out with the hips, thickness about the leg axis following the profile
-    if (wL > 0.01) {
+    if (wL > 0.01 && bodyStack.legs) {
       const axX = sx * hipX * legK, kk = 1 + (legProfile(Math.min(1, Math.max(0, (y - anY) / (hipY - anY))) ) - 1) * wL, zc = R.kneeL[2];
       x = axX + (x * (1 + (legK - 1) * wL) - axX) * kk;
       z = zc + (z - zc) * kk;
@@ -475,9 +492,9 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
     pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
   }
   if (faceDebug.morph) { const pre = Float32Array.from(pos); morphHead(s, L, pos, faceTraits(spec)); for (let i = 0; i < pos.length; i++) pre[i] = pos[i] - pre[i]; lastFaceDelta = pre; }       // FACES2: a face of their own (pedHead.ts); the same parameters at every level
-  flattenTorso(L, pos, hipY + 0.02, shY + 0.01, cz0, 1);
-  massApply(s, spec, L, pos);
-  applyTorso(s, spec, L, pos); applyLimbs(s, spec, L, pos); applyAges(s, spec, L, pos);   // body team round 2: anatomy passes (pedTorso.ts, pedLimbs.ts, pedAges.ts), in this order, on every level
+  if (bodyStack.flatten) flattenTorso(L, pos, hipY + 0.02, shY + 0.01, cz0, 1);
+  if (bodyStack.mass) massApply(s, spec, L, pos);
+  if (bodyStack.r2) { applyTorso(s, spec, L, pos); applyLimbs(s, spec, L, pos); applyAges(s, spec, L, pos); }   // body team round 2: anatomy passes (pedTorso.ts, pedLimbs.ts, pedAges.ts), in this order, on every level
   let normal = shadeNormals(L, pos);
   const covered = isCoveredLeg(spec.bottom.kind), detail: LegDetail = L === s.lods.hi ? 'hi' : L === s.lods.mid ? 'mid' : L === s.lods.far ? 'far' : L.index.length / 3 > 2200 ? 'hi' : L.index.length / 3 > 700 ? 'mid' : 'far';
   if (dress) {

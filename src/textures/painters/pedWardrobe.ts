@@ -463,10 +463,10 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
     const tId = ID ? ID.top : pickG(rng, BASE_TOPS, who, (id) => topBottom(id, bId, age) * decadeW(id, age) * (BASE_TOPS[id].only ? 0.3 : 1))!;
     botId = bId; topId = tId;
     const bg = BOTTOMS[bId], tg = BASE_TOPS[tId];
-    const bc = WAY ? WAY.bottom : colour(rng, bg.c);
+    const bc = WAY?.bottom ?? colour(rng, bg.c);
     botSpec = { kind: 'jeans', color: bc, trim: bg.tr ? colour(rng, bg.tr) : shade(bc, 0.72), ...bg.p } as Bottom;
     if (bg.p.cut === 'long' || bg.p.cut === 'run') botSpec.trim = distinct(rng, 'trackTrim', [bc]);
-    const tc = WAY ? WAY.top : distinct(rng, tg.c, [bc], 50);
+    const tc = WAY?.top ?? distinct(rng, tg.c, [bc], 50);
     const tt = tg.tr ? colour(rng, tg.tr) : shade(tc, 0.72);
     topSpec = { kind: 'tee', color: tc, trim: tt, sleeves: 'short', print: 'none', printColor: '#ffffff', ...tg.p } as Top;
     hatBrought = tg.hat;
@@ -491,6 +491,7 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
         if (lId === 'cardigan' || lId === 'cardiganOpen' || lId === 'trackJacket' || lId === 'pufferShort' || lId === 'pufferLong' || lId === 'parka') delete topSpec.open;
         if (lId === 'cardiganOpen') topSpec.open = true;
         if (WAY?.tie) topSpec.tie = WAY.tie;
+        if (WAY?.trim) topSpec.trim = WAY.trim;
         hatBrought = lg.hat ?? (tg.hat === 'hoodDown' ? 'hoodDown' : undefined);
       }
     }
@@ -503,7 +504,7 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
   }
   // the shoes
   const sId = (ID ? ID.shoes : null) ?? wpick(rng, Object.keys(SHOES).map((id) => [id, gW(SHOES[id], who, shoeOk(id, botId, topId, sex, season, age) * shoeScore(id, botId, topId, layerId, season, age, WET) * decadeW(id, age))] as [string, number])) ?? 'sneakerLow';
-  const sg = SHOES[sId], sc = WAY ? WAY.shoes : colour(rng, sg.c);
+  const sg = SHOES[sId], sc = WAY?.shoes ?? colour(rng, sg.c);
   const shoes: PedSpec['shoes'] = { color: sc, sole: sg.p.kind === 'sneakerLow' || sg.p.kind === 'sneakerHigh' || sg.p.kind === 'runner' ? shade(sc, 0.82) : shade(sc, 0.35), accent: sg.p.kind === 'runner' || sg.p.kind === 'sneakerHigh' ? colour(rng, 'bright') : shade(sc, 0.7), kind: sg.p.kind };
   if (sg.p.kind === 'sneakerHigh') shoes.high = true;
   if (sId === 'chunkySneaker') shoes.chunky = true;

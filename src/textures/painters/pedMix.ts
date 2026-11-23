@@ -246,15 +246,6 @@ export function colourPass(spec: PedSpec, parts: PassParts, redraw: (slot: 'unde
   const t = spec.top, b = spec.bottom;
   const tonalSet = parts.onePiece || parts.topId === 'scrubs' || parts.layerId === 'velourTrack' || parts.layerId === 'trackJacket' || (rankOf(parts.layerId) >= 3 && rankOf(parts.botId) >= 3);
   const gapOk = (x: string, y: string): boolean => { const g = Math.abs(lstar(x) - lstar(y)); return g >= VALUE_GAP || (tonalSet && tonal(x, y) && g >= VALUE_GAP_TONAL); };
-  if (!parts.onePiece) {
-    for (let i = 0; i < 10 && !gapOk(t.color, b.color); i++) b.color = redraw('bottom');
-    if (!gapOk(t.color, b.color)) b.color = lstar(t.color) > 45 ? '#232b3b' : '#a89a78';
-    b.trim = b.trim;
-    if (parts.layerId && t.under) {
-      for (let i = 0; i < 8 && Math.abs(lstar(t.color) - lstar(t.under)) < VALUE_GAP_LAYER; i++) t.under = redraw('under');
-      if (Math.abs(lstar(t.color) - lstar(t.under)) < VALUE_GAP_LAYER) t.under = lstar(t.color) > 50 ? '#3a3f48' : '#b4b0a4';
-    }
-  }
   // one accent: keep the first of hat or bag, shoe, layer or top (the order of likelihood in 2.7), tone down the rest
   const slots: Array<[string, () => string, (c: string) => void]> = [
     ['gear', () => spec.gearColor, (c) => { spec.gearColor = c; }],
@@ -272,6 +263,15 @@ export function colourPass(spec: PedSpec, parts: PassParts, redraw: (slot: 'unde
     if (!isAccent(c)) continue;
     if (!seen) { seen = true; continue; }
     set(mute(c));
+  }
+  if (!parts.onePiece) {
+    for (let i = 0; i < 10 && !gapOk(t.color, b.color); i++) b.color = redraw('bottom');
+    if (!gapOk(t.color, b.color)) b.color = lstar(t.color) > 45 ? '#232b3b' : '#a89a78';
+    b.trim = b.trim;
+    if (parts.layerId && t.under) {
+      for (let i = 0; i < 8 && Math.abs(lstar(t.color) - lstar(t.under)) < VALUE_GAP_LAYER; i++) t.under = redraw('under');
+      if (Math.abs(lstar(t.color) - lstar(t.under)) < VALUE_GAP_LAYER) t.under = lstar(t.color) > 50 ? '#3a3f48' : '#b4b0a4';
+    }
   }
   if (spec.hat === 'hood' || spec.hat === 'hoodDown') { spec.hatColor = spec.top.color; spec.hatTrim = spec.top.trim; }
   // the shoes echo the bag one time in four (leather shoes only; never a bright bag)

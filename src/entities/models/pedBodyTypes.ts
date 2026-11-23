@@ -81,7 +81,7 @@ export const CAST: Record<BodyTypeId, CastType> = {
   obese: C('adult', 'endomorph', 38.5, -0.3, -0.2, 'Very heavy (class II to III obesity): the whole body is large, the neck, arms and legs thick, the belly low and wide.', { sdBmi: 2.6 }),
   'tall-thin': C('adult', 'ectomorph', 19.5, -0.3, 1.2, 'Tall and slender with long limbs.', { sdH: 0.7 }),
   lanky: C('adult', 'ectomorph', 18.5, -0.6, 1.5, 'Very tall and thin, long arms and legs, a stoop from ducking under doors.', { sdH: 0.5, sdBmi: 1.4 }),
-  petite: C('adult', 'ectomorph', 20.5, -0.3, -1.1, 'Short and light.', { sdH: 0.7 }),
+  petite: C('adult', 'ectomorph', 20.5, -0.3, -1.1, 'Short and light, a small frame all round.', { sdH: 0.7 }),
   slight: C('adult', 'ectomorph', 18.5, -0.6, -1.3, 'Very small and light, narrow shoulders and slim limbs.', { sdH: 0.6, sdBmi: 1.4 }),
   pregnant: C('adult', 'average', 27, -0.3, 0, 'A woman late in pregnancy: a full, forward belly on an otherwise average frame.', { sdBmi: 1.6 }),
   // ---- elders (the source's old shapes)
@@ -95,7 +95,7 @@ export const CAST: Record<BodyTypeId, CastType> = {
   'heavy-teen': C('teen', 'endomorph', 28.5, -0.2, 0, 'A heavy teenager (the survey has about one in five teenagers obese).', { sdBmi: 3.0 }),
   // ---- children
   kid: C('kid', 'average', 16.5, 0, 0, 'An ordinary child of about six to eleven.', { sdBmi: 1.3, sdM: 0.15 }),
-  'slight-kid': C('kid', 'ectomorph', 14.5, -0.4, 0, 'A slight child.', { sdBmi: 0.9, sdM: 0.15 }),
+  'slight-kid': C('kid', 'ectomorph', 14.5, -0.4, 0, 'A slight, small-boned child.', { sdBmi: 0.9, sdM: 0.15 }),
   'chubby-kid': C('kid', 'endomorph', 21, -0.2, 0, 'A chubby child (about one in five children is obese in the survey).', { sdBmi: 2.0, sdM: 0.15 }),
 };
 /**
@@ -163,7 +163,7 @@ for (const [id, b] of Object.entries(BODY_TYPES)) { b.shoulders *= id === 'kid' 
  */
 export const BODY_POOLS: Record<string, Array<[BodyTypeId, number]>> = {
   'adult-m': [['ecto', 0.7], ['slim', 1.5], ['wiry', 1.6], ['athletic', 1.5], ['skinny-fat', 0.8], ['avg', 3.2], ['soft', 2.4], ['broad', 1.7], ['short-stocky', 1.2], ['heavy', 2.3], ['big-tall', 1.5], ['stout', 1.0], ['obese', 1.6], ['lanky', 0.35], ['tall-thin', 0.45]],
-  'adult-f': [['ecto', 0.5], ['slim', 1.4], ['wiry', 0.9], ['swimmer', 0.6], ['skinny-fat', 0.7], ['avg', 3.0], ['soft', 2.4], ['pear', 2.6], ['petite', 1.1], ['slight', 0.4], ['heavy', 2.4], ['stout', 0.6], ['obese', 1.9], ['tall-thin', 0.5], ['pregnant', 0.6]],
+  'adult-f': [['ecto', 0.5], ['slim', 1.4], ['wiry', 1.4], ['swimmer', 1.0], ['skinny-fat', 0.7], ['avg', 3.0], ['soft', 2.4], ['pear', 2.6], ['petite', 1.1], ['slight', 0.4], ['heavy', 2.4], ['stout', 0.6], ['obese', 1.9], ['tall-thin', 0.5], ['pregnant', 0.6]],
   'adult-x': [['ecto', 0.5], ['slim', 1.5], ['wiry', 1.2], ['athletic', 0.8], ['skinny-fat', 0.7], ['avg', 3], ['soft', 2.2], ['heavy', 2], ['obese', 1.3], ['petite', 0.7], ['lanky', 0.4]],
   'old-m': [['elder', 3.2], ['stoop-slim', 2.2], ['elder-heavy', 2.6]],
   'old-f': [['elder', 3.2], ['stoop-slim', 2.4], ['elder-heavy', 2.8]],
@@ -222,13 +222,14 @@ export interface PersonBuild {
   /** shoulder breadth multiplier (1 +- 0.06, sd 0.025, wider with muscle) */ shoulderK: number;
   /** leg length share multiplier (1 +- 0.03, sd 0.012: the long-legged and the long-bodied) */ legK: number;
 }
-const STATURE: Record<AgeClass, Record<'m' | 'f' | 'x', [number, number]>> = {
-  // median and sd in metres: adults NHANES / ANSUR civilians (docs/reference/gta5-characters.md section 1), sd 3.85 and 4.0 percent; elders 2.5 percent shorter (anatomy-limbs-ages.md 3d);
-  // teenagers 13 to 17 and children 6 to 11 from the NHANES age table (anatomy-limbs-ages.md 3a), averaged over the age span
-  adult: { m: [1.755, 0.0676], f: [1.626, 0.065], x: [1.69, 0.0665] },
-  old: { m: [1.711, 0.066], f: [1.585, 0.063], x: [1.648, 0.065] },
-  teen: { m: [1.68, 0.075], f: [1.59, 0.055], x: [1.635, 0.065] },
-  kid: { m: [1.34, 0.085], f: [1.34, 0.085], x: [1.34, 0.085] },
+const STATURE: Record<AgeClass, Record<'m' | 'f' | 'x', [number, number, number]>> = {
+  // [median, sd below, sd above] in metres. Adults: ANSUR II P5 / P50 / P95 (men 1648 / 1755 / 1870 mm, women 1525 / 1626 / 1740: skewed a little upward, so the two sides differ;
+  // docs/reference/gta5-characters.md section 1), 'x' between them; elders 2.5 percent shorter (anatomy-limbs-ages.md 3d); teenagers 13 to 17 and children 6 to 11 from the NHANES age table
+  // (anatomy-limbs-ages.md 3a), averaged over the age span, symmetric.
+  adult: { m: [1.755, 0.0650, 0.0699], f: [1.626, 0.0614, 0.0693], x: [1.69, 0.0632, 0.0696] },
+  old: { m: [1.711, 0.0634, 0.0681], f: [1.585, 0.0599, 0.0676], x: [1.648, 0.0616, 0.0679] },
+  teen: { m: [1.68, 0.075, 0.075], f: [1.59, 0.055, 0.055], x: [1.635, 0.065, 0.065] },
+  kid: { m: [1.34, 0.085, 0.085], f: [1.34, 0.085, 0.085], x: [1.34, 0.085, 0.085] },
 };
 /** the tails of a stature draw: the survey's 5th and 95th percentile, in standard deviations */
 export const STATURE_Z = 1.6449;
@@ -267,8 +268,8 @@ export function bodyBuildOf(spec: Parameters<typeof bodyTypeId>[0]): PersonBuild
   let muscle = c.muscle + (grown ? (sx === 'f' ? -0.005 : -0.010) * (years - 38) : 0) + 0.04 * (bmi - c.bmi) + gM * (c.sdM ?? 0.28);
   muscle = clampTo(muscle, SAFE.muscle);
   const weight = clampTo(weightOfBmi(bmi, muscle, ac), SAFE.weight);
-  const [med, sd] = STATURE[ac][sx], zRaw = c.zH + (c.sdH ?? 1) * gH;
-  const z = normInv(0.05 + 0.9 * normCdf(zRaw)), statureM = med + z * sd;
+  const [med, sdLo, sdHi] = STATURE[ac][sx], zRaw = c.zH + (c.sdH ?? 1) * gH;
+  const z = normInv(0.05 + 0.9 * normCdf(zRaw)), statureM = med + z * (z < 0 ? sdLo : sdHi);
   const neckSd = sx === 'f' ? 1.2 : 1.5, neckCm = clampTo(gN * neckSd + 0.8 * Math.max(0, muscle), [-3.2, 3.8]);
   const b: PersonBuild = { type: id, age: ac, weight, muscle, bmi: bmiOf(weight, muscle, ac), statureM, neckCm, shoulderK: 1 + clampTo(gS * 0.025 + 0.02 * muscle, [-0.06, 0.07]), legK: 1 + clampTo(gL * 0.012, [-0.03, 0.03]) };
   if (builds.size > 4096) builds.clear();
