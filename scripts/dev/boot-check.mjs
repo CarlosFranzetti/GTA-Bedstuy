@@ -24,7 +24,7 @@ const tag = `${mode}-${map || 'default'}`;
 const srv = spawn('node', ['node_modules/vite/bin/vite.js', 'preview', '--outDir', dist, '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
 for (let i = 0; i < 120; i++) { try { if ((await fetch(`http://localhost:${port}/`)).ok) break; } catch { /* wait */ } await new Promise((r) => setTimeout(r, 250)); }
 const hard = setTimeout(() => { console.log(JSON.stringify({ tag, fatal: 'timed out after 20 minutes' })); srv.kill(); process.exit(2); }, 20 * 60_000);
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-precise-memory-info'] });
 const errors = [], warnings = [];
 let report = { tag };
 try {
@@ -52,27 +52,34 @@ try {
     return { meshes, nonFiniteMatrices: bad, triangles: r.triangles, draws: r.total, peds: peds.length, pedsWithin150m: near(150), vehicles: (d.traffic.vehicles ?? d.traffic.cars ?? []).length, quality: String(d.perf?.quality ?? '') };
   }, { hour })) };
   report.splashGone = splashGone;
+  const heap = () => page.evaluate(() => Math.round((performance.memory?.usedJSHeapSize ?? 0) / 1048576));
+  report.heapMB = { afterStep: await heap() };
   const p1 = await page.evaluate(() => { const b = window.__gtaDebug.player.body.pos; return { x: b.x, z: b.z }; });
   report.playerMovedM = Math.round(Math.hypot(p1.x - p0.x, p1.z - p0.z) * 100) / 100;
   // frames: the player and the nearest pedestrians, front and back, from about 2.6 m at chest height
-  const shots = await page.evaluate(({ nPeds }) => {
-    const d = window.__gtaDebug, pp = d.player.body.pos, peds = (d.traffic.peds ?? d.traffic.pedestrians ?? []);
-    const list = [{ name: 'player', x: pp.x, z: pp.z, h: d.player.body.heading ?? 0, y: 0.15 }];
+  const list = await page.evaluate(({ nPeds }) => {
+    const d = window.__gtaDebug, pp = d.player.body.pos, peds = (d.traffic.peds ?? []);
+    const out = [{ name: 'player', x: pp.x, z: pp.z, h: d.player.body.heading ?? 0, y: 0.15, info: '' }];
     const near = peds.filter((p) => p.body).map((p) => ({ p, dd: Math.hypot(p.body.pos.x - pp.x, p.body.pos.z - pp.z) })).sort((a0, b0) => a0.dd - b0.dd).slice(0, nPeds);
-    near.forEach(({ p }, i) => list.push({ name: `ped${i + 1}`, x: p.body.pos.x, z: p.body.pos.z, h: p.body.heading ?? 0, y: 0.15, info: `${p.spec?.id ?? ''} ${p.spec?.age ?? ''} ${p.spec?.sex ?? ''}` }));
-    const res = [];
-    for (const s of list) for (const [view, k] of [['front', 1], ['back', -1]]) {
-      const fx = Math.sin(s.h) * k, fz = Math.cos(s.h) * k;
-      d.setFreeCam(s.x + fx * 2.6 + fz * 0.5, s.y + 1.25, s.z + fz * 2.6 - fx * 0.5, s.x, s.y + 0.95, s.z);
-      d.renderOnce();
-      res.push({ name: `${s.name}-${view}`, info: s.info ?? '', url: d.renderer.domElement.toDataURL('image/jpeg', 0.9) });
-    }
-    d.clearFreeCam(); d.renderOnce();
-    res.push({ name: 'view', info: '', url: d.renderer.domElement.toDataURL('image/jpeg', 0.9) });
-    return res;
+    near.forEach(({ p }, i) => out.push({ name: `ped${i + 1}`, x: p.body.pos.x, z: p.body.pos.z, h: p.body.heading ?? 0, y: 0.15, info: `${p.spec?.id ?? ''} ${p.spec?.age ?? ''} ${p.spec?.sex ?? ''}` }));
+    return out;
   }, { nPeds });
   report.frames = [];
-  for (const s of shots) { const f = `${out}/${tag}-${s.name}.jpg`; writeFileSync(f, Buffer.from(s.url.split(',')[1], 'base64')); report.frames.push(`${f}${s.info ? '  (' + s.info.trim() + ')' : ''}`); }
+  const save = (name, info, url) => { const f = `${out}/${tag}-${name}.jpg`; writeFileSync(f, Buffer.from(url.split(',')[1], 'base64')); report.frames.push(`${f}${info ? '  (' + info.trim() + ')' : ''}`); };
+  for (const s of list) for (const [view, k] of [['front', 1], ['back', -1]]) {
+    report.lastStep = `${s.name}-${view}`;
+    const url = await page.evaluate(({ s, k }) => {
+      const d = window.__gtaDebug, fx = Math.sin(s.h) * k, fz = Math.cos(s.h) * k;
+      d.setFreeCam(s.x + fx * 2.6 + fz * 0.5, s.y + 1.25, s.z + fz * 2.6 - fx * 0.5, s.x, s.y + 0.95, s.z);
+      d.renderOnce();
+      return d.renderer.domElement.toDataURL('image/jpeg', 0.9);
+    }, { s, k });
+    save(`${s.name}-${view}`, s.info, url);
+    report.heapMB[`${s.name}-${view}`] = await heap();
+  }
+  report.lastStep = 'view';
+  save('view', '', await page.evaluate(() => { const d = window.__gtaDebug; d.clearFreeCam(); d.renderOnce(); return d.renderer.domElement.toDataURL('image/jpeg', 0.9); }));
+  report.heapMB.end = await heap(); report.lastStep = 'done';
 } catch (e) { errors.push('script: ' + String(e).slice(0, 400)); }
 report.errors = errors; report.nanWarnings = warnings;
 report.clean = errors.length === 0 && warnings.length === 0 && report.nonFiniteMatrices === 0 && report.splashGone === true;
