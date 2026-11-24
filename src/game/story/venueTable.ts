@@ -1,44 +1,44 @@
 /**
- * PLACEHOLDER venue table for the Pedro Martinez story (24 Nov). The VENUES seat owns the real positions and door ids
- * (src/world/venues/). Until then each venue stands in front of an existing POI so missions have a marker on both maps.
- * Swap: call `setVenueResolver(fn)` once with the VENUES seat's lookup; nothing else changes. Names are invented.
+ * Adapter between the story systems and the VENUES registry (src/world/venues/venues.ts: names, doors, hours; VENUES owns
+ * them). Venue ids are plain strings here so a rename in the registry (bar-sports -> bar-dance) cannot break the build:
+ * every lookup falls back to something sensible for an id it does not know (tests pass made-up ids too).
+ * Positions: `venuePoint` asks the registry for the active map ('real' after `useRealPlaces`, else 'grid').
  */
 import type { Vec2 } from '@/core/Math2';
-import { poiSpot, type PlaceCtx } from '@/game/missions/content/places';
+import { isRealPlaces } from '@/game/missions/content/places';
+import { isOpen as registryOpen, isVenueId, venuePosition, venueById } from '@/world/venues/venues';
 
-export type VenueId = 'bar-1' | 'bar-2' | 'bar-3' | 'afterhours' | 'club' | 'dispensary' | 'gym';
+export type VenueId = string;
 export type VenueKind = 'bar' | 'afterhours' | 'club' | 'dispensary' | 'gym';
 
-export interface VenueInfo {
-  id: VenueId; name: string; kind: VenueKind;
-  /** Existing POI used as a stand-in until the real door exists. */
-  poi: string;
-  /** Hours (game clock) the door is open; wraps midnight. */
-  open: readonly [number, number];
-  /** How many people the room holds (the club night's turnout is capped by it). */
-  capacity: number;
+/** Ids the story uses, in the writer's vocabulary (BIBLE.md section 5). `bar-sports` is the registry's old id for `bar-dance`. */
+export const STORY_VENUES = ['bar-dive', 'bar-lounge', 'bar-dance', 'afterhours', 'club', 'dispensary', 'gym'] as const;
+const ALIAS: Record<string, string> = { 'bar-dance': 'bar-sports', 'bar-sports': 'bar-dance' };
+
+const KIND_OF: Record<string, VenueKind> = { 'bar-dive': 'bar', 'bar-lounge': 'bar', 'bar-dance': 'bar', 'bar-sports': 'bar', afterhours: 'afterhours', club: 'club', dispensary: 'dispensary', gym: 'gym' };
+const CAPACITY: Record<VenueKind, number> = { bar: 60, afterhours: 45, club: 160, dispensary: 20, gym: 40 };
+const CAPACITY_OVERRIDE: Record<string, number> = { 'bar-dive': 55, 'bar-lounge': 70, 'bar-dance': 80, 'bar-sports': 80 };
+
+/** The registry row for an id (or its alias), or null. */
+function row(id: VenueId) {
+  for (const k of [id, ALIAS[id]]) if (k && isVenueId(k)) return venueById(k);
+  return null;
 }
 
-export const VENUES: Readonly<Record<VenueId, VenueInfo>> = {
-  'bar-1': { id: 'bar-1', name: 'The Low Ceiling', kind: 'bar', poi: 'liquor', open: [16, 28], capacity: 60 },
-  'bar-2': { id: 'bar-2', name: 'Rusty Metronome', kind: 'bar', poi: 'oxtail', open: [16, 28], capacity: 70 },
-  'bar-3': { id: 'bar-3', name: 'Cardinal Row Tap', kind: 'bar', poi: 'komat', open: [15, 28], capacity: 50 },
-  afterhours: { id: 'afterhours', name: 'Back Room Four', kind: 'afterhours', poi: 'auto', open: [26, 36], capacity: 45 },
-  club: { id: 'club', name: 'Velvet Hydrant', kind: 'club', poi: 'church', open: [22, 30], capacity: 160 },
-  dispensary: { id: 'dispensary', name: 'Green Awning Wellness', kind: 'dispensary', poi: 'dollar', open: [10, 22], capacity: 20 },
-  gym: { id: 'gym', name: 'Iron Throop', kind: 'gym', poi: 'funeral', open: [6, 23], capacity: 40 },
-};
-
-export const VENUE_IDS = Object.keys(VENUES) as VenueId[];
-
-/** True when `hour` (0..24) is inside the venue's opening window; windows past 24 wrap (28 = 4 am). */
+export const knownVenue = (id: string): boolean => id in KIND_OF || row(id) !== null;
+export const venueKind = (id: VenueId): VenueKind => row(id)?.kind ?? KIND_OF[id] ?? 'bar';
+export const venueName = (id: VenueId): string => row(id)?.name ?? id;
+export const capacityOf = (id: VenueId): number => CAPACITY_OVERRIDE[id] ?? CAPACITY[venueKind(id)];
+/** Hour (0..24) the door opens, from the registry. */
+export const openingHour = (id: VenueId): number => row(id)?.hours.open ?? 18;
 export function venueOpen(id: VenueId, hour: number): boolean {
-  const [a, b] = VENUES[id].open;
-  const h = ((hour % 24) + 24) % 24;
-  return (h >= a && h < b) || (h + 24 >= a && h + 24 < b);
+  const r = row(id);
+  return r ? registryOpen(r.id, hour) : true;
+}
+/** The sidewalk spot in front of the door on the active map. */
+export function venuePoint(id: VenueId): Vec2 {
+  const r = row(id);
+  if (!r) throw new Error(`unknown venue ${id}`);
+  return venuePosition(isRealPlaces() ? 'real' : 'grid', r.id);
 }
 
-export type VenueResolver = (ctx: PlaceCtx, id: VenueId) => Vec2;
-let resolver: VenueResolver = (ctx, id) => poiSpot(ctx, VENUES[id].poi);
-export const setVenueResolver = (fn: VenueResolver | null): void => { resolver = fn ?? ((ctx, id) => poiSpot(ctx, VENUES[id].poi)); };
-export const venuePoint = (ctx: PlaceCtx, id: VenueId): Vec2 => resolver(ctx, id);

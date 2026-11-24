@@ -25,6 +25,8 @@ export interface RealWalk { snap(p: Vec2): Vec2; path(pts: readonly Vec2[]): Vec
 let real: RealPlacesApi | null = null;
 let walk: RealWalk | null = null;
 /** Switch the lookups below to the real map (`null` back to the grid). Call before `buildMissions`. */
+/** True while the lookups answer for the real map (the story's venue table picks its door set from this). */
+export const isRealPlaces = (): boolean => real !== null;
 export const useRealPlaces = (r: RealPlacesApi | null, w: RealWalk | null = null): void => { real = r; walk = w; };
 
 const lerp = (a: Vec2, b: Vec2, t: number): Vec2 => ({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });

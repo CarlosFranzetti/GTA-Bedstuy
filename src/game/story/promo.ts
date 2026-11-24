@@ -4,7 +4,7 @@
  * (the call is refused and nothing is recorded). People react by temperament (`pedVitals.Temperament`).
  */
 import { Rng } from '@/core/Rng';
-import { VENUES, type VenueId } from './venueTable';
+import { capacityOf, knownVenue, type VenueId } from './venueTable';
 
 export type PromoTemper = 'flee' | 'cower' | 'film' | 'fight';
 export interface PromoPed { id: number | string; isMinor: boolean; temperament: PromoTemper }
@@ -81,7 +81,7 @@ export class Promotion {
   turnout(nightId: string, baseDraw = 8): Turnout {
     const n = this.nights.get(nightId);
     if (!n) return { headcount: 0, capacity: 0, ratio: 0, doorMoney: 0, listShow: 0 };
-    const cap = VENUES[n.venue].capacity;
+    const cap = capacityOf(n.venue);
     const r = new Rng(`${n.seed}:turnout`);
     const listShow = Math.round(n.list * 0.85);
     const walkIns = n.flyersGiven * 0.12 + n.posters.length * 6 + baseDraw;
@@ -95,7 +95,7 @@ export class Promotion {
     if (typeof d !== 'object' || d === null) return false;
     const o = d as Partial<PromoSave>;
     if (o.v !== 1 || !Array.isArray(o.nights)) return false;
-    const good = o.nights.every((n) => n && typeof n.id === 'string' && typeof n.venue === 'string' && n.venue in VENUES && [n.seed, n.startHour, n.flyersLeft, n.flyersGiven, n.list, n.cover].every(finite) && Array.isArray(n.posters) && Array.isArray(n.asked));
+    const good = o.nights.every((n) => n && typeof n.id === 'string' && typeof n.venue === 'string' && knownVenue(n.venue) && [n.seed, n.startHour, n.flyersLeft, n.flyersGiven, n.list, n.cover].every(finite) && Array.isArray(n.posters) && Array.isArray(n.asked));
     if (!good) return false;
     this.nights.clear();
     for (const n of o.nights) this.nights.set(n.id, { ...n, posters: [...n.posters], asked: [...n.asked] });

@@ -5,19 +5,20 @@
  * Flow: request() (a call or a visit) -> a Booking with a window in game hours -> the host runs the set (DjGame, venue id
  * = booking.venue) -> settle(result) pays by crowd and score, updates the venue's liking and says whether it books again.
  */
-import { VENUES, venueOpen, type VenueId } from './venueTable';
+import { capacityOf, knownVenue, openingHour, venueKind, venueOpen, type VenueId } from './venueTable';
 
 export type GigTier = 'flop' | 'ok' | 'good' | 'great';
 export type GigState = 'booked' | 'played' | 'flopped' | 'missed';
 export type RequestRefusal = 'unknownVenue' | 'banned' | 'alreadyBooked' | 'closed';
 
 export interface GigTerms { baseFee: number; /** set length, minutes */ minutes: number; /** pass mark, 0..100 */ minScore: number }
-/** Placeholder terms per venue (the writer's missions may override fee and length per mission). */
-export const GIG_TERMS: Readonly<Record<VenueId, GigTerms>> = {
-  'bar-1': { baseFee: 60, minutes: 2, minScore: 35 }, 'bar-2': { baseFee: 80, minutes: 2, minScore: 40 },
-  'bar-3': { baseFee: 70, minutes: 2, minScore: 38 }, afterhours: { baseFee: 120, minutes: 3, minScore: 50 },
+/** Terms by kind of room, with a few per-venue overrides (the writer's missions may override fee and length per mission). */
+const KIND_TERMS: Record<string, GigTerms> = {
+  bar: { baseFee: 70, minutes: 2, minScore: 38 }, afterhours: { baseFee: 120, minutes: 3, minScore: 50 },
   club: { baseFee: 220, minutes: 4, minScore: 55 }, dispensary: { baseFee: 0, minutes: 1, minScore: 0 }, gym: { baseFee: 0, minutes: 1, minScore: 0 },
 };
+const VENUE_TERMS: Record<string, GigTerms> = { 'bar-dance': { baseFee: 90, minutes: 2, minScore: 40 }, 'bar-sports': { baseFee: 90, minutes: 2, minScore: 40 }, 'bar-lounge': { baseFee: 80, minutes: 2, minScore: 42 } };
+export const termsFor = (v: VenueId): GigTerms => VENUE_TERMS[v] ?? KIND_TERMS[venueKind(v)];
 
 export interface Booking {
   id: number; venue: VenueId; via: 'call' | 'visit';
@@ -56,11 +57,11 @@ export class CrowdMeter {
   get average(): number { return this.time > 0 ? this.sum / this.time : this.value; }
 }
 
-export interface GigSave { v: 1; day: number; hour: number; next: number; bookings: Booking[]; liking: Partial<Record<VenueId, number>>; played: number; earned: number }
+export interface GigSave { v: 1; day: number; hour: number; next: number; bookings: Booking[]; liking: Record<string, number>; played: number; earned: number }
 
 export class GigBook {
   bookings: Booking[] = [];
-  liking: Partial<Record<VenueId, number>> = {};
+  liking: Record<string, number> = {};
   played = 0;
   earned = 0;
   readonly crowd = new CrowdMeter();
@@ -86,11 +87,10 @@ export class GigBook {
    * `startHour` overrides (missions that fix the night). A visit in person is a little better than a call (+10 percent fee).
    */
   request(venue: VenueId, via: 'call' | 'visit', opts: { startHour?: number; baseFee?: number; minutes?: number } = {}): { ok: true; booking: Booking } | { ok: false; reason: RequestRefusal } {
-    const info = VENUES[venue];
-    if (!info) return { ok: false, reason: 'unknownVenue' };
+    if (!knownVenue(venue)) return { ok: false, reason: 'unknownVenue' };
     if (this.isBanned(venue)) return { ok: false, reason: 'banned' };
     if (this.bookings.some((b) => b.venue === venue && b.state === 'booked')) return { ok: false, reason: 'alreadyBooked' };
-    const t = GIG_TERMS[venue];
+    const t = termsFor(venue);
     const h = Math.max(0, this.hour);
     let startAbs: number;
     if (opts.startHour !== undefined) {
@@ -98,10 +98,8 @@ export class GigBook {
       if (startAbs + 0.5 < this.now) startAbs += 24;
     } else if (venueOpen(venue, h)) startAbs = this.now;
     else {
-      const open = info.open[0];
-      startAbs = this.day * 24 + open;
+      startAbs = this.day * 24 + openingHour(venue);
       if (startAbs < this.now) startAbs += 24;
-      if (open >= 24) startAbs = this.day * 24 + (open % 24); // a late opener is tonight, past midnight handled by wrap
     }
     const minutes = opts.minutes ?? t.minutes;
     const liking = this.likingOf(venue);
@@ -146,11 +144,11 @@ export class GigBook {
     if (typeof d !== 'object' || d === null) return false;
     const o = d as Partial<GigSave>;
     if (o.v !== 1 || !finite(o.day) || !finite(o.hour) || !finite(o.next) || !Array.isArray(o.bookings)) return false;
-    const ok = o.bookings.every((b) => b && finite(b.id) && typeof b.venue === 'string' && b.venue in VENUES && finite(b.from) && finite(b.to) && finite(b.fee) && ['booked', 'played', 'flopped', 'missed'].includes(b.state));
+    const ok = o.bookings.every((b) => b && finite(b.id) && typeof b.venue === 'string' && knownVenue(b.venue) && finite(b.from) && finite(b.to) && finite(b.fee) && ['booked', 'played', 'flopped', 'missed'].includes(b.state));
     if (!ok) return false;
     this.day = o.day; this.hour = o.hour; this.next = o.next; this.bookings = o.bookings.map((b) => ({ ...b }));
     this.liking = {};
-    for (const [k, v] of Object.entries(o.liking ?? {})) if (k in VENUES && finite(v)) this.liking[k as VenueId] = clamp(v, -4, MAX_LIKING);
+    for (const [k, v] of Object.entries(o.liking ?? {})) if (knownVenue(k) && finite(v)) this.liking[k] = clamp(v, -4, MAX_LIKING);
     this.played = finite(o.played) ? o.played : 0; this.earned = finite(o.earned) ? o.earned : 0;
     return true;
   }

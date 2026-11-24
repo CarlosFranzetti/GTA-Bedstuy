@@ -14,14 +14,14 @@ import { venueOpen } from '@/game/story/venueTable';
 describe('gigs', () => {
   it('books a slot, refuses a double booking, and pays by crowd and score', () => {
     const g = new GigBook(); g.advance(17);
-    const r = g.request('bar-1', 'visit');
+    const r = g.request('bar-dive', 'visit');
     expect(r.ok).toBe(true);
-    expect(g.request('bar-1', 'call')).toEqual({ ok: false, reason: 'alreadyBooked' });
+    expect(g.request('bar-dive', 'call')).toEqual({ ok: false, reason: 'alreadyBooked' });
     expect(g.active()).not.toBeNull();
-    const hi = g.settle('bar-1', { score: 85, crowd: 0.9 })!;
+    const hi = g.settle('bar-dive', { score: 85, crowd: 0.9 })!;
     expect(hi.tier).toBe('great'); expect(hi.fee).toBeGreaterThan(60); expect(hi.rebook).toBe(true);
-    const g2 = new GigBook(); g2.advance(17); g2.request('bar-1', 'visit');
-    const lo = g2.settle('bar-1', { score: 45, crowd: 0.3 })!;
+    const g2 = new GigBook(); g2.advance(17); g2.request('bar-dive', 'visit');
+    const lo = g2.settle('bar-dive', { score: 45, crowd: 0.3 })!;
     expect(lo.fee).toBeLessThan(hi.fee);
   });
   it('a flop pays nothing, loses liking and two flops ban the venue', () => {
@@ -31,15 +31,15 @@ describe('gigs', () => {
     expect(g.request('club', 'call')).toEqual({ ok: false, reason: 'banned' });
   });
   it('turnout raises the fee; a missed window marks the booking missed; midnight wraps', () => {
-    const a = new GigBook(), b = new GigBook(); a.advance(20); b.advance(20); a.request('bar-2', 'call'); b.request('bar-2', 'call');
-    expect(a.settle('bar-2', { score: 70, crowd: 0.7 }, 1)!.fee).toBeGreaterThan(b.settle('bar-2', { score: 70, crowd: 0.7 }, 0)!.fee);
+    const a = new GigBook(), b = new GigBook(); a.advance(20); b.advance(20); a.request('bar-lounge', 'call'); b.request('bar-lounge', 'call');
+    expect(a.settle('bar-lounge', { score: 70, crowd: 0.7 }, 1)!.fee).toBeGreaterThan(b.settle('bar-lounge', { score: 70, crowd: 0.7 }, 0)!.fee);
     const c = new GigBook(); c.advance(10); const r = c.request('club', 'call', { startHour: 22 });
     expect(r.ok && r.booking.from).toBe(22);
     c.advance(23.9); c.advance(0.5); c.advance(5);
     expect(c.bookings[0].state).toBe('missed');
   });
   it('round-trips and rejects junk', () => {
-    const g = new GigBook(); g.advance(18); g.request('bar-3', 'call'); g.settle('bar-3', { score: 60, crowd: 0.6 });
+    const g = new GigBook(); g.advance(18); g.request('bar-dance', 'call'); g.settle('bar-dance', { score: 60, crowd: 0.6 });
     const h = new GigBook(); expect(h.restore(JSON.parse(JSON.stringify(g.serialize())))).toBe(true);
     expect(h.serialize()).toEqual(g.serialize());
     expect(h.restore({ v: 1 })).toBe(false); expect(h.restore(null)).toBe(false);
@@ -65,11 +65,11 @@ describe('promotion', () => {
     const q = new Promotion(); q.startNight('n', 'club', 22); expect(q.handFlyer('n', ped(7, 'film'))).toEqual(first);
   });
   it('filmers take flyers more than fighters; turnout grows with flyers and posters and is capped by the room', () => {
-    const p = new Promotion(); p.startNight('n', 'bar-3', 21, { flyers: 400 });
+    const p = new Promotion(); p.startNight('n', 'bar-dance', 21, { flyers: 400 });
     let film = 0, fight = 0;
     for (let i = 0; i < 200; i++) { if (p.handFlyer('n', ped(i, 'film')).kind === 'taken') film++; if (p.handFlyer('n', ped(1000 + i, 'fight')).kind === 'taken') fight++; }
     expect(film).toBeGreaterThan(fight * 2);
-    const empty = new Promotion(); empty.startNight('e', 'bar-3', 21);
+    const empty = new Promotion(); empty.startNight('e', 'bar-dance', 21);
     const t0 = empty.turnout('e'), t1 = p.turnout('n');
     expect(t1.headcount).toBeGreaterThan(t0.headcount); expect(t1.headcount).toBeLessThanOrEqual(t1.capacity);
     p.hangPoster('n', 'w1'); expect(p.hangPoster('n', 'w1')).toBe(false);
@@ -154,7 +154,7 @@ describe('selling (abstract pack)', () => {
 
 describe('dates', () => {
   const script: DateScript = {
-    id: 'd1', partner: 'Lana', adult: true, venue: 'bar-3', invite: 'Drink?', from: 20, to: 24, warmAt: 3, friendlyAt: 1,
+    id: 'd1', partner: 'Lana', adult: true, venue: 'bar-dance', invite: 'Drink?', from: 20, to: 24, warmAt: 3, friendlyAt: 1,
     beats: [
       { id: 'b1', line: 'So.', choices: [{ id: 'a', text: 'Ask about her night', delta: 2, reply: 'Nice.', flag: 'date.asked' }, { id: 'b', text: 'Talk about yourself', delta: -1, reply: 'Hm.' }] },
       { id: 'b2', line: 'Music?', choices: [{ id: 'c', text: 'Play her a track', delta: 2, reply: 'Oh.' }, { id: 'd', text: 'Check your phone', delta: -1, reply: '...' }] },
@@ -198,7 +198,7 @@ describe('fights', () => {
 
 describe('Nightlife and the save', () => {
   it('rides StoryState.ext as save v2, loads old v1 saves, and survives damaged parts', () => {
-    const n = new Nightlife(); n.gigs.advance(18); n.gigs.request('bar-1', 'call'); n.promo.startNight('x', 'club', 22); n.pack.receive(2);
+    const n = new Nightlife(); n.gigs.advance(18); n.gigs.request('bar-dive', 'call'); n.promo.startNight('x', 'club', 22); n.pack.receive(2);
     n.bag.buy(n.racks.get('rack-a')!, n.racks.get('rack-a')!.available[0].id, () => true);
     const s = new StoryState(); s.set('story.act1'); n.saveTo(s);
     const data = JSON.parse(JSON.stringify(s.serialize())); expect(data.v).toBe(2);
