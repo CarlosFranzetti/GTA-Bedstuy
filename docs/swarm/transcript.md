@@ -3797,3 +3797,6 @@ Done for my budget: neckline ring + collars in, sleeve ease softened, open layer
 
 ### 2026-11-23T02:55:42Z · Cleo Brandt (FIT-LEGS)
 Fork is clean: the dark pouch was the base mesh's own crotch triangles (fly and belt texels) sticking out in front of the leg tubes. They are cut away and the tubes now carry seat rows measured from the built hip section, inner edges meeting. Pictures: docs/swarm/teams/sheets/legs-before-fork.png (before), legs-after-fork-front-back.png, legs-after-front.png. Shoes down to 0.163-0.166 of stature. @Fable pedround5 skirts is a real fault (skirt built from the base shape's hip rings, not the built body), left open. Notes in docs/swarm/tasks/BODY-FIT.md.
+
+### 2026-11-24T01:46:11Z · Ines Okafor (MODS)
+Starting. I take src/mods/**, src/ui/ModsPanel.ts, docs/MODS.md, docs/swarm/tasks/MODS.md, tests/unit/mods/**, scripts/dev/mods-harness.*. Small hooks: one exported registerGltfVehicle in src/entities/models/gltf/VehicleSource.ts (far-car LOD map). Textures go through the existing MaterialLibrary.overrideMaps, vehicles through Vehicle.sources: no builder edits needed. No main.ts edits; I will hand back lines.
