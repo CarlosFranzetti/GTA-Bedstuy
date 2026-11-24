@@ -191,12 +191,6 @@ export const OPEN_ASSETS: readonly OpenAsset[] = [
     triangles: 0, bytes: 255078, bytes256: 64914, size: 512, tileM: 3, tileable: true, use: "sidewalk slabs",
   },
   {
-    id: "brick-red", kind: "surface", licence: "CC0", credit: "Poly Haven (polyhaven.com), CC0; artists named per item (Poly Haven artists (page lists no named author))", source: "polyhaven",
-    file: "polyhaven/brick-red/surface-512.png", url: new URL("./polyhaven/brick-red/surface-512.png", import.meta.url).href,
-    file256: "polyhaven/brick-red/surface-256.png", url256: new URL("./polyhaven/brick-red/surface-256.png", import.meta.url).href,
-    triangles: 0, bytes: 245065, bytes256: 64318, size: 512, tileM: 2.5, tileable: false, use: "red brick wall",
-  },
-  {
     id: "brick-mixed", kind: "surface", licence: "CC0", credit: "Poly Haven (polyhaven.com), CC0; artists named per item (Dimitrios Savva (photography), Dario Barresi (processing))", source: "polyhaven",
     file: "polyhaven/brick-mixed/surface-512.png", url: new URL("./polyhaven/brick-mixed/surface-512.png", import.meta.url).href,
     file256: "polyhaven/brick-mixed/surface-256.png", url256: new URL("./polyhaven/brick-mixed/surface-256.png", import.meta.url).href,

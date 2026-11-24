@@ -398,6 +398,7 @@ export class RadioDirector {
     this.failWave.clear();
     // Our announcer lets go of the speech queue before WBSY Talk can take it.
     this.announcer.tuneAway();
+    this.djMentions.reset();
     this.idx = target;
     this.lastStore?.set(this.current.id);
     this.synthEpoch++;
@@ -418,6 +419,7 @@ export class RadioDirector {
     this.on = on;
     if (!on) {
       this.announcer.tuneAway();
+      this.djMentions.reset();
       this.retireActive(0.15);
       this.playingKey = null;
       this.synth = null;
@@ -445,6 +447,7 @@ export class RadioDirector {
     this.talk2?.update(dt);
     for (const s of this.scStations) s.update(dt);
     this.announcer.update(dt);
+    this.djMentions.update();
     if (this.toastLeft > 0) { this.toastLeft -= dt; if (this.toastLeft <= 0) this.toastText = ''; }
     this.checkFailures();
     this.checkStart(dt);
@@ -553,6 +556,7 @@ export class RadioDirector {
 
   private announcerTune(): void {
     const c = this.current;
+    this.djMentions.reset();
     if (this.on && c.kind === 'sc' && c.sc) this.announcer.tuneIn(c.sc);
   }
 

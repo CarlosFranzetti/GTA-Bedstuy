@@ -55,7 +55,7 @@ export const CAM_CLASSIC = {
   pitchRate: 2.5,
   /** car: seconds before a mouse/stick look returns behind, ramp seconds, spring frequency (rad/s) of the soft lag in yaw */
   carReturnDelay: 1.0,
-  carReturnRamp: 0.6,
+  carReturnRamp: 1.0,
   carYawOmega: 5.0,
   /** look behind / look to a side: spring frequency (rad/s): ~95 % of the way in 3/omega (0.07 s) */
   lookOmega: 45,

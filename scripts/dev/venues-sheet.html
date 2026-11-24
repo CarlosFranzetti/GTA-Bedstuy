@@ -1,0 +1,51 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>venues sheet</title>
+<style>@font-face { font-family: "Anton"; src: url("/fonts/Anton-Regular.woff2") format("woff2"); } html,body{margin:0;background:#222}</style></head>
+<body><script type="module">
+// VENUES harness: ?what=ext|room &id=<venue id> &night=1 &w=960 &h=540 &yaw=0 (room: camera yaw degrees) &map=grid|real
+import * as THREE from 'three';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { loadPeople } from '@/entities/models/pedMesh';
+import { setPeopleMode } from '@/textures/painters/pedMode';
+import { buildVenueExterior } from '/src/world/venues/exterior.ts';
+import { buildVenueRoom } from '/src/world/venues/rooms.ts';
+import { VENUE_ROOM } from '/src/world/venues/venues.ts';
+const q = new URLSearchParams(location.search);
+const what = q.get('what') ?? 'ext', id = q.get('id') ?? 'club', night = q.get('night') === '1';
+const W = Number(q.get('w') ?? 960), H = Number(q.get('h') ?? 540);
+await document.fonts.load('84px "Anton"'); await document.fonts.load('700 50px "Barlow Condensed"');
+await loadPeople(); setPeopleMode('skin');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement); renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(night ? 0x0a0e1a : 0xb9c6d4);
+const materials = new MaterialLibrary(new Rng(7));
+scene.add(new THREE.HemisphereLight(night ? 0x3a4a7a : 0xdfeaff, 0x4a4036, night ? 0.9 : 1.6));
+const sun = new THREE.DirectionalLight(night ? 0x6a7fc0 : 0xffe6c0, night ? 0.5 : 2.4); sun.position.set(3, 8, 8); scene.add(sun);
+const cam = new THREE.PerspectiveCamera(what === 'ext' ? 42 : 58, W / H, 0.1, 200);
+let info = {};
+if (what === 'ext') {
+  const door = { x: 0, z: 0, outX: 0, outZ: 1 };
+  const hour = night ? 22.5 : 14; // the open hours of the club and bars cover 22:30; by day, bars may be shut: that is part of the picture
+  const ext = buildVenueExterior(id, door, materials); ext.update(q.get('hour') ? Number(q.get('hour')) : hour); scene.add(ext.group);
+  const mat = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 });
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(16, 9, 1), mat(q.get('wall') ?? '#7a4a3a')); wall.position.set(0, 4.65, -0.56); scene.add(wall);
+  const walk = new THREE.Mesh(new THREE.BoxGeometry(16, 0.15, 4.6), mat('#9a9a96')); walk.position.set(0, 0.075, 2.3); scene.add(walk);
+  const road = new THREE.Mesh(new THREE.BoxGeometry(16, 0.1, 9), mat('#2c2e31')); road.position.set(0, 0.0, 9.1); scene.add(road);
+  cam.position.set(Number(q.get('cx') ?? 3.2), 2.4, 9.5); cam.lookAt(0, 2.3, 0);
+  info = ext.stats();
+} else {
+  const r = VENUE_ROOM[id];
+  const world = { addStatic() {}, removeStatic() {} };
+  const room = buildVenueRoom(id, { world, materials, dancerCount: 16 });
+  scene.add(room.group);
+  for (let i = 0; i < 6; i++) room.update(i * 0.4, { phase: (i * 0.37) % 1, bpm: 124, level: 0.8, index: i });
+  const yaw = Number(q.get('yaw') ?? 0) * Math.PI / 180;
+  const cx = Math.sin(yaw) * (r.d * 0.9), cz = Math.cos(yaw) * (r.d * 0.9 + 3);
+  cam.position.set(cx, r.h * 2.2, cz + r.d * 0.1); cam.lookAt(0, 0.6, -r.d * 0.05);
+  info = room.stats();
+  scene.environmentIntensity = 0;
+}
+for (let i = 0; i < 3; i++) renderer.render(scene, cam);
+window.__ready = { id, what, night, info, tris: renderer.info.render.triangles, calls: renderer.info.render.calls };
+</script></body></html>

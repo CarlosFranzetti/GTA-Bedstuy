@@ -519,17 +519,6 @@
    "tileM": 3,
    "texelsPerM512": 171
   },
-  "brick-red": {
-   "id": "brick-red",
-   "source": "polyhaven",
-   "kind": "surface",
-   "bytes512": 245065,
-   "bytes256": 64318,
-   "seamRatio": 3.11,
-   "tileable": false,
-   "tileM": 2.5,
-   "texelsPerM512": 205
-  },
   "brick-mixed": {
    "id": "brick-mixed",
    "source": "polyhaven",

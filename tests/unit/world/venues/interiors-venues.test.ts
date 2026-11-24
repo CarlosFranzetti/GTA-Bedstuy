@@ -57,7 +57,7 @@ describe('rooms', () => {
     const ids = r.spots.map((x) => x.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toContain('exit');
-    expect(ids).toContain('backroom');
+    expect(ids).toContain(id === 'gym' ? 'lockers' : 'backroom');
     if (venueById(id).kind === 'bar') expect(ids).toContain('stool');
     if (id === 'club') expect(ids).toContain('booth');
     if (id === 'gym') expect(ids).toContain('bench');

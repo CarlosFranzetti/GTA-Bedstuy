@@ -90,17 +90,17 @@ const skyline = (g: Geo, base: number, col: string, win: string): void => {
 function stoop(c: C, x0: number): void {
   const p: Array<[number, number]> = [[x0, 80]];
   for (let i = 0; i < 7; i++) { p.push([x0 + i * 62, -i * 40], [x0 + i * 62, -(i + 1) * 40]); }
-  p.push([x0 + 434, -280], [x0 + 520, -280], [x0 + 520, 80]);
+  p.push([x0 + 434, -280], [x0 + 640, -280], [x0 + 640, 80]);
   fig(c, poly(p), { fill: '#8a553f', tone: '#5e3a2c', hi: '#c98a64', k: 12, lw: 6 });
-  for (let i = 0; i < 7; i++) { c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(x0 + i * 62, -i * 40 - 4, 62, 5); }
+  for (let i = 0; i < 7; i++) { c.fillStyle = 'rgba(0,0,0,0.3)'; c.fillRect(x0 + i * 62, -i * 40 - 40, 62, 40); c.fillStyle = '#d99a72'; c.fillRect(x0 + i * 62, -(i + 1) * 40, 62, 9); c.strokeStyle = INK; c.lineWidth = 4; c.strokeRect(x0 + i * 62, -(i + 1) * 40, 62, 40); }
   c.save(); c.strokeStyle = INK; c.lineWidth = 5; c.lineCap = 'round';
   for (let i = 0; i < 12; i++) { const px = x0 + 10 + i * 36, py = -(Math.min(px - x0, 434) / 62) * 40; c.beginPath(); c.moveTo(px, py); c.lineTo(px, py - 110); c.stroke(); }
-  c.lineWidth = 9; c.beginPath(); c.moveTo(x0 + 10, -110); c.lineTo(x0 + 434, -400); c.lineTo(x0 + 500, -400); c.stroke(); c.restore();
+  c.lineWidth = 9; c.beginPath(); c.moveTo(x0 + 10, -110); c.lineTo(x0 + 434, -390); c.lineTo(x0 + 640, -390); c.stroke(); c.restore();
 }
 
 export const PANELS: readonly Panel[] = [
   {
-    id: 'decks', word: 'DECKS', kind: 'concrete', tone: { h: 270, s: 22, l: 17 }, wy: [0.3, 0.4], zoom: 1,
+    id: 'decks', word: 'DECKS', kind: 'concrete', tone: { h: 270, s: 22, l: 17 }, wy: [0.35, 0.4], zoom: 1,
     style: { fill: '#e8307a', hi: '#ff93bd', block: '#5a1580', glow: '#e8307a' },
     bg(g) {
       const { c, w, h, R } = g;
@@ -137,7 +137,7 @@ export const PANELS: readonly Panel[] = [
     },
   },
   {
-    id: 'stoop', word: 'STOOP', kind: 'brick', tone: { h: 12, s: 42, l: 30 }, wy: [0.3, 0.4], zoom: 0.86,
+    id: 'stoop', word: 'STOOP', kind: 'brick', tone: { h: 12, s: 42, l: 30 }, wy: [0.35, 0.4], zoom: 0.86,
     style: { fill: '#f2c230', hi: '#fff0a0', block: '#a2321c', glow: '#ff9a3a' },
     bg(g) {
       const { c, R, w, h } = g;
@@ -148,23 +148,23 @@ export const PANELS: readonly Panel[] = [
     fg(g) {
       const { c, R } = g;
       c.save(); c.translate(g.cx, g.gy); c.scale(g.s, g.s);
-      fig(c, rect(-90, -240, 190, 20), { fill: '#6e4a3a', tone: '#3e2a22', k: 6 });
-      stoop(c, -470);
-      fig(c, rect(110, -580, 250, 300, 6), { fill: '#7a4a3a', tone: '#4d2e25', hi: '#b4785c', k: 12 });
-      fig(c, smooth2([[140, -290], [140, -450], [160, -520], [235, -545], [310, -520], [330, -450], [330, -290]]), { fill: '#2a1d28', tone: '#150f17', hi: '#5b3a50', k: 9 });
-      for (const [px, py, pw, ph] of [[165, -440, 55, 90], [250, -440, 55, 90], [165, -330, 55, 90], [250, -330, 55, 90]]) fig(c, rect(px!, py!, pw!, ph!, 4), { fill: '#3a2736', lw: 4, k: 4 });
-      fig(c, circ(300, -370, 9), { fill: '#f2c230', lw: 3, k: 3 });
+            stoop(c, -330);
+      fig(c, rect(110, -590, 250, 310, 6), { fill: '#7a4a3a', tone: '#4d2e25', hi: '#b4785c', k: 12 });
+      fig(c, rect(140, -560, 190, 40, 6), { fill: '#ffcd6e', tone: '#d99a3c', lw: 5, k: 6 });
+      fig(c, rect(140, -510, 190, 230, 6), { fill: '#2f6aa8', tone: '#1c4270', hi: '#7fb0e8', k: 10 });
+      for (const [px, py] of [[158, -490], [238, -490], [158, -390], [238, -390]] as const) fig(c, rect(px, py, 72, 86, 4), { fill: '#2a5a94', tone: '#1c4270', lw: 4, k: 4 });
+      fig(c, circ(318, -380, 9), { fill: '#f2c230', lw: 3, k: 3 });
       fig(c, rect(380, -560, 120, 230, 6), { fill: '#ffcd6e', tone: '#d99a3c', hi: '#fff0b8', k: 14 });
       limb(c, [[380, -440], [440, -470], [500, -430]], 7, '#d94a6a');
-      sit(c, -250, -2 * 40 - 2, 250, { top: '#2d8e8a', bot: '#2a3552', skin: '#8a5a3c', hat: '#e8307a' }, 1);
-      sit(c, -60, -4 * 40 - 2, 250, { top: '#d9a02a', bot: '#3a2d4a', skin: '#c28a62' }, -1);
-      fig(c, rect(15, -300, 70, 34, 6), { fill: '#e8e0d0', tone: '#9a917e', hi: '#fff', k: 5 }); fig(c, circ(36, -283, 10), { fill: '#222', lw: 3, k: 2 }); fig(c, circ(66, -283, 10), { fill: '#222', lw: 3, k: 2 });
-      stand(c, -400, 70, 260, { top: '#c9402a', bot: '#2a2f45', skin: '#5a3b2c', hat: '#e8c030' });
+      sit(c, -175, -2 * 40 - 40 + 38, 250, { top: '#2d8e8a', bot: '#2a3552', skin: '#8a5a3c', hat: '#e8307a' }, 1);
+      sit(c, -51, -4 * 40 - 40 + 38, 250, { top: '#d9a02a', bot: '#3a2d4a', skin: '#c28a62' }, -1);
+      fig(c, rect(150, -318, 70, 34, 6), { fill: '#e8e0d0', tone: '#9a917e', hi: '#fff', k: 5 }); fig(c, circ(171, -301, 10), { fill: '#222', lw: 3, k: 2 }); fig(c, circ(201, -301, 10), { fill: '#222', lw: 3, k: 2 });
+      stand(c, -440, 70, 260, { top: '#c9402a', bot: '#2a2f45', skin: '#5a3b2c', hat: '#e8c030' });
       void R; c.restore();
     },
   },
   {
-    id: 'kerb', word: 'NIGHT SHIFT', kind: 'concrete', tone: { h: 225, s: 24, l: 16 }, wy: [0.3, 0.4], zoom: 0.9,
+    id: 'kerb', word: 'NIGHT SHIFT', kind: 'concrete', tone: { h: 225, s: 24, l: 16 }, wy: [0.35, 0.4], zoom: 0.9,
     style: { fill: '#28c8d8', hi: '#a8f4ff', block: '#1a4a8a', glow: '#28c8d8', drips: 4 },
     bg(g) {
       const { c, w, h, R } = g;
@@ -196,7 +196,7 @@ export const PANELS: readonly Panel[] = [
     },
   },
   {
-    id: 'cat', word: 'BODEGA', kind: 'brick', tone: { h: 25, s: 30, l: 24 }, wy: [0.3, 0.4], zoom: 0.95,
+    id: 'cat', word: 'BODEGA', kind: 'brick', tone: { h: 25, s: 30, l: 24 }, wy: [0.35, 0.4], zoom: 0.95,
     style: { fill: '#9ae03a', hi: '#e2ff9a', block: '#245a1c', glow: '#9ae03a' },
     bg(g) {
       const { c, w, h } = g;
@@ -230,7 +230,7 @@ export const PANELS: readonly Panel[] = [
     },
   },
   {
-    id: 'el', word: 'ELEVATED', kind: 'concrete', tone: { h: 210, s: 14, l: 22 }, wy: [0.3, 0.4], zoom: 0.9,
+    id: 'el', word: 'ELEVATED', kind: 'concrete', tone: { h: 210, s: 14, l: 22 }, wy: [0.35, 0.4], zoom: 0.9,
     style: { fill: '#ff6a2b', hi: '#ffc08a', block: '#7a1e2a', glow: '#ff6a2b' },
     bg(g) {
       const { c, w, h } = g;
@@ -238,11 +238,11 @@ export const PANELS: readonly Panel[] = [
       skyline(g, h * 0.78, '#1d1830', '#ffc25a');
       c.save(); c.translate(g.cx, g.gy); c.scale(g.s, g.s);
       for (let x = -1500; x < 1500; x += 360) {
-        fig(c, rect(x - 20, -520, 40, 520), { fill: '#2b3040', tone: '#171b27', hi: '#6a748a', k: 6 });
-        c.strokeStyle = INK; c.lineWidth = 6; c.beginPath(); c.moveTo(x + 20, -500); c.lineTo(x + 340, -40); c.moveTo(x + 340, -500); c.lineTo(x + 20, -40); c.stroke();
+        fig(c, rect(x - 20, -320, 40, 320), { fill: '#2b3040', tone: '#171b27', hi: '#6a748a', k: 6 });
+        c.strokeStyle = INK; c.lineWidth = 6; c.beginPath(); c.moveTo(x + 20, -300); c.lineTo(x + 340, -30); c.moveTo(x + 340, -300); c.lineTo(x + 20, -30); c.stroke();
       }
-      fig(c, rect(-2000, -560, 4000, 58), { fill: '#343a4a', tone: '#1c202c', hi: '#8a94aa', k: 10 });
-      c.fillStyle = '#9aa4ba'; for (let x = -1980; x < 2000; x += 40) { c.beginPath(); c.arc(x, -530, 4, 0, 6.283); c.fill(); }
+      fig(c, rect(-2000, -340, 4000, 58), { fill: '#343a4a', tone: '#1c202c', hi: '#8a94aa', k: 10 });
+      c.fillStyle = '#9aa4ba'; for (let x = -1980; x < 2000; x += 40) { c.beginPath(); c.arc(x, -310, 4, 0, 6.283); c.fill(); }
       c.restore();
     },
     fg(g) {
@@ -250,19 +250,19 @@ export const PANELS: readonly Panel[] = [
       c.save(); c.translate(g.cx, g.gy); c.scale(g.s, g.s);
       for (let i = -2; i < 2; i++) {
         const x = i * 470 + 40;
-        fig(c, rect(x, -740, 450, 180, 30), { fill: '#b6c0c6', tone: '#7a8690', hi: '#ffffff', k: 12, lw: 7 });
-        fig(c, rect(x, -660, 450, 34), { fill: '#e03a3a', lw: 4, k: 4 });
-        for (let k = 0; k < 6; k++) fig(c, rect(x + 22 + k * 70, -722, 54, 56, 6), { fill: '#ffd26a', tone: '#d9a23a', lw: 4, k: 6 });
+        fig(c, rect(x, -520, 450, 180, 30), { fill: '#b6c0c6', tone: '#7a8690', hi: '#ffffff', k: 12, lw: 7 });
+        fig(c, rect(x, -440, 450, 34), { fill: '#e03a3a', lw: 4, k: 4 });
+        for (let k = 0; k < 6; k++) fig(c, rect(x + 22 + k * 70, -502, 54, 56, 6), { fill: '#ffd26a', tone: '#d9a23a', lw: 4, k: 6 });
       }
-      fig(c, circ(2*470 - 90, -640, 10), { fill: '#fff6b0', lw: 3, k: 2 });
-      limb(c, [[300, 0], [300, -420], [330, -470]], 14, '#2a2833'); fig(c, rect(300, -490, 70, 24, 8), { fill: '#fff0b0', lw: 5, k: 3 });
+      fig(c, circ(2*470 - 90, -420, 10), { fill: '#fff6b0', lw: 3, k: 2 });
+      limb(c, [[300, 0], [300, -300], [330, -350]], 14, '#2a2833'); fig(c, rect(300, -370, 70, 24, 8), { fill: '#fff0b0', lw: 5, k: 3 });
       stand(c, -120, 20, 270, { top: '#e8c030', bot: '#2a3552', skin: '#8a5a3c', hat: '#2c6fb0' });
       stand(c, -40, 30, 250, { top: '#9a2f6a', bot: '#26263a', skin: '#c28a62', arms: 'hold' });
       void R; c.restore();
     },
   },
   {
-    id: 'roof', word: 'ROOFTOP', kind: 'brick', tone: { h: 8, s: 30, l: 26 }, wy: [0.3, 0.4], zoom: 0.95,
+    id: 'roof', word: 'ROOFTOP', kind: 'brick', tone: { h: 8, s: 30, l: 26 }, wy: [0.35, 0.4], zoom: 0.95,
     style: { fill: '#f2c230', hi: '#fff0a0', block: '#c43a2a', glow: '#ffb03a', drips: 4 },
     bg(g) {
       const { c, w, h } = g;
@@ -292,7 +292,7 @@ export const PANELS: readonly Panel[] = [
     },
   },
   {
-    id: 'hydrant', word: 'BLOCK PARTY', kind: 'brick', tone: { h: 18, s: 36, l: 27 }, wy: [0.3, 0.4], zoom: 0.95,
+    id: 'hydrant', word: 'BLOCK PARTY', kind: 'brick', tone: { h: 18, s: 36, l: 27 }, wy: [0.35, 0.4], zoom: 0.95,
     style: { fill: '#ff4fa0', hi: '#ffb0d6', block: '#3a1a8a', glow: '#ff4fa0' },
     bg(g) {
       const { c, w, h } = g, cols = ['#e8307a', '#f2c230', '#28c8d8', '#9ae03a', '#ff6a2b'];
@@ -323,13 +323,13 @@ export interface RenderOpts { seed: number; w: number; h: number }
 /** Draws panel `p` onto `c` (a context sized w by h). Same seed gives the same picture. */
 export function paintPanel(c: C, p: Panel, R: Rnd, w: number, h: number): void {
   const wide = w / h >= 1.15;
-  const s = (wide ? (h / 900) * 0.8 : Math.min(w / 1000, h / 900) * 1.25) * p.zoom;
-  const g: Geo = { c, R, w, h, s, cx: wide ? w * 0.5 : w * 0.5, gy: wide ? h * 0.8 : h * 0.72, wide };
+  const s = (wide ? (h / 900) * 0.88 : Math.min(w / 1000, h / 900) * 1.25) * p.zoom;
+  const g: Geo = { c, R, w, h, s, cx: wide ? w * 0.5 : w * 0.5, gy: wide ? h * 0.82 : h * 0.72, wide };
   wall(c, w, h, R, p.kind, p.tone);
   p.bg(g);
   const base = (wide ? p.wy[0] : p.wy[1]) * h;
-  const size = Math.min(wide ? h * 0.3 : h * 0.17, w * 0.28);
-  drawWord(c, p.word, wide ? w * 0.6 : w * 0.5, base, size, wide ? w * 0.66 : w * 0.92, p.style, R);
+  const size = Math.min(wide ? h * 0.27 : h * 0.17, w * 0.28);
+  drawWord(c, p.word, wide ? w * 0.62 : w * 0.5, base, size, wide ? w * 0.62 : w * 0.92, p.style, R);
   p.fg(g);
   stencil(c, R.pick(['star', 'arrow', 'bolt'] as const), w * R.r(0.78, 0.92), h * R.r(0.55, 0.7), Math.min(w, h) * 0.05, p.style.fill, R);
   stencil(c, 'arrow', w * R.r(0.06, 0.12), h * R.r(0.52, 0.62), Math.min(w, h) * 0.04, p.style.hi, R);

@@ -115,7 +115,6 @@ const SURFACES = [
   { id: 'asphalt-plain', src: 'oga-textures', file: 'asphalt/asphalt_road.png', tileM: 4, use: 'road surface, plain', note: 'photo of asphalt, blue-grey' },
   { id: 'asphalt-cracked', src: 'polyhaven', file: 'ph/asphalt_02.jpg', tileM: 4, use: 'road surface, cracked and patched look', ph: 'asphalt_02', who: 'Rob Tuytel' },
   { id: 'sidewalk-slabs', src: 'polyhaven', file: 'ph/concrete_pavement.jpg', tileM: 3, use: 'sidewalk slabs', ph: 'concrete_pavement', who: 'Charlotte Baglioni' },
-  { id: 'brick-red', src: 'polyhaven', file: 'ph/red_bricks_04.jpg', tileM: 2.5, use: 'red brick wall', ph: 'red_bricks_04', who: 'Poly Haven artists (page lists no named author)' },
   { id: 'brick-mixed', src: 'polyhaven', file: 'ph/brick_wall_005.jpg', tileM: 2.5, use: 'red brick wall, varied, weathered', ph: 'brick_wall_005', who: 'Dimitrios Savva (photography), Dario Barresi (processing)' },
   { id: 'brick-painted', src: 'polyhaven', file: 'ph/painted_brick.jpg', tileM: 2.5, use: 'painted brick (tint to any colour)', ph: 'painted_brick', who: 'Poly Haven artists' },
   { id: 'brownstone', src: 'polyhaven', file: 'ph/old_sandstone_02.jpg', tileM: 3, use: 'brownstone / sandstone facade', ph: 'old_sandstone_02', who: 'Poly Haven artists', note: 'nearest open match to brownstone: warm tan-brown ashlar' },

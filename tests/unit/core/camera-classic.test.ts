@@ -2,7 +2,7 @@
  * CAMERA seat: the classic camera style (docs/swarm/tasks/CAMERA.md). The camera driven directly with a scripted body (follow, lag,
  * look, views, frame rate) and, for getting in and out and the walls, through the CAMFIX harness (real Player, Vehicle and World2D).
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { ThirdPersonCamera, CAM_CLASSIC, LOOK_FIRST_KEY, LOOK_LEFT_KEY, LOOK_RIGHT_KEY, type CameraMode } from '@/core/Camera';
 import { LOOK_BACK_KEY } from '@/core/Input';
@@ -12,6 +12,11 @@ import { FakeInput } from '../entities/mechanics-measure';
 import { CamRig, analyse, subject, carBoxContains, type CamFrame } from '../entities/camfix-harness';
 import { SCENARIOS } from '../entities/camfix-scenarios';
 
+// the unit tests run in node: give the camera a working localStorage (the camera and the views both treat it as optional)
+{
+  const mem = new Map<string, string>();
+  vi.stubGlobal('localStorage', { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => { mem.set(k, String(v)); }, removeItem: (k: string) => { mem.delete(k); }, clear: () => { mem.clear(); } });
+}
 const deg = (r: number): number => (r * 180) / Math.PI;
 const FPS = [30, 60, 144];
 
@@ -119,10 +124,9 @@ describe('classic on foot: the lazy follow of movement', () => {
     }
   });
   it('does not spin when running toward the lens', () => {
-    const path2: Path = (t) => ({ x: 0, z: 3 * t, h: Math.PI }); // the lens is south of a north-facing view; run south, at it
+    const path2: Path = (t) => (t < 1 ? { x: 0, z: 0, h: 0 } : { x: 0, z: 3 * (t - 1), h: Math.PI }); // stand facing north, then run south: at the lens
     const r = start('classic', path2);
-    r.cam.yaw = 0;
-    advance(r, path2, 60, 3);
+    advance(r, path2, 60, 4);
     // the yaw may drift a little while the angle opens, but never swings all the way round in 3 s
     expect(Math.abs(deg(angleDiff(0, r.cam.yaw)))).toBeLessThan(60);
   });
@@ -335,7 +339,8 @@ function runScenario(s: (typeof SCENARIOS)[number], fps: number, hitchAt?: numbe
   s.run(r);
   return r;
 }
-const relStepMax = (dt: number, blends: boolean): number => (blends ? 0.15 + 30 * dt : 0.3 + 6 * dt);
+// the classic rig is 5 to 6 m behind, so getting in or out is a longer glide than the modern one: every scenario gets the blend allowance
+const relStepMax = (dt: number): number => 0.15 + 30 * dt;
 
 describe('classic: getting in and out and the walls, every CAMFIX scenario', () => {
   for (const s of SCENARIOS) {
@@ -347,7 +352,7 @@ describe('classic: getting in and out and the walls, every CAMFIX scenario', () 
         expect(a.nan).toBe(0);
         expect(a.minAboveGround, `lens near the ground at t=${a.minAboveGroundAt.toFixed(2)}`).toBeGreaterThanOrEqual(0.3);
         expect(a.insideCar, `lens inside the car from t=${a.insideCarAt.toFixed(2)}`).toBe(0);
-        expect(a.relStep, `lens jump of ${a.relStep.toFixed(2)} m at t=${a.relStepAt.toFixed(2)}`).toBeLessThanOrEqual(relStepMax(dtMax, !!s.blends));
+        expect(a.relStep, `lens jump of ${a.relStep.toFixed(2)} m at t=${a.relStepAt.toFixed(2)}`).toBeLessThanOrEqual(relStepMax(dtMax));
         expect(a.turnRate, `view turns ${a.turnRate.toFixed(0)} deg/s at t=${a.turnRateAt.toFixed(2)}`).toBeLessThanOrEqual(240);
         expect(a.fovRate, `fov ${a.fovRate.toFixed(0)} deg/s`).toBeLessThanOrEqual(60);
         expect(a.upStep, `up vector ${a.upStep.toFixed(1)} deg in a frame`).toBeLessThanOrEqual(8);

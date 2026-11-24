@@ -28,7 +28,7 @@ export function layoutWord(c: C, text: string, size: number, maxW: number, track
 export function drawWord(c: C, text: string, cx: number, y: number, size: number, maxW: number, st: WordStyle, R: Rnd): { x: number; y: number; w: number; h: number } {
   const lay = layoutWord(c, text, size, maxW, st.track ?? 0.04), sz = lay.size, ink = st.ink ?? INK;
   const x0 = cx - lay.width / 2, slant = st.slant ?? -0.16, ol = sz * 0.17, depth = sz * 0.12;
-  const per = lay.items.filter((it) => it.ch !== ' ').map((it) => ({ it, rot: R.r(-0.09, 0.09), sy: R.r(0.92, 1.12), dy: R.r(-0.07, 0.07) * sz, jx: R.r(-0.02, 0.02) * sz }));
+  const per = lay.items.filter((it) => it.ch !== ' ').map((it) => ({ it, rot: R.r(-0.06, 0.06), sy: R.r(0.92, 1.12), dy: R.r(-0.07, 0.07) * sz, jx: R.r(-0.012, 0.012) * sz }));
   // fat-cap halo behind the whole word
   c.save(); c.lineJoin = 'round';
   for (const p of per) { c.save(); place(c, p, x0, y, slant); c.font = DISPLAY_FONT(sz); c.shadowColor = st.glow; c.shadowBlur = sz * 0.5; c.strokeStyle = st.glow; c.globalAlpha = 0.8; c.lineWidth = ol * 1.4; c.strokeText(p.it.ch, 0, 0); c.restore(); }
