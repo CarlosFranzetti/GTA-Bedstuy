@@ -26,6 +26,11 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
    CMU motion capture is free to use (not to resell as data). Mixamo, LaFAN1 and Bandai Namco sets are ruled out.
 4. Real places appear under invented names. Shops, brands and liveries are parodies with invented wording. Real DJ and
    artist names appear only for real public radio streams. No lettering, logos or numbers on clothes.
+   CHANGED by the owner on 24 Nov: "real brand names and logos would need painting: ignore that rule going forward;
+   mostly parody names are for the venues and shop names." So a third-party asset that carries a real brand name or
+   logo (a car model, a skin) no longer has to have it removed; venues and shops keep invented parody names. The lead
+   told him the risk is his: a trademark owner can still object to their mark in a published game. This does not change
+   rule 1 (no game's own assets) or rule 3 (licences).
    Talk radio may joke ABOUT public figures and topics the owner named on 22 Nov (AI, Trump, Mamdani, stocks and crypto,
    the subway, parodied landmarks, weather, dating, the techno, house and wider underground scenes): satire only, hosts are
    invented characters, no imitation of a real person's voice, no invented quote or factual claim presented as real.

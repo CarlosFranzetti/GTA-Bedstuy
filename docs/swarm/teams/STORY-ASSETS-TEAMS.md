@@ -20,8 +20,7 @@ per task, and get this all going now."
   through the mod loader (`docs/MODS.md`, lane MODS).
 - What ships comes from open sources only (rule 3), each item's licence read on its own page and recorded in
   `docs/CREDITS.md`, or is made here in that style. Verified candidates: `docs/reference/open-assets-lowpoly.md`.
-  Not usable: Quaternius site packs (their site licence now bars redistribution), anything with a real brand name or
-  logo unless it is removed (rule 4), anything NC, ND, "personal use" or unlicensed.
+  Not usable: Quaternius site packs (their site licence now bars redistribution), anything NC, ND, "personal use" or unlicensed.
 - Downloaded third-party files live under `src/assets/open/<source>/<item>/` with a `LICENSE.txt` or `SOURCE.md` beside
   them (page URL, author, licence, date fetched, what was changed). They load on the HOSTED build only: the single-file
   build has about 160 kB of room under its 12 MB limit and must not grow.
@@ -54,3 +53,8 @@ per task, and get this all going now."
 | CAST | new `src/game/story/cast/**`, tests | The five people as characters in the world: looks, outfits, where they are, how the player changes character |
 | INTAKE | `src/assets/open/**`, `docs/CREDITS.md`, `scripts/dev/open-assets-*.mjs` | Fetch, check and convert the best open low-poly cars and street textures |
 | LOOK | `docs/swarm/art/LOWPOLY.md`, a sheet tool | The written art rules of the new look and a first conversion of one car class and three street surfaces |
+
+
+STATUS, 24 Nov: the owner stopped the first wave before any seat started (and the MODS lane with it). Nothing here is
+running. Do not start seats until he says so. Brand names and logos on third-party assets are allowed since his 24 Nov
+change to rule 4 (MEMORY.md).
