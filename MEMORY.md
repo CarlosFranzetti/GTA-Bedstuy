@@ -46,6 +46,14 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 24 Nov, on the story's lines: "Sex is shown but option to shut off in settings. Selling has consequences if caught.
+  The homeless man is a named person with his own reasons, and that fight can be talked down but the fight is still a
+  possibility. You shoot some people in missions just like GTA; it does get gritty but don't lose the humor." The lead
+  builds intimacy as suggestive and non-explicit only (kissing, a cut-away, clothed, a Settings switch to turn it off)
+  and told him explicit scenes will not be built. Details: `docs/swarm/teams/STORY-ASSETS-TEAMS.md`, last section.
+  RADIO: "announcers on stations mention the DJ names a few times during the set: once at the beginning and once near
+  the end thanking the DJ. Other than that it depends on the length, no more than once every 30 to 40 minutes."
+
 - 24 Nov, later still: "Don't forget about checking in with me; ask me if anything is unclear; and groups of 5 working
   in each thing: models, faces, story and missions and side missions, textures, physics, load screens with that graffiti
   look, a better theme song, something like the original, maybe use [Suno] or something like that; fix the camera and

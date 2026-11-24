@@ -58,3 +58,21 @@ per task, and get this all going now."
 STATUS, 24 Nov: the owner paused the first wave before it started, changed rule 4 (real brand names and logos on
 third-party assets are allowed; venues and shops keep invented parody names: MEMORY.md), then said "Let's continue
 all". The seats and the MODS lane start now.
+
+## The owner's corrections to the story lines (24 Nov, later): these REPLACE the lead's lines above where they differ
+
+His words: "Sex is shown but option to shut off in settings. Selling has consequences if caught. The homeless man is a
+named person with his own reasons, and that fight can be talked down but the fight is still a possibility. You shoot
+some people in missions just like GTA; it does get gritty but don't lose the humor."
+
+How the lead applies them:
+- INTIMACY: hook-ups and dates may be SHOWN as suggestive, non-explicit scenes: flirting, kissing, a couple going
+  through a door, a camera that stays outside or cuts away, clothed figures, sound and a comic beat, the morning after.
+  No nudity, no depicted sex act, nothing explicit in pictures, animation or text: the lead will not build that, and has
+  told the owner so. A Settings switch "Intimate scenes: On / Off" (Off = a plain fade) is part of the design from the
+  start. Adults only, always.
+- SELLING: consequences come from being CAUGHT (a witness, police heat, a bust that takes the pack and the cash); when
+  nobody sees, the deal simply pays. Still no real substance names, doses, prices or methods.
+- THE HOMELESS MAN: a named person with his own reasons. The fight is a real, playable outcome, and so is talking him down.
+- VIOLENCE: missions may have the player shoot people, as the series does; the story gets gritty and keeps its humour.
+  Standing limits remain: blood but no gore beyond it (rule 5), children and teenagers never hurt and never in these scenes.

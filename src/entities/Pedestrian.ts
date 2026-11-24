@@ -196,6 +196,8 @@ export class Pedestrian implements Entity {
     private readonly rng: Rng,
     private readonly crosswalkNodes?: ReadonlySet<string>,
     env?: PedEnvironment,
+    /** CAST: a fixed person (a registered PedSpec id) instead of a draw from the crowd */
+    variant?: string,
   ) {
     this.idleRng = new Rng(Rng.hash(`${id}:idle`));
     this.body = {
@@ -215,7 +217,7 @@ export class Pedestrian implements Entity {
       const n = (Pedestrian.characterSource as { variantCount?: number }).variantCount ?? 8;
       this.rig = Pedestrian.characterSource.instantiate(rng.int(0, n - 1)); g = this.rig.group;
     }
-    else { this.model = buildPedModel(materials, rng); g = this.model.group; }
+    else { this.model = buildPedModel(materials, rng, variant ? { variant } : undefined); g = this.model.group; }
     g.rotation.order = 'YXZ';
     this.object3D = g;
     this.vitals = new PedVitals(id, this.person?.age ?? 'adult');
@@ -238,6 +240,16 @@ export class Pedestrian implements Entity {
     if (this.state === 'waiting') return this.phoneIdle ? 'phone' : 'stand';
     return this.movingNow ? 'walk' : 'stand';
   }
+
+  /** CAST: a story person stands here, facing `heading`, until `releaseHold`. The crowd systems never see them; StoryPeople.update calls this again after a knock-down or a flee. */
+  holdAt(x: number, z: number, heading: number): void {
+    const b = this.body;
+    b.pos.x = x; b.pos.z = z; b.vel.x = 0; b.vel.z = 0; b.heading = heading;
+    this.state = 'sitting'; this.sitTimer = 1e9; this.sitOnStoop = false; this.phoneIdle = false; this.detour = null; this.waitCrossing = null;
+  }
+  /** CAST: true while held by `holdAt` (standing at a station, not walking off) */
+  get isHeld(): boolean { return this.state === 'sitting' && this.sitTimer > 1e8; }
+  releaseHold(): void { if (this.isHeld) { this.state = 'walking'; this.sitTimer = 0; } }
 
   /** Walk together with `leader` (a small group). The follower keeps to the leader's side. */
   follow(leader: Pedestrian, slot: number): void {

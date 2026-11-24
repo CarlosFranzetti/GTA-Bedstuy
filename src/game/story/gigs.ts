@@ -82,7 +82,7 @@ export class GigBook {
   isBanned(v: VenueId): boolean { return this.likingOf(v) <= BAN_LIKING; }
 
   /**
-   * Ask for a slot. The slot is tonight at the venue's opening time, or the next half hour if it is already open;
+   * Ask for a slot. The slot is tonight at the venue's opening time, or right now if it is already open;
    * `startHour` overrides (missions that fix the night). A visit in person is a little better than a call (+10 percent fee).
    */
   request(venue: VenueId, via: 'call' | 'visit', opts: { startHour?: number; baseFee?: number; minutes?: number } = {}): { ok: true; booking: Booking } | { ok: false; reason: RequestRefusal } {
@@ -96,7 +96,7 @@ export class GigBook {
     if (opts.startHour !== undefined) {
       startAbs = this.day * 24 + opts.startHour;
       if (startAbs + 0.5 < this.now) startAbs += 24;
-    } else if (venueOpen(venue, h)) startAbs = this.now + 0.5;
+    } else if (venueOpen(venue, h)) startAbs = this.now;
     else {
       const open = info.open[0];
       startAbs = this.day * 24 + open;
