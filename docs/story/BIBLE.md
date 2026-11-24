@@ -32,11 +32,21 @@ The lead may want another title for the menus; it never appears as a logo.
 - The dark beats (debt, a man who collapses, a friend who gets hurt, a fight that should not have happened) are written
   plain. No gore. No cruelty for its own sake.
 - Fights cost something. Violence is always available (rule 5: it is still this kind of game), but the story rewards
-  the player who reads a room. Every story fight can be talked down, and talking it down is the better ending.
-- Romance is adult, sweet, awkward and funny. Sex is never shown or described: a fade to black, then a morning after
-  (coffee, a borrowed T-shirt, a text). Nobody under 18 is ever in a romantic, sexual, selling or fight storyline.
-- Selling is a story about money pressure and its consequences. No real-world how-to. The goods are never named: they
-  are "the bags", "the order", "product", "a Plush box". No doses, no prices per unit, no slang names for substances.
+  the player who reads a room. The two story fights (Clem, Kyle) can be talked down, and both fights are also real,
+  playable outcomes with their own consequences.
+- Guns: from Act 2 some missions have the player shoot people, as the series does (Plush's "retention team", Kyle's
+  hired security in Act 3). It gets gritty; the humour stays (the goons have job titles, a performance review, a group
+  chat). Blood, no gore beyond it. Children and teenagers are never hurt and never present in these scenes.
+- Romance is adult, sweet, awkward and funny. Intimacy (owner, 24 Nov) may be SHOWN suggestively and never explicitly:
+  flirting, a kiss, a couple going through a door, the camera staying outside or cutting away to something comic
+  (the cat, the radiator, the neighbour's pigeons), clothed figures, sound, then the morning after (coffee, a borrowed
+  T-shirt, a text). No nudity, no depicted act, nothing explicit in pictures, animation or text. Every such scene has a
+  plain fade for the Settings switch "Intimate scenes: Off". Mission pages mark each as INTIMATE BEAT with both versions.
+  Adults only, always: nobody under 18 is ever in a romantic, intimate, selling or fight storyline.
+- Selling is a story about money pressure. Consequences come when you are CAUGHT (owner, 24 Nov): a witness, police
+  heat, a bust that takes the pack and the cash, a friend who sees. When nobody sees, the deal simply pays, and the story
+  lets the player sit with that. No real-world how-to. The goods are never named: "the bags", "the order", "product",
+  "a Plush box". No doses, no prices per unit, no methods, no slang names for substances.
 - No slurs. No real public figure as a character. No real business or real DJ.
 - Spanish is Pedro's, not a costume: short, natural, the way a coastal Colombian speaks when he is tired or happy or
   angry. Subtitles show Spanish lines with the English after a slash where it is not obvious from context.
@@ -216,7 +226,7 @@ Voice: pitch 0.95, rate 1.05.
 ### 4.8 Love interests (adults, written as people)
 
 The player chooses who Pedro dates (ACT1-07 offers two; the others open later). A date is a short mission (SIDE.md,
-"Dates"): a place, a walk, a reply picker, a mood meter. A hook-up is a choice at the end of a good date; it fades to black
+"Dates"): a place, a walk, a reply picker, a mood meter. A hook-up is a choice at the end of a good date; it is an INTIMATE BEAT (section 2: suggestive, cut-away, Off = a plain fade)
 and opens on a morning after. Pedro can date one person at a time "seriously"; casual hook-ups are possible and the story
 notices them, gently (a text, a joke from Lana), never with punishment for its own sake. Turning someone down is always
 an option and always respected.
@@ -381,7 +391,7 @@ Story flags the Act 1 pages use (MISSIONS may rename; keep the meaning):
 
 ## 7. What is NOT in this story, ever
 
-Sex shown or described. Anyone under 18 in a romance, selling, fight or bar scene. Named substances, doses, prices per unit
+Nudity, a depicted sex act, or anything explicit in pictures, animation or text. Anyone under 18 in a romance, selling, fight or bar scene. Named substances, doses, prices per unit
 or methods. Slurs. A real person (public figure or private). A real club, bar, shop, promoter, label or DJ (real DJs only
 as real public radio streams, which this story does not script). Song lyrics, real or invented-to-sound-real. A narco plot.
 A homeless character who is a joke, a threat for its own sake or a victim to be saved.

@@ -3839,3 +3839,6 @@ Started. Plan in docs/swarm/tasks/LOADSCREENS.md: kit, Anton-based block letteri
 
 ### 2026-11-24T02:14:42Z · Imogen (RADIO4)
 Started. Plan: pure scheduler src/audio/sc/djMentions.ts, line pools src/audio/sc/djLines.ts, runner glue in RadioDirector.update, Announcer.djMention. Nothing can be heard from here.
+
+### 2026-11-24T02:15:19Z · Paloma Reyes-Whitfield (WRITER)
+Read the owner's corrections. BIBLE.md section 2 updated: intimacy shown suggestive and non-explicit, every such scene marked INTIMATE BEAT with an On and an Off (plain fade) version for the Settings switch; selling pays when unseen, consequences when caught (witness, heat, bust takes pack and cash); Clem and Kyle fights are real outcomes and can be talked down; guns from Act 2 (Plush's 'retention team'), no minors anywhere near. Act 1 pages so far: missions/ACT1-01, -02, -03.
