@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "name": "Example: Kenney sedan and Poly Haven asphalt",
+  "author": "Kenney (car), Poly Haven (asphalt); packaged as an example",
+  "licence": "CC0-1.0",
+  "description": "Made from two files that are already in this repository. Copy src/assets/models/vehicle-sedan.glb as car.glb and src/assets/textures/cc0/asphalt/{color,normal,rough}_1k.jpg as road_color.jpg, road_normal.jpg, road_rough.jpg beside this file, then drop the folder on the Mods panel.",
+  "entries": [
+    { "slot": "vehicle:sedan", "model": "car.glb" },
+    { "slot": "texture:asphalt", "image": "road_color.jpg", "normal": "road_normal.jpg", "roughness": "road_rough.jpg", "repeat": [4, 4] }
+  ]
+}

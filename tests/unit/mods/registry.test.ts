@@ -232,3 +232,13 @@ describe('ModRegistry', () => {
     expect(sources.sedan).toBeUndefined();
   });
 });
+
+describe('docs example', () => {
+  it('docs/examples/mod-example/mod.json is a valid manifest that names files already in the repository', async () => {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const v = validateManifest(JSON.parse(readFileSync('docs/examples/mod-example/mod.json', 'utf8')));
+    expect(v.errors).toEqual([]);
+    expect(v.manifest!.entries).toHaveLength(2);
+    for (const src of ['src/assets/models/vehicle-sedan.glb', 'src/assets/textures/cc0/asphalt/color_1k.jpg', 'src/assets/textures/cc0/asphalt/normal_1k.jpg', 'src/assets/textures/cc0/asphalt/rough_1k.jpg']) expect(existsSync(src), src).toBe(true);
+  });
+});

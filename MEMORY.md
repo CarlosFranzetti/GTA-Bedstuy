@@ -41,6 +41,13 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 24 Nov, later: convert the game's models and textures to the look of his reference pack and build new ones in that
+  look; find more online; and START A STORY: Pedro Martinez, a Colombian DJ, is the main character; Lana Porskaia and
+  Adele Labos become playable; Stavros Yanos and Akira Tonaka are people you deal with; missions about DJ gigs, promoting
+  a club night, selling, thrifting and flipping clothes, dating and hook-ups, a fight with a homeless man and one at a
+  bar; three bars, an after-hours, a club, a dispensary and a gym. "Use a swarm of no more than 20 sub agents, 5 per
+  task." His words in full, the lead's reading and the seats: `docs/swarm/teams/STORY-ASSETS-TEAMS.md`.
+
 - 24 Nov: he has a folder of third-party models and textures made for GTA 3, Vice City and San Andreas ("These are not
   ... rockstar models. These are third-party models and are free to use, the same thing with the textures"). He wants:
   the relevant ones used in the game; "a new model and texture system that is compatible with theirs such that people

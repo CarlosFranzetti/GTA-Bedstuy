@@ -18,6 +18,8 @@ export interface StartModsOptions {
   target: ModTarget;
   /** milliseconds to wait for stored mods at boot before carrying on without them (default 6000) */
   restoreTimeoutMs?: number;
+  /** ?mods=off: load nothing; the panel only offers to clear the device's mods */
+  safe?: boolean;
 }
 
 export interface ModsApi { registry: ModRegistry; panel: ModsPanel; open(): void }
@@ -30,8 +32,10 @@ export async function startMods(o: StartModsOptions): Promise<ModsApi | null> {
       vehicleTypes: Object.keys(VEHICLE_SPECS),
       onToggle: () => o.panels.sync(),
       onChange: apply,
+      safeMode: o.safe,
     });
     o.panels.register({ id: 'mods', isOpen: () => panel.isOpen, close: () => panel.close(), back: () => panel.back() });
+    if (o.safe) return { registry, panel, open: () => panel.open() };
     const restoring = registry.restore().then(apply, (e) => console.warn('[mods] restore failed', e));
     await Promise.race([restoring, new Promise((r) => setTimeout(r, o.restoreTimeoutMs ?? 6000))]);
     return { registry, panel, open: () => panel.open() };

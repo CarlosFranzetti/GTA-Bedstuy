@@ -12,6 +12,8 @@ export interface ModsPanelOptions {
   onChange?: (report: InstallReport | null) => void;
   /** Vehicle class names the game has, for the slot menus. */
   vehicleTypes: readonly string[];
+  /** The game was opened with ?mods=off: nothing was loaded; the panel offers to clear everything stored on this device. */
+  safeMode?: boolean;
   doc?: Document;
 }
 
@@ -64,6 +66,11 @@ export class ModsPanel {
     for (const ev of ['dragleave', 'dragend']) this.drop.addEventListener(ev, () => this.drop.classList.remove('over'));
     this.drop.addEventListener('drop', (e) => { e.preventDefault(); this.drop.classList.remove('over'); void this.onDrop(e as DragEvent); });
     col.append(this.drop);
+    if (opts.safeMode) {
+      const safe = mk('div', 'md-drop', 'Safe mode: no mod was loaded this time.');
+      safe.append(mk('div', 'md-row')).append(this.btn('Remove every mod from this device', () => { void registry.store.clear().then(() => this.say([{ text: 'All stored mods were removed. Open the game without ?mods=off to use the panel normally.', kind: 'good' }])); }, 'danger'));
+      col.append(safe);
+    }
     this.msg = mk('div', 'md-msg'); this.msg.setAttribute('role', 'status');
     this.assign = mk('div', 'md-assign-box');
     this.list = mk('div', 'md-list');
