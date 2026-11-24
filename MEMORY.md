@@ -50,7 +50,12 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
   when its own licence text allows redistribution (rule 3: CC0, CC BY, CC BY-SA, or the author's written permission),
   checked file by file and credited in `docs/CREDITS.md`; "free to download" is not a licence. The mod system loads the
   player's OWN files in their browser (the old games' model and texture file formats, plus glTF and PNG) and never
-  uploads or hosts them, so anyone can use any pack they have without us distributing it. The lead could NOT reach his
+  uploads or hosts them, so anyone can use any pack they have without us distributing it. 24 Nov, later: he put
+  the pack in Google Drive (folder CLAUDE/GTAREF, credit to "Hype"). The lead listed it and downloaded NOTHING: the
+  file names are the old games' own archive names (car, pedestrian, story-character, district and font archives) and
+  nine pedestrian archives are the same 22,064 bytes, which fits stock files, not new artwork. Not proof, but enough
+  that none of it goes in the game or the repository unless Hype can show which pieces he drew himself. Told the owner.
+  Look-only use and the player-side mod loader are unaffected. The lead could NOT reach his
   laptop from this session on 24 Nov (no folder offered); lanes MODS (loader) and a research lane started without it.
 
 - 23 Nov, small hours, on the sheet of round 2's first limb pass, which he marked by hand: "what's with the strange fold
