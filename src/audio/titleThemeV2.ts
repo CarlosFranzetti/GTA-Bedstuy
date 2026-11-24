@@ -158,7 +158,7 @@ export function makeGuiro(sr: number, secs = 0.5, seed = 31): Float32Array {
 
 // ---------------------------------------------------------------- engine
 export type PartName = 'kick' | 'snare' | 'hats' | 'bass' | 'pad' | 'brass' | 'bell' | 'counter' | 'perc';
-export const DEFAULT_MIX: Record<PartName, number> = { kick: 0.6, snare: 0.55, hats: 0.2, bass: 0.34, pad: 0.16, brass: 0.17, bell: 0.2, counter: 0.17, perc: 0.3 };
+export const DEFAULT_MIX: Record<PartName, number> = { kick: 0.4, snare: 0.55, hats: 0.3, bass: 0.2, pad: 0.1, brass: 0.2, bell: 0.2, counter: 0.17, perc: 0.3 };
 
 export interface TitleThemeOptions {
   /** Output level 0..1 (default 0.76). */
@@ -171,6 +171,8 @@ export interface TitleThemeOptions {
   mix?: Partial<Record<PartName, number>>;
   /** Lead motif: a (default), b or c. When omitted, `?motif=` in the page address picks it. */
   motif?: MotifId;
+  /** Start part-way in (audition and offline checks); default 0. */
+  startBar?: number;
 }
 export interface TitleTheme {
   start(): void;
@@ -239,7 +241,8 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const lim = track(ctx.createDynamicsCompressor());
     lim.threshold.value = -4; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.15;
     lim.connect(shaper(ceilingCurve(), o0));
-    const sum = gain(1, filt('lowpass', 12000, 0.5, shaper(satCurve(), lim)));
+    const sum = gain(1, filt('highpass', 38, 0.7, filt('highshelf', 3500, 0.7, filt('lowpass', 12000, 0.5, shaper(satCurve(), lim)))));
+    
     const part = (p: PartName): GainNode => gain(mix[p], sum);
 
     // plate reverb and a dotted-eighth echo (shared sends)
@@ -254,7 +257,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
 
     // pad: four saws and four triangles, persistent, gliding between chords
     const padBus = part('pad'); duckPad = gain(1, padBus); padAmp = gain(0.5, duckPad);
-    padLP = filt('lowpass', 500, 0.7, padAmp); send(padBus, 0.35);
+    padLP = filt('lowpass', 500, 0.7, filt('highpass', 130, 0.5, padAmp)); send(padBus, 0.35);
     const triIn = gain(0.9, padLP), sawIn = gain(0.45, padLP);
     CHORDS.Fm9.pad.forEach((m) => {
       const a = osc('sawtooth', midiToHz(m), sawIn), b = osc('triangle', midiToHz(m), triIn); a.detune.value = 5; b.detune.value = -4; padOscs.push(a, b);
@@ -320,7 +323,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const tt = T(t), f = midiToHz(midi), end = tt + lenSteps * STEP_SEC * 0.96;
     const g = gain(0, brassIn), lp = filt('lowpass', 700, 0.9, g);
     g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(amp, tt + 0.035); g.gain.setValueAtTime(amp * 0.85, end); g.gain.setTargetAtTime(0, end, 0.07);
-    lp.frequency.setValueAtTime(650, tt); lp.frequency.exponentialRampToValueAtTime(2900, tt + 0.1); lp.frequency.setTargetAtTime(1500, tt + 0.12, 0.35);
+    lp.frequency.setValueAtTime(900, tt); lp.frequency.exponentialRampToValueAtTime(4800, tt + 0.1); lp.frequency.setTargetAtTime(2600, tt + 0.12, 0.35);
     const o1 = osc('sawtooth', f, lp), o2 = osc('sawtooth', f, lp); o1.detune.value = 7; o2.detune.value = -7;
     lfoDepth.connect(o1.detune); lfoDepth.connect(o2.detune);
     for (const o of [o1, o2]) { o.start(tt); o.stop(end + 0.5); }
@@ -442,7 +445,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
       buildChain();
       const now = ctx.currentTime;
       out!.gain.setValueAtTime(0, now); out!.gain.linearRampToValueAtTime(volume, now + 0.4);
-      t0 = now + 0.06; nextStep = 0; running = true;
+      t0 = now + 0.06; nextStep = Math.max(0, Math.floor(opts.startBar ?? 0)) * 16; t0 -= nextStep * STEP_SEC; running = true;
       scheduleUntil(now + lookAhead);
       if (!opts.manual) timer = setInterval(() => scheduleUntil(ctx.currentTime + lookAhead), intervalMs);
     },

@@ -15,3 +15,10 @@ Status: in progress. Updated as work lands.
 
 ## Placeholders
 Venue ids are MISSIONS' placeholder strings. Backgrounds and ages of the five fixed names are my guesses until BIBLE.md lands.
+
+## Landed (24 Nov)
+Files: src/game/story/cast/{types,cast,specs,player,switch,placement,host}.ts; tests/unit/game/story/cast (5 files, 29 tests green; 11 existing ped/wardrobe files still green);
+scripts/dev/cast-sheet.{html,mjs}; docs/swarm/teams/sheets/cast-lineup.png (front, close level, day outfits, ten people).
+Hooks in others' files: PedSpec.seed? (ped.ts); `seed ?? id` in pedHead (2), pedBodyTypes (bodyBuildOf), pedEyes, pedPieces (7), pedPaintShared, pedPaintSwatch;
+pedRoster.ts: PlayerLook.cast?/outfit?, setPlayerCastSpec, playerSpecId override; Pedestrian.ts: ctor `variant?`, holdAt/isHeld/releaseHold.
+Not done: wiring in main.ts; real venue stations; a clothes shop UI; mid and far levels not looked at; silhouettes in the lineup are close to each other.

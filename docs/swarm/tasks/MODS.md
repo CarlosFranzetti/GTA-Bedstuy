@@ -62,3 +62,32 @@ repository) and ran the parsers on them in a scratch test:
   era (the readme lists 1024, 512, 256 and 128 pixel textures, one with alpha). To fix: lane MODS3.
 - Not shippable: it is other people's work without a licence, and far over a car's triangle budget. It is a mod-loader
   test case only.
+
+## MODS3 (24 Nov): the first real dictionary decodes
+Cause (found by dumping the chunk tree; the parser's own layout was right): the 2002 file was written by an old community
+tool that leaves its sizes stale. (1) The outer dictionary size is 24 bytes past the end of the file. (2) Every texture
+chunk states the size of the texture it replaced (5,236 bytes for what are 1,049,000-byte 1024 px textures; 17,524 for
+256 and 512 px), so the second chunk is not where the sizes say. The fields inside each texture are right (platform 8,
+raster 0x2600 / 0x2500, a 4-byte size before the level, library stamp 0x0c02ffff). (3) The last texture ends 4 bytes
+(plus its empty extension chunk) before its data should. (4) Name fields hold stack leftovers after the NUL: the first
+NUL-terminated string is the name; any "smarter" choice picked wrong names ("side2" for "1").
+Fix (`src/mods/rw/txd.ts`): the dictionary is walked by what each record holds, not by its sizes; the lower mip levels are
+stepped over by their own sizes; the extension chunk after each texture is honoured by size when it fits; a last level
+short by at most 64 bytes (single level) is padded with zeros and reported in the new `TxdResult.warnings`; anything else
+still stops with "The texture "name" is cut short." (`truncated`). 7 new tests in `tests/unit/mods/real-layout.test.ts`
+(layout rebuilt from the measurements with invented pixels and names; no real file in the repository). 51 mods tests green.
+Decoded texture list (names and sizes only): 1 (1024x1024), 2 (1024x1024), 3 (1024x1024), 6 (256x256), crashed
+(1024x1024), 4 (512x256, alpha), white64 (128x128, alpha). All 8-bit palette. The model's materials also name "5", which
+is not in this dictionary (its pixels are elsewhere or missing: that material draws untextured).
+Model (frames, 57): the converter's reading, after two fixes. Paint: the body materials are a plain dark red (144,4,4),
+not the community green marker, so the default paint match does not find them; a mod.json `paintColors: [[144,4,4]]` is
+needed for this file (not changed: automatic guessing was judged out of scope). Wheels: the file has a merged 4,608
+triangle `wheel` atomic spanning the whole car AND four single wheel meshes (`wheel_rf`, `wheel_lb`, `wheel_rb`, `wheel_lf`,
+1,144 each) under the four dummies. Before: eight wheel groups (the merged copy repeated at every dummy). Now: the four own
+meshes only (`convert.ts`, `hasExplicitWheels`). Seat markers: `ped_rearseat` is an 8 triangle box; `ped_*` frames are now
+skipped. Damaged copies (`*_hi_dam`, 12 atomics) and the low-detail body (`chassis_vlo`) were already dropped. Parts kept:
+chassis_hi (8,058 triangles), bumper front and rear, bonnet, boot, windscreen, four doors, two wings (all `_hi_ok`), four
+wheels: 16,596 triangles built (was 35,036). No `wheel_*` light frames carry atomics; headlights, taillights, brakelights,
+reverselights, indicators and exhaust are frames only (nothing to draw).
+Still open: 16.6k triangles is over a normal car's budget; "5" texture; automatic paint-colour guess; Xbox / PS2 files;
+the model with its textures was not looked at in the running game.

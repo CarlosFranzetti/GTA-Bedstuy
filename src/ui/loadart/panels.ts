@@ -100,7 +100,7 @@ function stoop(c: C, x0: number): void {
 
 export const PANELS: readonly Panel[] = [
   {
-    id: 'decks', word: 'DECKS', kind: 'concrete', tone: { h: 270, s: 22, l: 17 }, wy: [0.35, 0.4], zoom: 1,
+    id: 'decks', word: 'DECKS', kind: 'concrete', tone: { h: 270, s: 22, l: 17 }, wy: [0.35, 0.4], zoom: 0.88,
     style: { fill: '#e8307a', hi: '#ff93bd', block: '#5a1580', glow: '#e8307a' },
     bg(g) {
       const { c, w, h, R } = g;
@@ -304,7 +304,9 @@ export const PANELS: readonly Panel[] = [
       c.save(); c.translate(g.cx, g.gy); c.scale(g.s, g.s);
       fig(c, rect(-1200, 0, 2400, 400), { fill: '#2a2833', tone: '#1a1822', k: 12 });
       fig(c, rect(-1200, -40, 2400, 40), { fill: '#6a6578', tone: '#443f54', hi: '#a8a2bc', k: 6 });
-      for (const [a, b, bow] of [[-70, -330, -90], [-70, -330, 60]] as const) { spray(c, 60, -300, 520, 20, 30, '#bdf4ff', R, a + b < 0 ? bow : -bow); }
+      const arc: Array<[number, number]> = [[60, -190], [170, -330], [330, -330], [440, -190], [520, -20]];
+      limb(c, arc, 30, '#8fe4f4'); limb(c, arc.map(([x, y]) => [x, y - 4] as [number, number]), 12, '#f4fdff');
+      for (const [dx, dy, r] of [[400, -250, 9], [470, -150, 8], [330, -370, 7], [520, -90, 7], [250, -360, 6]] as const) fig(c, circ(dx, dy, r), { fill: '#bdf4ff', lw: 3, k: 2 });
       for (const [px, py, dr] of [[300, -90, 40], [440, -20, 50], [160, -30, 40]] as const) { c.fillStyle = 'rgba(189,244,255,0.75)'; c.beginPath(); c.ellipse(px, py + 10, dr * 1.7, dr * 0.35, 0, 0, 6.283); c.fill(); }
       fig(c, smooth2([[-110, -20], [-110, -250], [-70, -300], [-40, -330], [-10, -300], [30, -250], [30, -20]]), { fill: '#d63a3a', tone: '#8a1f2c', hi: '#ff9a8a', k: 12 });
       fig(c, rect(-140, -30, 100, 30, 6), { fill: '#d63a3a', tone: '#8a1f2c', k: 6 });

@@ -3845,3 +3845,9 @@ Read the owner's corrections. BIBLE.md section 2 updated: intimacy shown suggest
 
 ### 2026-11-24T02:19:14Z · Paloma Reyes-Whitfield (WRITER)
 @MISSIONS all eight Act 1 pages are in docs/story/missions/ (ACT1-01-rent-money ... ACT1-08-warm-up-slot): objectives in play terms with existing kinds named, fail states, rewards, full dialogue with speaker tags, barks, notes per page. Two systems detailed there: the Clem talk-down tree with calm-meter numbers (ACT1-04) and the date mood meter + INTIMATE BEAT On/Off versions (ACT1-07). ACT1-08 has the warm-up ceiling rule (meter 40-70) and guest-list effects. SIDE.md (numbers) next, then Act 2 pages.
+
+### 2026-11-24T02:19:31Z · Dana Okonjo (CAST)
+Done. Cast data, Pedro as player, placement, switching, tests (29 green) and lineup docs/swarm/teams/sheets/cast-lineup.png. Notes: docs/swarm/tasks/STORY-CAST.md. main.ts lines in my report.
+
+### 2026-11-24T02:19:56Z · Imogen (RADIO4)
+Done: scheduler, 162 lines, announcer djMention, director wiring, 30 tests, audio folder 615 green. Notes in docs/swarm/tasks/RADIO4.md.

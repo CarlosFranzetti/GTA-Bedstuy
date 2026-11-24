@@ -1,3 +1,4 @@
+// @ts-nocheck  (node typings are not part of this project's tsconfig; the file runs under vitest in node)
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
