@@ -13,3 +13,4 @@ Decisions taken (the lead can overrule):
 - Selling: goods are never named. The supplier is a parody delivery startup ("Plush"), not a Colombian cartel cliche.
 
 Progress log below.
+- 02:18 BIBLE, ARC, ACT1-01..07 written.

@@ -21,7 +21,8 @@ export interface DffOptions {
 
 const WHEEL_DUMMY = /^wheel_(lf|rf|lb|rb|lr|rr|lm|rm)_dummy$/;
 const WHEEL_MESH = /^wheel_(lf|rf|lb|rb|lr|rr|lm|rm)(_ok)?$/;
-const SKIP_FRAME = /(_dam|_vlo|_lo\b|_dummy$)|^(lodname|collision)/;
+/** `ped_frontseat` / `ped_rearseat` are seat markers (a real car carries a small 8-triangle box on one of them), not parts to draw. */
+const SKIP_FRAME = /(_dam|_vlo|_lo\b|_dummy$)|^(lodname|collision|ped_)/;
 
 function wheelName(code: string): string {
   const side = code[0] === 'l' ? 'l' : 'r';
@@ -157,6 +158,9 @@ export function buildDff(clump: DffClump, textures: Map<string, THREE.Texture>, 
     const m = WHEEL_DUMMY.exec(n);
     if (m) wheelDummies.push({ name: wheelName(m[1]), world: worlds[i] });
   });
+  // A car that carries its own wheel_lf / wheel_rf ... meshes is drawn from those. Its plain `wheel` atomic is then a merged
+  // far copy of all four wheels (4,608 triangles spanning the whole car in the real file) and would double them.
+  const hasExplicitWheels = clump.atomics.some((a) => WHEEL_MESH.test((clump.frames[a.frame]?.name ?? '').toLowerCase()));
   let genericWheel: { geometry: DffGeometry; world: THREE.Matrix4 } | null = null;
 
   for (const a of clump.atomics) {
@@ -164,6 +168,7 @@ export function buildDff(clump: DffClump, textures: Map<string, THREE.Texture>, 
     const g = clump.geometries[a.geometry];
     if (!g || SKIP_FRAME.test(frameName)) continue;
     const world = worlds[a.frame] ?? new THREE.Matrix4();
+    if (frameName === 'wheel' && hasExplicitWheels) continue;
     if (frameName === 'wheel' && wheelDummies.length) { genericWheel = { geometry: g, world }; continue; }
     const explicit = WHEEL_MESH.exec(frameName);
     if (explicit) {

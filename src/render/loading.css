@@ -85,6 +85,14 @@
   .ld-tip { min-height: 0; }
   .ld-disclaimer { display: none; }
 }
+/* graffiti panels (src/ui/loadart): a spray-painted bar and a row of stencil marks, one per boot step */
+.ld-marks { display: none; }
+#loading.ld-spray .ld-marks { display: flex; gap: 10px; margin-bottom: -2px; }
+.ld-mark { width: 16px; height: 16px; background: rgba(255, 255, 255, 0.28); clip-path: polygon(50% 0, 62% 36%, 100% 38%, 70% 60%, 80% 100%, 50% 76%, 20% 100%, 30% 60%, 0 38%, 38% 36%); transition: background 0.3s, transform 0.3s; }
+.ld-mark.active { background: #ffd26a; transform: scale(1.25) rotate(8deg); }
+.ld-mark.done { background: var(--gold); }
+#loading.ld-spray .ld-track { height: 16px; overflow: visible; background: transparent; }
+#loading.ld-spray .ld-fill { background: var(--ld-bar, var(--gold)) left center / calc(100vw - max(10vw, 36px)) 100% no-repeat; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6)); }
 @media (prefers-reduced-motion: reduce) {
   .ld-shot.on { animation: none; }
   .ld-shot { transition-duration: 1ms; }

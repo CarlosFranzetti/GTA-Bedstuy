@@ -33,7 +33,8 @@ function readStructHeader(r: ByteReader): { body: number; end: number } {
   // the stated size is not trusted past the file end; the reader walks the real fields
   return { body: r.pos, end: Math.min(r.pos + size, r.end) };
 }
-export interface TxdResult { textures: TxdTexture[]; skipped: string[] }
+export interface TxdResult { textures: TxdTexture[]; skipped: string[]; /** things read leniently (stale sizes, a file that ends a few bytes early) */ warnings: string[] }
+const TAIL_TOLERANCE = 64;
 
 const FMT_1555 = 0x100, FMT_565 = 0x200, FMT_4444 = 0x300, FMT_LUM8 = 0x400, FMT_8888 = 0x500, FMT_888 = 0x600, FMT_555 = 0x700;
 const PAL8 = 0x2000, PAL4 = 0x4000;
@@ -51,7 +52,7 @@ export function parseTxd(data: ArrayBuffer | Uint8Array, limits: ModLimits): Txd
   if (r.remaining < 12) throw new ModError('The file is cut short (a chunk header is missing).', 'truncated');
   const topType = r.u32(); r.u32(); r.u32();
   if (topType !== RW.TEXTURE_DICTIONARY) throw new ModError('This is not a RenderWare .txd (the first chunk is not a Texture Dictionary).', 'format');
-  const out: TxdResult = { textures: [], skipped: [] };
+  const out: TxdResult = { textures: [], skipped: [], warnings: [] };
   let budget = limits.maxDecodedTextureBytes;
   // the count struct: type, size, stamp, then u16 texture count (and u16 device id)
   const sh = readHeader(r, u8.byteLength);
@@ -70,7 +71,7 @@ export function parseTxd(data: ArrayBuffer | Uint8Array, limits: ModLimits): Txd
       continue;
     }
     if (out.textures.length + out.skipped.length >= limits.maxTexturesPerTxd) throw new ModError(`The dictionary holds more than ${limits.maxTexturesPerTxd} textures; this device allows that many.`, 'oversize');
-    const res = parseNative(r, limits, budget, out.skipped);
+    const res = parseNative(r, limits, budget, out.skipped, out.warnings);
     if (res) { budget -= res.rgba.byteLength; out.textures.push(res); }
     // after the pixel data come the texture's extension chunk(s); honour them by size when they fit
     while (r.pos + 12 <= u8.byteLength && r.view.getUint32(r.pos, true) === RW.EXTENSION) {
@@ -83,33 +84,14 @@ export function parseTxd(data: ArrayBuffer | Uint8Array, limits: ModLimits): Txd
   return out;
 }
 
-/**
- * Names in a real file can carry leftovers: the 32-byte name field is not always cleared, so a short stale string (even
- * a few little numbers) can sit before or after the real name. The first string is taken unless it is under three
- * characters and a longer identifier-like string follows inside the same field.
- */
-export function cleanName(field: Uint8Array): string {
-  const runs: string[] = [];
-  let cur = '';
-  for (let i = 0; i <= field.length; i++) {
-    const c = i < field.length ? field[i] : 0;
-    if (c >= 0x20 && c < 0x7f) cur += String.fromCharCode(c);
-    else { if (cur) runs.push(cur); cur = ''; }
-  }
-  const ident = runs.filter((s) => /^[A-Za-z_][A-Za-z0-9_\-. ]{2,}$/.test(s));
-  if (!runs.length) return '';
-  if (runs[0].length >= 3 || !ident.length) return runs[0];
-  return ident[0];
-}
-
 /** Reads one texture native chunk body at `r.pos` (the struct header). On return `r.pos` is just past the pixel data. */
-function parseNative(r: ByteReader, limits: ModLimits, budget: number, skipped: string[]): TxdTexture | null {
+function parseNative(r: ByteReader, limits: ModLimits, budget: number, skipped: string[], warnings: string[]): TxdTexture | null {
   const sh = readStructHeader(r);
   const s = new ByteReader(r.buf, sh.body, r.end);
   const platform = s.u32();
   s.u32(); // filter + address
-  const nameField = s.bytes(32), maskField = s.bytes(32);
-  const name = cleanName(nameField), mask = cleanName(maskField);
+  // each field is a NUL-terminated string; the bytes after the NUL are not cleared in real files (stack leftovers), so they are ignored
+  const name = s.fixedString(32), mask = s.fixedString(32);
   if (platform !== 8 && platform !== 9) { skipped.push(`${name || '(unnamed)'}: platform ${platform} is not a PC Direct3D texture`); r.pos = sh.end; return null; }
   const raster = s.u32();
   const compField = s.u32();
@@ -134,8 +116,17 @@ function parseNative(r: ByteReader, limits: ModLimits, budget: number, skipped: 
   if (palSize) palette = Uint8Array.from(s.bytes(palSize * 4));
 
   const size = s.u32();
-  if (size > s.remaining) throw new ModError(`The texture "${name}" is cut short.`, 'truncated');
-  const px = s.bytes(size);
+  let px: Uint8Array;
+  if (size > s.remaining && size - s.remaining <= TAIL_TOLERANCE && mips === 1) {
+    // the real file ends a few bytes short of its last texture (a tool wrote it that way): pad the tail with zeros
+    const have = s.remaining;
+    px = new Uint8Array(size);
+    px.set(s.bytes(have));
+    warnings.push(`${name}: the file ends ${size - have} bytes before the end of this texture; the missing bytes are read as zero`);
+  } else {
+    if (size > s.remaining) throw new ModError(`The texture "${name}" is cut short.`, 'truncated');
+    px = s.bytes(size);
+  }
   // the smaller levels follow, each led by its own byte size; only the first is decoded
   for (let m = 1; m < mips; m++) {
     const ls = s.u32();

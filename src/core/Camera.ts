@@ -113,6 +113,8 @@ const CAR_MARGIN = 0.6;
 const PED_MARGIN = 0.45;
 /** Half width (m) of the lens "sphere": the view line is cast three times, centre and this far to each side, so a corner cannot slip past. */
 const LENS_RADIUS = 0.35;
+/** Classic: a body whose top is this far (m) below the lens does not trim the view. */
+const LENS_CLEAR_OVER = 0.5;
 /** A ray that reports a hit closer than this started inside the body (a car pressed into a wall, a player against one). */
 const INSIDE_EPS = 0.02;
 /** Hysteresis on the trimmed reach: it only recovers once the free distance exceeds it by this much (m). */
@@ -678,7 +680,7 @@ export class ThirdPersonCamera {
           : FOOT_BOX;
         // free distance along the view line: static walls (with the inside-collider hold) and other bodies
         const stat = this.staticLimit(world, targetPos, this.pos.x, this.pos.z, true);
-        const dyn = this.dynamicLimit(world, targetPos, this.pos.x, this.pos.z, veh?.id ?? ctx?.ignoreId ?? undefined);
+        const dyn = this.dynamicLimit(world, targetPos, this.pos.x, this.pos.z, veh?.id ?? ctx?.ignoreId ?? undefined, this.styleNow === 'classic');
         // on foot, walled in behind: swap to the shoulder side that is free (undone once the first side is free again)
         if (!vehicleMode && Math.abs(vrig.shoulder) > 0.1) this.updateSlide(world, targetPos, stat, d, dt);
         else { this.slide = false; this.slideTimer = 0; this.slideFree = 0; }
@@ -819,7 +821,7 @@ export class ThirdPersonCamera {
   }
 
   /** Horizontal distance (m) toward the lens that stays clear of other cars and pedestrians (the body being followed is skipped). */
-  private dynamicLimit(world: CameraWorld, target: Vec2, lx: number, lz: number, selfId: string | undefined): number {
+  private dynamicLimit(world: CameraWorld, target: Vec2, lx: number, lz: number, selfId: string | undefined, overTop = false): number {
     const dx = lx - target.x, dz = lz - target.z;
     const d = Math.hypot(dx, dz);
     if (d < 1e-3) return FAR;
@@ -837,6 +839,13 @@ export class ThirdPersonCamera {
       if (!h) continue;
       const k = h.body.kind;
       if (k !== 'vehicle' && k !== 'cop' && k !== 'ped') continue;
+      if (overTop) {
+        // classic: the lens is high. A car or a person lower than the lens cannot be where the lens is, so they do not trim the view
+        // (a ray that grazes a car's corner would otherwise make the lens shuffle in and out as the body walks along the car)
+        const bd = h.body as { height?: number; userData?: { spec?: { height?: number } } };
+        const top = bd.userData?.spec?.height ?? bd.height ?? (k === 'ped' ? 1.8 : 1.5);
+        if (this.pos.y > top + LENS_CLEAR_OVER) continue;
+      }
       best = Math.min(best, h.dist * (d / len) - (k === 'ped' ? PED_MARGIN : CAR_MARGIN));
     }
     return Math.max(0, best);

@@ -93,7 +93,7 @@ export function buildVenueExterior(id: VenueId, door: VenueDoor, materials: IMat
       lit.box(1.7, 0.9, 0.04, '#ffcf86', 2.0, 1.45, 0.08, false);
       solid.box(0.12, 0.12, 1.5, '#1b1b1b', 0, 3.7, 0.75); // blade bracket
       signs.plane(2.8, 0.7, 0, 3.15, 0.1);
-      signs.plane(1.6, 0.4, 0.04, 3.45, 1.5); signs.plane(1.6, 0.4, -0.04, 3.45, 1.5, true);
+      signs.plane(1.6, 0.4, 0.02, 3.45, 1.5, false, Math.PI / 2); signs.plane(1.6, 0.4, -0.02, 3.45, 1.5, false, -Math.PI / 2);
       lit.box(0.7, 0.14, 0.04, accent, 2.0, 2.0, 0.1, false); // a neon tube in the window
       break;
     }
@@ -101,7 +101,7 @@ export function buildVenueExterior(id: VenueId, door: VenueDoor, materials: IMat
       solid.box(2.0, 0.22, 0.2, '#2a2a2d', 0, 2.38, 0.18); // gate housing
       lit.box(0.3, 0.3, 0.3, '#ffe9a0', 0.9, 2.2, 0.35, false); // a bare bulb
       signs.plane(1.5, 0.38, 0, 2.75, 0.1);
-      signs.plane(1.3, 0.33, 0.04, 3.2, 1.2); signs.plane(1.3, 0.33, -0.04, 3.2, 1.2, true);
+      signs.plane(1.3, 0.33, 0.02, 3.2, 1.2, false, Math.PI / 2); signs.plane(1.3, 0.33, -0.02, 3.2, 1.2, false, -Math.PI / 2);
       solid.box(0.1, 0.1, 1.3, '#1b1b1b', 0, 3.45, 0.65);
       solid.box(0.9, 0.5, 0.5, '#5a5a56', 1.9, 0.25, 0.5); // a crate to sit on
       break;
@@ -114,7 +114,7 @@ export function buildVenueExterior(id: VenueId, door: VenueDoor, materials: IMat
       solid.box(2.1, 0.06, 0.06, '#8b0a1e', 0, 0.92, 2.7); // the rope
       solid.box(2.4, 0.01, 2.2, '#5b0f22', 0, 0.02, 1.3); // a red runner
       signs.plane(3.4, 0.85, 0, 3.55, 0.12);
-      signs.plane(1.7, 0.43, 0.05, 3.1, 2.2); signs.plane(1.7, 0.43, -0.05, 3.1, 2.2, true);
+      signs.plane(1.7, 0.43, 0.02, 3.1, 2.2, false, Math.PI / 2); signs.plane(1.7, 0.43, -0.02, 3.1, 2.2, false, -Math.PI / 2);
       solid.box(0.1, 0.1, 2.0, '#1b1b1b', 0, 3.6, 1.15);
       break;
     }
@@ -125,7 +125,7 @@ export function buildVenueExterior(id: VenueId, door: VenueDoor, materials: IMat
       solid.box(1.9, 1.5, 0.05, '#7fb8c4', 2.1, 1.3, 0.1);
       lit.box(0.9, 0.16, 0.05, '#5fff8a', 2.1, 1.9, 0.14, false); // OPEN strip
       signs.plane(2.6, 0.65, 0, 2.95, 0.19);
-      signs.plane(1.2, 0.3, 0.04, 3.5, 1.0); signs.plane(1.2, 0.3, -0.04, 3.5, 1.0, true);
+      signs.plane(1.2, 0.3, 0.02, 3.5, 1.0, false, Math.PI / 2); signs.plane(1.2, 0.3, -0.02, 3.5, 1.0, false, -Math.PI / 2);
       solid.box(0.08, 0.08, 1.0, '#444', 0, 3.7, 0.5);
       break;
     }
@@ -134,7 +134,7 @@ export function buildVenueExterior(id: VenueId, door: VenueDoor, materials: IMat
       lit.box(3.0, 0.1, 0.05, accent, -2.5, 2.3, 0.1, false); // yellow header
       solid.box(4.2, 0.06, 0.1, '#3a3a3a', 0, 2.62, 0.08);
       signs.plane(3.8, 0.95, 0, 3.15, 0.12);
-      signs.plane(1.5, 0.38, 0.05, 3.5, 1.6); signs.plane(1.5, 0.38, -0.05, 3.5, 1.6, true);
+      signs.plane(1.5, 0.38, 0.02, 3.5, 1.6, false, Math.PI / 2); signs.plane(1.5, 0.38, -0.02, 3.5, 1.6, false, -Math.PI / 2);
       solid.box(0.1, 0.1, 1.6, '#1b1b1b', 0, 3.8, 0.8);
       solid.box(1.0, 0.3, 0.6, '#444', 2.4, 0.15, 0.5); // a plate bench by the door
       break;

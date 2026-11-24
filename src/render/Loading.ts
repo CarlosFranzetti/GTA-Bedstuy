@@ -8,6 +8,7 @@
  */
 import './loading.css';
 import { LOADING_ART, artPool, backdropUrl, isPoster, type Backdrop } from '@/ui/backdrops';
+import { LoadArt, sprayBarImage } from '@/ui/loadart';
 
 export type StepState = 'pending' | 'active' | 'done' | 'skipped';
 
@@ -91,6 +92,10 @@ export class LoadingScreen {
   private readonly weights = new Map<string, number>();
   private readonly states = new Map<string, StepState>();
   private shown = 0;
+  /** Graffiti panels drawn in code (src/ui/loadart); null when there is no 2D canvas, then the shots above are used. */
+  private art: LoadArt | null = null;
+  private artAt = 0;
+  private readonly marks: HTMLElement[] = [];
   private swaps = 0;
   private tip = 0;
   private timers: Array<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>> = [];
@@ -136,6 +141,9 @@ export class LoadingScreen {
     this.chip = el('button', 'ld-sound', row);
     this.chip.type = 'button';
     this.chip.textContent = (() => { try { return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 'Tap for sound' : 'Click for sound'; } catch { return 'Click for sound'; } })();
+    const marks = el('div', 'ld-marks', bottom);
+    marks.setAttribute('aria-hidden', 'true');
+    for (let k = 0; k < steps.length; k++) this.marks.push(el('span', 'ld-mark', marks));
     const track = el('div', 'ld-track', bottom);
     this.bar = el('div', 'ld-fill', track);
     const disc = el('p', 'ld-disclaimer', bottom);
@@ -145,7 +153,7 @@ export class LoadingScreen {
     parent.appendChild(root);
     this.tipEl.textContent = LOADING_TIPS[0] ?? '';
     this.refresh();
-    this.probe();
+    if (!this.startArt()) this.probe();
 
     // rotation: the next loaded shot crossfades in every PANEL_MS
     this.timers.push(setInterval(() => this.swap(), PANEL_MS));
@@ -190,7 +198,44 @@ export class LoadingScreen {
     this.pctEl.textContent = `${this.shown}%`;
     this.root.setAttribute('aria-valuenow', String(this.shown));
     const active = all.find(([, st]) => st === 'active') ?? all.find(([, st]) => st === 'pending');
+    all.forEach(([, st], k) => { const m = this.marks[k]; if (m) m.className = `ld-mark ${st === 'skipped' ? 'done' : st}`; });
     this.stageEl.textContent = all.length === 0 ? '' : active ? this.labels.get(active[0]) ?? '' : 'Ready';
+  }
+
+  /** Graffiti panels: each is drawn once, shown as an image, and its canvas freed at once (src/ui/loadart). False: no canvas, use the shots. */
+  private startArt(): boolean {
+    const win = this.doc.defaultView;
+    if (!win) return false;
+    let phone = win.innerWidth <= 820;
+    try { phone = phone || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches); } catch { /* keep */ }
+    const art = LoadArt.create(this.doc, ((Date.now() ^ ((Math.random() * 2147483647) | 0)) >>> 0), phone);
+    if (!art) return false;
+    this.art = art;
+    this.root.classList.add('ld-spray');
+    const bar = sprayBarImage(this.doc, 7);
+    if (bar) this.root.style.setProperty('--ld-bar', `url(${bar})`);
+    void art.next().then((u) => { if (u && !this.hidden && this.current < 0) this.showUrl(u); });
+    return true;
+  }
+
+  /** Shows a panel image on the front layer (same crossfade and push-in as the shots). */
+  private showUrl(url: string): void {
+    const next = (this.current < 0 ? this.front : 1 - this.front) as 0 | 1;
+    const img = this.layers[next], old = this.layers[this.front];
+    img.src = url; img.style.objectPosition = '50% 50%';
+    img.classList.remove('on'); void img.offsetWidth; img.classList.add('on');
+    if (old !== img) old.classList.remove('on');
+    this.front = next;
+    this.artAt = this.art ? Math.max(0, this.art.urlList.indexOf(url)) : 0;
+    this.current = this.artAt;
+  }
+
+  private swapArt(): void {
+    const art = this.art;
+    if (!art || this.hidden) return;
+    if (art.rendered < art.total) { void art.next().then((u) => { if (u && !this.hidden) this.showUrl(u); }); return; }
+    const list = art.urlList;
+    if (list.length > 1) this.showUrl(list[(this.artAt + 1) % list.length]!);
   }
 
   /** Starts loading every shot; each one that arrives joins the rotation, and the first to arrive is shown at once. */
@@ -231,6 +276,7 @@ export class LoadingScreen {
   }
 
   private swap(): void {
+    if (this.art) { this.swapArt(); return; }
     const pool = artPool(this.ready);
     if (this.hidden || pool.length < 2) return;
     const at = pool.indexOf(this.current);
@@ -265,7 +311,12 @@ export class LoadingScreen {
       this.root.style.pointerEvents = 'none';
       this.root.classList.add('fading');
       this.hooks.onHide?.();
-      setTimeout(() => { this.root.remove(); resolve(); }, fadeMs);
+      setTimeout(() => {
+        this.root.remove();
+        for (const l of this.layers) l.removeAttribute('src');
+        this.art?.release(); this.art = null; // panel images and their memory go back once the screen is gone
+        resolve();
+      }, fadeMs);
     });
   }
 }

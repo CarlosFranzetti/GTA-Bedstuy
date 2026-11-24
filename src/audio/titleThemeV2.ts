@@ -332,7 +332,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     mg.connect(c.frequency);
     mg.gain.setValueAtTime(f * 2.4, tt); mg.gain.setTargetAtTime(f * 0.15, tt, 0.18);
     g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(amp, tt + 0.003); g.gain.setTargetAtTime(0, tt + 0.003, tc);
-    for (const o of [c, m]) { o.start(tt); o.stop(tt + tc * 5 + 0.1); }
+    for (const o of [c, m]) { o.start(tt); o.stop(tt + tc * 4 + 0.1); }
     release([c, m], [g, mg]);
   }
   function pluck(t: number, midi: number, lenSteps: number): void {
@@ -340,7 +340,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const g = gain(0, countIn), lp = filt('lowpass', 1500, 0.6, g), h = gain(0.3, lp), a = osc('triangle', f, lp), b = osc('sine', f * 2, h);
     g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(1, tt + 0.004); g.gain.setTargetAtTime(0, tt + 0.004, tc);
     lp.frequency.setValueAtTime(2600, tt); lp.frequency.setTargetAtTime(700, tt, 0.12);
-    for (const o of [a, b]) { o.start(tt); o.stop(tt + tc * 5 + 0.1); }
+    for (const o of [a, b]) { o.start(tt); o.stop(tt + tc * 4 + 0.1); }
     release([a, b], [g, lp, h]);
   }
   function conga(t: number, kind: Conga, v: number): void {

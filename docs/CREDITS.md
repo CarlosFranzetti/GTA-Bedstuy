@@ -425,3 +425,51 @@ The game ships NO third-party mod pack. Players load their own `.glb`, image, Re
 the files are parsed in the browser and kept only on that device (`docs/MODS.md`). The `.dff` and `.txd` readers (`src/mods/rw/`) were
 written from the publicly documented chunk layouts; no third-party code is included. The worked example in `docs/examples/mod-example/`
 refers to two CC0 assets already credited above (the Kenney sedan and the Poly Haven asphalt set).
+
+## Open low-poly set, first intake (INTAKE, 24 Nov 2026; `src/assets/open/`, hosted and native builds only)
+
+Cars, props and photo surfaces for the early-2000s low-poly look (`docs/swarm/art/LOWPOLY.md`). Every licence was read on the
+item's own page on 24 Nov 2026; each folder has a `SOURCE.md` (page, author, licence line, what was changed). All items are
+**CC0 1.0 Universal**: credit is given anyway. Converted by `scripts/dev/open-assets-build.mjs`; the typed list is
+`src/assets/open/manifest.ts`. Note: the PSX Style Cars zip also holds sound effects; none were taken.
+
+| Item | Kind | Licence | Credit | Folder |
+|---|---|---|---|---|
+| `psx-sedan` | car | CC0 | PSX Style Cars by GGBotNet (CC0), opengameart.org | `src/assets/open/psx-style-cars/psx-sedan/` |
+| `psx-sedan4` | car | CC0 | PSX Style Cars by GGBotNet (CC0), opengameart.org | `src/assets/open/psx-style-cars/psx-sedan4/` |
+| `psx-police` | car | CC0 | PSX Style Cars by GGBotNet (CC0), opengameart.org | `src/assets/open/psx-style-cars/psx-police/` |
+| `psx-taxi` | car | CC0 | PSX Style Cars by GGBotNet (CC0), opengameart.org | `src/assets/open/psx-style-cars/psx-taxi/` |
+| `psx-hatch` | car | CC0 | PSX Style Cars by GGBotNet (CC0), opengameart.org | `src/assets/open/psx-style-cars/psx-hatch/` |
+| `psx-wagon` | car | CC0 | PSX Style Cars by GGBotNet (CC0), opengameart.org | `src/assets/open/psx-style-cars/psx-wagon/` |
+| `psx-minivan` | car | CC0 | PSX Style Cars by GGBotNet (CC0), opengameart.org | `src/assets/open/psx-style-cars/psx-minivan/` |
+| `psx-stepvan` | car | CC0 | PSX Style Cars by GGBotNet (CC0), opengameart.org | `src/assets/open/psx-style-cars/psx-stepvan/` |
+| `kenney-sedan` | car | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-sedan/` |
+| `kenney-taxi` | car | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-taxi/` |
+| `kenney-police` | car | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-police/` |
+| `kenney-suv` | car | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-suv/` |
+| `kenney-van` | car | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-van/` |
+| `kenney-delivery` | car | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-delivery/` |
+| `kenney-hatch-sports` | car | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-hatch-sports/` |
+| `kenney-garbage` | car | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-garbage/` |
+| `oga-bus` | car | CC0 | 3D Vehicles Pack (CC0), opengameart.org/content/3d-vehicles-pack | `src/assets/open/oga-vehicles/oga-bus/` |
+| `oga-pickup` | car | CC0 | 3D Vehicles Pack (CC0), opengameart.org/content/3d-vehicles-pack | `src/assets/open/oga-vehicles/oga-pickup/` |
+| `kenney-skateboard` | prop | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-skateboard/` |
+| `mb-hydrant` | prop | CC0 | Traffic Road Assets by MilkAndBanana (CC0), opengameart.org | `src/assets/open/milkandbanana/mb-hydrant/` |
+| `mb-streetlight` | prop | CC0 | Traffic Road Assets by MilkAndBanana (CC0), opengameart.org | `src/assets/open/milkandbanana/mb-streetlight/` |
+| `mb-manhole` | prop | CC0 | Traffic Road Assets by MilkAndBanana (CC0), opengameart.org | `src/assets/open/milkandbanana/mb-manhole/` |
+| `mb-cone` | prop | CC0 | Traffic Road Assets by MilkAndBanana (CC0), opengameart.org | `src/assets/open/milkandbanana/mb-cone/` |
+| `kenney-trafficlight` | prop | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-trafficlight/` |
+| `kenney-dumpster` | prop | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-dumpster/` |
+| `kenney-bin` | prop | CC0 | Kenney (www.kenney.nl), CC0 | `src/assets/open/kenney/kenney-bin/` |
+| `oga-mailbox` | prop | CC0 | Low Poly Textured Mailbox by Braveo (CC0), opengameart.org | `src/assets/open/oga-mailbox/oga-mailbox/` |
+| `asphalt-plain` | surface | CC0 | Asphalt Road Texture Free by ForKotLow (CC0), opengameart.org | `src/assets/open/oga-textures/asphalt-plain/` |
+| `asphalt-cracked` | surface | CC0 | Poly Haven (polyhaven.com), CC0; artists named per item (Rob Tuytel) | `src/assets/open/polyhaven/asphalt-cracked/` |
+| `sidewalk-slabs` | surface | CC0 | Poly Haven (polyhaven.com), CC0; artists named per item (Charlotte Baglioni) | `src/assets/open/polyhaven/sidewalk-slabs/` |
+| `brick-mixed` | surface | CC0 | Poly Haven (polyhaven.com), CC0; artists named per item (Dimitrios Savva (photography), Dario Barresi (processing)) | `src/assets/open/polyhaven/brick-mixed/` |
+| `brick-painted` | surface | CC0 | Poly Haven (polyhaven.com), CC0; artists named per item (Poly Haven artists) | `src/assets/open/polyhaven/brick-painted/` |
+| `brownstone` | surface | CC0 | Poly Haven (polyhaven.com), CC0; artists named per item (Poly Haven artists) | `src/assets/open/polyhaven/brownstone/` |
+| `limestone` | surface | CC0 | Poly Haven (polyhaven.com), CC0; artists named per item (Poly Haven artists) | `src/assets/open/polyhaven/limestone/` |
+| `shutter` | surface | CC0 | Poly Haven (polyhaven.com), CC0; artists named per item (Charlotte Baglioni (photography), Dario Barresi (baking), Rico Cilliers (processing)) | `src/assets/open/polyhaven/shutter/` |
+| `awning-canvas` | surface | CC0 | ambientCG (ambientcg.com), CC0 | `src/assets/open/ambientcg/awning-canvas/` |
+| `awning-navy` | surface | CC0 | ambientCG (ambientcg.com), CC0 | `src/assets/open/ambientcg/awning-navy/` |
+| `grate-storm` | surface | CC0 | ambientCG (ambientcg.com), CC0 | `src/assets/open/ambientcg/grate-storm/` |
