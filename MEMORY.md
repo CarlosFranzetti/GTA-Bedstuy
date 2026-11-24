@@ -46,6 +46,14 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 24 Nov, later still: "Don't forget about checking in with me; ask me if anything is unclear; and groups of 5 working
+  in each thing: models, faces, story and missions and side missions, textures, physics, load screens with that graffiti
+  look, a better theme song, something like the original, maybe use [Suno] or something like that; fix the camera and
+  make it just like Vice City." Lead's reading: eight topics, each a group of up to five seats, run in waves the usage
+  limit allows (six seats were already running); check in with pictures and questions at every wave. The theme is NEW
+  music in that spirit, never a copy of any game's theme (rule 1). Camera: the behaviour of that era's third-person
+  camera by convention, no code or assets taken.
+
 - 24 Nov, later: convert the game's models and textures to the look of his reference pack and build new ones in that
   look; find more online; and START A STORY: Pedro Martinez, a Colombian DJ, is the main character; Lana Porskaia and
   Adele Labos become playable; Stavros Yanos and Akira Tonaka are people you deal with; missions about DJ gigs, promoting

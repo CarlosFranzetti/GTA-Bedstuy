@@ -30,3 +30,22 @@ Written from memory of the public format descriptions (GTAMods wiki "RenderWare 
 ## Not verified
 Any real community .dff / .txd file; the running game with the mod wired in; a phone; IndexedDB quota behaviour; wall-sheet layers replaced through overrideMaps in the game.
 
+
+## Second shift (24 Nov, Ines): verified, nothing left red
+- `npx tsc --noEmit` clean; `npx vitest run tests/unit/mods --maxWorkers=1`: 5 files, 44 tests green. Picture copied to `docs/swarm/teams/sheets/mods-harness.png` (a .dff box car built in code beside the Kenney sedan example, on a mod-replaced ground texture).
+- Single-file build re-run: index.html 11,833,950 bytes (budget 12,000,000). src/mods is not imported by main.ts yet.
+
+### Exact lines for src/main.ts (lead only; hosted build only, so the single file stays unchanged)
+1. After `const panels = new PanelManager(document);` (about line 383) and before `const menu = new Menu(`:
+```ts
+// MODS: the player's own model and texture files (src/mods, docs/MODS.md). Hosted build only; never in the single file.
+let modsApi: { open(): void } | null = null;
+if (import.meta.env?.VITE_HOSTED === '1' && params.get('mods') !== 'off' || params.get('mods') === 'off' && import.meta.env?.VITE_HOSTED === '1') {
+  void import('@/mods/boot').then(async ({ startMods }) => {
+    modsApi = await startMods({ tier: quality, overlay, panels, target: { vehicleSources: Vehicle.sources, materials }, safe: params.get('mods') === 'off' });
+  });
+}
+```
+   (Simplify the condition to `import.meta.env?.VITE_HOSTED === '1'`; `safe` covers `?mods=off`. Check the `ModTarget` field names in `src/mods/registry.ts` before pasting: `tests/unit/mods/registry.test.ts` "wiring types" pins that `Vehicle.sources` and `MaterialLibrary` fit it.)
+2. In the `new Menu(overlay, { ... })` callbacks add: `onMods: () => modsApi?.open(),` (the Settings row only shows when `onMods` is given).
+- Cars spawned before the restore finishes stay stock until they respawn; nothing else needs a reload.
