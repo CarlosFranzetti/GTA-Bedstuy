@@ -4,7 +4,7 @@ import { Promotion } from '@/game/story/promo';
 import { Haggle, MARKETS, ThriftBag, ThriftRack, THRIFT_CATALOG, priceOf, settleSale, BAG_MAX } from '@/game/story/thrift';
 import { PackSystem, type Meeting } from '@/game/story/pack';
 import { DateBook, DateSession, type DateScript } from '@/game/story/dates';
-import { FIGHT_BAR_MAN, FIGHT_STREET_MAN, FightEncounter } from '@/game/story/fights';
+import { FIGHT_CLEM, FIGHT_KYLE, FightEncounter } from '@/game/story/fights';
 import { Nightlife } from '@/game/story/nightlife';
 import { StoryState } from '@/game/story/StoryState';
 import '@/textures/painters/ped'; // load order: ped first (pedWardrobe is circular with it)
@@ -178,21 +178,27 @@ describe('dates', () => {
 });
 
 describe('fights', () => {
-  it('talking him down needs calm to reach the line before anger does; a cost option is refused when unaffordable', () => {
-    const f = new FightEncounter(FIGHT_STREET_MAN); expect(f.start().length).toBeGreaterThan(0);
-    expect(f.talk('meal', { canPay: false })).toBeNull(); expect(f.phase).toBe('tense');
-    expect(f.talk('listen')!.cost).toBe(0); const r = f.talk('meal', { canPay: true })!; expect(r.cost).toBe(12);
-    expect(f.phase).toBe('talked'); expect(f.ended!.flag).toBe('fight.leon.talked');
-    expect(f.talk('listen')).toBeNull();
+  it('talking Clem down: calm reaches the line before anger does; the sleeve credit ends it at once', () => {
+    const f = new FightEncounter(FIGHT_CLEM); expect(f.start().length).toBeGreaterThan(0);
+    expect(f.available().map((o) => o.id)).not.toContain('credit');
+    expect(f.talk('credit')).toBeNull();
+    f.talk('listen'); f.talk('name'); expect(f.phase).toBe('tense'); f.talk('blame');
+    expect(f.phase).toBe('talked'); expect(f.ended!.flag).toBe('pico.clem.talked'); expect(f.talk('sign')).toBeNull();
+    const g = new FightEncounter(FIGHT_CLEM); g.start(); expect(g.talk('credit', { hasFlag: (x) => x === 'pico.sleeveCredit' })).not.toBeNull(); expect(g.phase).toBe('talked');
   });
-  it('flag-gated options are hidden; insults kick it off; the bar man runs out of patience; nobody dies', () => {
-    const f = new FightEncounter(FIGHT_STREET_MAN); f.start();
-    expect(f.available().map((o) => o.id)).not.toContain('name'); expect(f.available((x) => x === 'knowsLeonName').map((o) => o.id)).toContain('name');
-    f.talk('push'); expect(f.phase).toBe('tense'); f.talk('joke'); expect(f.phase).toBe('brawl');
-    f.fighterDown(); expect(f.phase).toBe('won');
-    const d = new FightEncounter(FIGHT_BAR_MAN); d.start(); d.tick(10); expect(d.phase).toBe('tense'); d.tick(20); expect(d.phase).toBe('brawl'); d.playerDown(); expect(d.ended!.phase).toBe('lost');
-    const w = new FightEncounter(FIGHT_BAR_MAN); w.start(); w.walkAway(); expect(w.phase).toBe('walkedAway');
-    const s = new FightEncounter(FIGHT_STREET_MAN); s.start(); s.tick(9999); expect(s.phase).toBe('tense'); // the street man never loses patience
+  it('insults kick it off; blows end with a winner and nobody dies; Clem never loses patience', () => {
+    const f = new FightEncounter(FIGHT_CLEM); f.start(); f.talk('move'); expect(f.phase).toBe('tense'); f.talk('laugh'); expect(f.phase).toBe('brawl');
+    f.fighterDown(); expect(f.ended).toMatchObject({ phase: 'won', flag: 'pico.clem.fought' });
+    const s = new FightEncounter(FIGHT_CLEM); s.start(); s.tick(9999); expect(s.phase).toBe('tense');
+    const w = new FightEncounter(FIGHT_CLEM); w.start(); w.walkAway(); expect(w.ended!.flag).toBe('pico.clem.walked');
+  });
+  it('Kyle: a costly option is refused when unaffordable, silence runs out, a shove starts it, leaving is free', () => {
+    const k = new FightEncounter(FIGHT_KYLE); k.start();
+    expect(k.talk('tab', { canPay: false })).toBeNull(); expect(k.talk('tab', { canPay: true })!.cost).toBe(20);
+    k.tick(10); expect(k.phase).toBe('tense'); k.tick(25); expect(k.phase).toBe('brawl'); k.playerDown(); expect(k.ended!.phase).toBe('lost');
+    const d = new FightEncounter(FIGHT_KYLE); d.start(); d.talk('price'); expect(d.phase).toBe('talked');
+    const e = new FightEncounter(FIGHT_KYLE); e.start(); e.swing(); expect(e.phase).toBe('brawl');
+    const w = new FightEncounter(FIGHT_KYLE); w.start(); w.walkAway(); expect(w.ended!.phase).toBe('walkedAway');
   });
 });
 

@@ -4,6 +4,8 @@
  * Pure data and state: no three.js, no DOM except an injectable Storage. `ThirdPersonCamera` reads `rig()` every frame.
  */
 export type ViewMode = 'foot' | 'vehicle';
+/** Camera style: 'classic' is the fixed far chase of an early-2000s open-world game (docs/swarm/tasks/CAMERA.md); 'modern' is the over-the-shoulder rig. */
+export type CameraStyle = 'classic' | 'modern';
 
 export interface ViewRig {
   id: string;
@@ -27,6 +29,8 @@ export interface ViewRig {
   /** Vehicle only: scale of the sedan rig's distance and height. */
   distScale: number;
   heightScale: number;
+  /** Classic on-foot rig: the pitch (rad above the horizon) the view rests at. Other rigs rest at 0. */
+  pitch?: number;
 }
 
 const base = (o: Partial<ViewRig> & Pick<ViewRig, 'id' | 'label'>): ViewRig => ({
@@ -50,8 +54,28 @@ export const VEHICLE_VIEWS: readonly ViewRig[] = [
   base({ id: 'cinematic', label: 'Cinematic', fov: 0, cinematic: true }),
 ];
 
+/**
+ * CLASSIC (CAMERA seat, 24 Nov): on foot one far, fairly high chase rig (no shoulder) and, while a key is held, a first-person look;
+ * in a vehicle near, middle and far chase, a bumper view and the cinematic view. Every number is in docs/swarm/tasks/CAMERA.md.
+ * `distScale` and `heightScale` scale the classic car rig (CAM_CLASSIC_VEHICLE in Camera.ts).
+ */
+export const CLASSIC_FOOT_VIEWS: readonly ViewRig[] = [
+  base({ id: 'chase', label: 'Chase', distance: 5.4, height: 1.9, look: 1.2, shoulder: 0, fov: 60, pitch: 0.28 }),
+];
+/** Held first-person look on foot (not part of the cycle). */
+export const CLASSIC_FIRST: ViewRig = base({ id: 'first', label: 'First person', distance: 0, height: 1.66, look: 1.66, shoulder: 0, fov: 74, first: true });
+export const CLASSIC_VEHICLE_VIEWS: readonly ViewRig[] = [
+  base({ id: 'near', label: 'Near chase', shoulder: 0, fov: 0, distScale: 0.8, heightScale: 0.85 }),
+  base({ id: 'middle', label: 'Middle chase', shoulder: 0, fov: 0 }),
+  base({ id: 'far', label: 'Far chase', shoulder: 0, fov: 2, distScale: 1.45, heightScale: 1.4 }),
+  base({ id: 'bumper', label: 'Bumper', distance: 0, height: 0.8, look: 0.8, shoulder: 0, fov: 6, first: true, forwardShare: 0.5 }),
+  base({ id: 'cinematic', label: 'Cinematic', shoulder: 0, fov: 0, cinematic: true }),
+];
+export const CLASSIC_DEFAULT_VIEW: Record<ViewMode, string> = { foot: 'chase', vehicle: 'middle' };
+
 export const DEFAULT_VIEW: Record<ViewMode, string> = { foot: 'chase', vehicle: 'chase' };
 export const VIEWS: Record<ViewMode, readonly ViewRig[]> = { foot: FOOT_VIEWS, vehicle: VEHICLE_VIEWS };
+export const CLASSIC_VIEWS: Record<ViewMode, readonly ViewRig[]> = { foot: CLASSIC_FOOT_VIEWS, vehicle: CLASSIC_VEHICLE_VIEWS };
 
 /** Key and window that drive the views (main.ts feeds key edges to `handleKeys`). */
 export const VIEW_KEY = 'KeyV';
@@ -60,6 +84,21 @@ export const SHOULDER_MOUSE = 'MouseMiddle';
 /** A second press of the view key within this many seconds swaps back to the previous view instead of cycling on. */
 export const DOUBLE_TAP = 0.3;
 export const STORAGE_KEY = 'gta-bedstuy.camera-views.v1';
+export const STORAGE_KEY_CLASSIC = 'gta-bedstuy.camera-views.classic.v1';
+/** The chosen camera style (Settings, "Classic camera"). Classic is the default. */
+export const STYLE_KEY = 'gta-bedstuy.camera-style.v1';
+
+/** Reads the chosen style (classic when nothing is stored or storage is blocked). */
+export function loadCameraStyle(): CameraStyle {
+  try { return (typeof localStorage !== 'undefined' && localStorage.getItem(STYLE_KEY) === 'modern') ? 'modern' : 'classic'; } catch { return 'classic'; }
+}
+const styleListeners = new Set<(s: CameraStyle) => void>();
+/** Settings calls this: stores the choice and tells listeners (main.ts hands it to the camera). */
+export function setCameraStyle(s: CameraStyle): void {
+  try { localStorage.setItem(STYLE_KEY, s); } catch { /* private window */ }
+  for (const f of styleListeners) f(s);
+}
+export function onCameraStyleChange(f: (s: CameraStyle) => void): () => void { styleListeners.add(f); return () => { styleListeners.delete(f); }; }
 
 /** A cinematic shot: where the camera sits relative to the car. `yaw` is added to the chase heading (0 = behind, PI = in front). */
 export interface CineShot { name: string; yaw: number; distance: number; height: number; look: number; fov: number }
@@ -113,6 +152,7 @@ function defaultStorage(): Storage | null {
 export class CameraViews {
   private cur: Record<ViewMode, number>;
   private prev: Record<ViewMode, number>;
+  private styleNow: CameraStyle = 'modern';
   /** +1 = camera over the right shoulder, -1 = left. */
   side = 1;
   private clock = 0;
@@ -131,33 +171,49 @@ export class CameraViews {
     this.load();
   }
 
+  private get tables(): Record<ViewMode, readonly ViewRig[]> { return this.styleNow === 'classic' ? CLASSIC_VIEWS : VIEWS; }
+  get style(): CameraStyle { return this.styleNow; }
+
+  /** Switch the view tables (and the remembered choice) to a style. Counts as a view change so the camera cuts. */
+  setStyle(style: CameraStyle): void {
+    if (style === this.styleNow) return;
+    this.styleNow = style;
+    const dv = style === 'classic' ? CLASSIC_DEFAULT_VIEW : DEFAULT_VIEW;
+    this.cur = { foot: this.indexOf('foot', dv.foot), vehicle: this.indexOf('vehicle', dv.vehicle) };
+    this.prev = { foot: this.cur.foot, vehicle: this.cur.vehicle };
+    this.load();
+    this.serial++;
+  }
+
   private indexOf(mode: ViewMode, id: string): number {
-    const i = VIEWS[mode].findIndex((v) => v.id === id);
+    const i = this.tables[mode].findIndex((v) => v.id === id);
     return i < 0 ? 0 : i;
   }
 
   private load(): void {
     try {
-      const raw = this.storage?.getItem(STORAGE_KEY);
+      const raw = this.storage?.getItem(this.styleNow === 'classic' ? STORAGE_KEY_CLASSIC : STORAGE_KEY);
       if (!raw) return;
       const p = JSON.parse(raw) as Persisted;
-      if (typeof p.foot === 'string') { const i = VIEWS.foot.findIndex((v) => v.id === p.foot); if (i >= 0) this.cur.foot = this.prev.foot = i; }
-      if (typeof p.vehicle === 'string') { const i = VIEWS.vehicle.findIndex((v) => v.id === p.vehicle); if (i >= 0) this.cur.vehicle = this.prev.vehicle = i; }
+      const T = this.tables;
+      if (typeof p.foot === 'string') { const i = T.foot.findIndex((v) => v.id === p.foot); if (i >= 0) this.cur.foot = this.prev.foot = i; }
+      if (typeof p.vehicle === 'string') { const i = T.vehicle.findIndex((v) => v.id === p.vehicle); if (i >= 0) this.cur.vehicle = this.prev.vehicle = i; }
       if (p.side === 1 || p.side === -1) this.side = p.side;
     } catch { /* corrupt or blocked storage: defaults */ }
   }
 
   private save(): void {
     try {
-      this.storage?.setItem(STORAGE_KEY, JSON.stringify({ foot: FOOT_VIEWS[this.cur.foot].id, vehicle: VEHICLE_VIEWS[this.cur.vehicle].id, side: this.side } satisfies Persisted));
+      const T = this.tables;
+      this.storage?.setItem(this.styleNow === 'classic' ? STORAGE_KEY_CLASSIC : STORAGE_KEY, JSON.stringify({ foot: T.foot[this.cur.foot].id, vehicle: T.vehicle[this.cur.vehicle].id, side: this.side } satisfies Persisted));
     } catch { /* private window / quota */ }
   }
 
   /** The active rig for a mode. */
-  rig(mode: ViewMode): ViewRig { return VIEWS[mode][this.cur[mode]]; }
+  rig(mode: ViewMode): ViewRig { return this.tables[mode][this.cur[mode]]; }
   id(mode: ViewMode): string { return this.rig(mode).id; }
   /** The rig the quick swap would switch to. */
-  previous(mode: ViewMode): ViewRig { return VIEWS[mode][this.prev[mode]]; }
+  previous(mode: ViewMode): ViewRig { return this.tables[mode][this.prev[mode]]; }
 
   /** Advance the clock and the cinematic director (only while a cinematic view is showing). */
   tick(dt: number, mode: ViewMode): void {
@@ -167,7 +223,7 @@ export class CameraViews {
   }
 
   setView(mode: ViewMode, id: string): boolean {
-    const i = VIEWS[mode].findIndex((v) => v.id === id);
+    const i = this.tables[mode].findIndex((v) => v.id === id);
     if (i < 0 || i === this.cur[mode]) return false;
     this.change(mode, i);
     return true;
@@ -177,21 +233,24 @@ export class CameraViews {
     this.serial++;
     this.prev[mode] = this.cur[mode];
     this.cur[mode] = next;
-    if (VIEWS[mode][next].cinematic) { this.director.reset(); this.cutThisFrame = true; }
+    if (this.tables[mode][next].cinematic) { this.director.reset(); this.cutThisFrame = true; }
     this.save();
-    this.onChange?.(VIEWS[mode][next].label, mode);
+    this.onChange?.(this.tables[mode][next].label, mode);
   }
 
   /** The V key (or Select / VIEW button): cycle to the next view; a second press within DOUBLE_TAP swaps back and forth between the last two. */
   pressView(mode: ViewMode): void {
+    const n = this.tables[mode].length;
+    if (n < 2) return; // classic on foot has one rig
     const dbl = this.clock - this.lastPress <= DOUBLE_TAP;
     this.lastPress = this.clock;
     if (dbl && this.prev[mode] !== this.cur[mode]) { this.change(mode, this.prev[mode]); return; }
-    this.change(mode, (this.cur[mode] + 1) % VIEWS[mode].length);
+    this.change(mode, (this.cur[mode] + 1) % n);
   }
 
   /** B / middle mouse: swap the over-shoulder side. */
   swapShoulder(): void {
+    if (this.styleNow === 'classic') return; // no shoulder offset in the classic camera
     this.side = this.side === 1 ? -1 : 1;
     this.save();
     this.onChange?.(this.side === 1 ? 'Right shoulder' : 'Left shoulder', 'foot');

@@ -4,7 +4,7 @@
  * system's (src/game/combat): the host spawns the fighter as a Pedestrian with `temper = 'fight'` when the phase turns
  * 'brawl' and reports back `fighterDown()` or `playerDown()`. Neither fight ever kills anybody: 'out' is the worst.
  *
- * Scripts are placeholders until WRITER's scene files land. Both men are adults with their own reasons.
+ * Scripts follow docs/story/BIBLE.md 4.6 and 4.7 (lines are placeholders until the scene files land). Both men are adults with their own reasons.
  */
 export type FightPhase = 'idle' | 'tense' | 'brawl' | 'talked' | 'won' | 'lost' | 'walkedAway';
 
@@ -33,46 +33,51 @@ export interface FightScript {
   flags: { talked: string; won: string; lost: string; walkedAway: string };
 }
 
-export const FIGHT_STREET_MAN: FightScript = {
-  id: 'fight-street-man', who: 'Leon', place: 'street', adult: true,
-  opening: ['A man on a milk crate blocks the entrance to the lot. He says it is his spot and has been for six winters.', '"You people come with your speakers and your lights and nobody asks whose pavement it is."'],
+/** ACT1-04, BIBLE 4.6: Clem Ashby, on his corner by Mothhouse's side wall. About his sign, not the flyers. */
+export const FIGHT_CLEM: FightScript = {
+  id: 'fight-clem', who: 'Clem', place: 'club', adult: true,
+  opening: ['The posters are over Clem\'s sign. Security has moved his chair "for the line". He has your flyer bag by the strap.', '"Dolores lettered that sign. Paste your paper on your own wall."'],
   options: [
-    { id: 'listen', text: 'Ask about his winters here.', calm: 2, anger: 0, reply: '"Six. Boiler in the church broke the fourth one. I knew every night guard by name."' },
-    { id: 'meal', text: 'Offer to get him a hot meal.', calm: 3, anger: 0, cost: 12, reply: '"...Chicken, if the place by the corner is open."' },
-    { id: 'name', text: 'Say his name back to him.', calm: 2, anger: 0, needs: 'knowsLeonName', reply: '"Who told you that? ...Ha. Go on, then."' },
-    { id: 'push', text: 'Tell him to move along.', calm: 0, anger: 3, reply: '"Move? Make me."' },
-    { id: 'joke', text: 'Make a joke about the crate.', calm: 0, anger: 2, reply: '"You think this is funny, DJ?"' },
+    { id: 'listen', text: 'Let him talk. Do not interrupt.', calm: 2, anger: 0, reply: '"Two years on this corner. Nobody has ever asked me anything but to move."' },
+    { id: 'name', text: '"You are Clem."', calm: 2, anger: 0, reply: '"...Yes. That is the name. Say it again."' },
+    { id: 'blame', text: 'Say the posters were your doing, and sorry.', calm: 2, anger: 0, reply: '"Well. It takes a man to say that."' },
+    { id: 'credit', text: '"You played on Brooklyn Lights."', calm: 9, anger: 0, needs: 'pico.sleeveCredit', reply: '"Who told... Nobody remembers that record. Sit down. Sit."' },
+    { id: 'sign', text: 'Offer to put his corner on the flyer.', calm: 2, anger: 0, reply: '"My corner. On the paper. Huh."' },
+    { id: 'move', text: 'Tell him he cannot stand there.', calm: 0, anger: 3, reply: '"Cannot? Two winters I have stood here."' },
+    { id: 'laugh', text: 'Laugh at the cardboard sign.', calm: 0, anger: 4, reply: '"Laugh. Go on."' },
   ],
-  calmAt: 4, angerAt: 4, patience: 0,
+  calmAt: 5, angerAt: 4, patience: 0,
   endings: {
-    talked: 'Leon moves the crate himself. "Tell the door I am not trouble. Tell them I know the guard by name."',
-    won: 'Leon is on the pavement holding his side. Somebody hands him a coat. Nobody cheers.',
-    lost: 'You wake against the wall with a headache and no wallet worth the name. Leon is gone.',
-    walkedAway: 'You step round him and leave. The crate is still there tomorrow.',
+    talked: 'Clem hands the bag back and straightens his chair himself. "Put the corner on the paper, then. Spell it right."',
+    won: 'Clem is on the pavement with a hand on his ribs. The line outside watches. Stavros says it would have made a video.',
+    lost: 'Clem leaves you sitting against the wall with a ringing head. He picks up his sign and his chair and does not look back.',
+    walkedAway: 'You back away and leave the bag where it is. His radio goes on playing jazz behind you.',
   },
-  flags: { talked: 'fight.leon.talked', won: 'fight.leon.won', lost: 'fight.leon.lost', walkedAway: 'fight.leon.walked' },
+  flags: { talked: 'pico.clem.talked', won: 'pico.clem.fought', lost: 'pico.clem.fought', walkedAway: 'pico.clem.walked' },
 };
 
-export const FIGHT_BAR_MAN: FightScript = {
-  id: 'fight-bar-man', who: 'Dale', place: 'bar-2', adult: true,
-  opening: ['A man in a work jacket is leaning on the decks. He says the last DJ played worse and the one before that played better.', '"You touched my song. I asked you not to touch my song."'],
+/** ACT2-03, BIBLE 4.7: Kyle Strand at Tincture & Ledger. Leaving, or talking, is the better ending. */
+export const FIGHT_KYLE: FightScript = {
+  id: 'fight-kyle', who: 'Kyle', place: 'bar-lounge', adult: true,
+  opening: ['Kyle has just sent a drink back for the third time. The bartender is smiling the way people smile when they are counting.', '"Your warm-up set was great for a Tuesday. Be grateful for the exposure, my friend."'],
   options: [
-    { id: 'drink', text: 'Buy him a round and play his song next.', calm: 3, anger: 0, cost: 16, reply: '"...Fine. One song. Play it right."' },
-    { id: 'tell', text: 'Tell him it is the bar\'s playlist, not yours.', calm: 1, anger: 1, reply: '"Then go tell the bar to say sorry."' },
-    { id: 'door', text: 'Wave the doorman over.', calm: 1, anger: 2, reply: '"Oh, now there is a doorman."' },
-    { id: 'shove', text: 'Push his hand off the decks.', calm: 0, anger: 4, reply: '"Right."' },
+    { id: 'price', text: 'Ask, loudly, what the MOTH token closed at today.', calm: 4, anger: 0, reply: 'His investors laugh once. He does not.' },
+    { id: 'pockets', text: 'Look at Akira. Hands in pockets.', calm: 3, anger: 0, needs: 'pico.akira.pockets', reply: 'Akira: "Pockets." The room breathes out.' },
+    { id: 'tab', text: 'Pay the bartender\'s tab and tip her.', calm: 2, anger: 0, cost: 20, reply: 'Kyle: "Generous." It costs him something to say it.' },
+    { id: 'door', text: 'Walk out.', calm: 0, anger: 0, reply: 'You go. The Friday slot goes with you.' },
+    { id: 'shove', text: 'Shove him back.', calm: 0, anger: 4, reply: '"There it is."' },
   ],
-  calmAt: 4, angerAt: 4, patience: 25,
+  calmAt: 4, angerAt: 4, patience: 30,
   endings: {
-    talked: 'Dale nods at the booth. When his song comes round, he does not look up from his drink.',
-    won: 'Dale slides off the stool and the doorman walks him out. The room goes back to its own business.',
-    lost: 'The doorman picks you up off the floor. "Not in the booth," he says, kindly. "Never in the booth."',
-    walkedAway: 'You step back from the decks and let somebody else deal with Dale.',
+    talked: 'Kyle laughs a little late. In front of his own investors, he is suddenly very careful about what he says next.',
+    won: 'Kyle is on the floor with his vest askew. His lawyer will write soon. The Friday slot is gone.',
+    lost: 'Bash walks you out by the elbow. "Not in my building." Kyle straightens his collar.',
+    walkedAway: 'You leave the bar and a half-finished drink. Outside, the air is cold and the Friday slot is gone.',
   },
-  flags: { talked: 'fight.dale.talked', won: 'fight.dale.won', lost: 'fight.dale.lost', walkedAway: 'fight.dale.walked' },
+  flags: { talked: 'pico.kyle.talked', won: 'pico.kyle.fought', lost: 'pico.kyle.fought', walkedAway: 'pico.kyle.walked' },
 };
 
-export const FIGHT_SCRIPTS: Readonly<Record<string, FightScript>> = { [FIGHT_STREET_MAN.id]: FIGHT_STREET_MAN, [FIGHT_BAR_MAN.id]: FIGHT_BAR_MAN };
+export const FIGHT_SCRIPTS: Readonly<Record<string, FightScript>> = { [FIGHT_CLEM.id]: FIGHT_CLEM, [FIGHT_KYLE.id]: FIGHT_KYLE };
 
 export interface FightEnd { phase: 'talked' | 'won' | 'lost' | 'walkedAway'; text: string; flag: string }
 
