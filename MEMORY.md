@@ -41,6 +41,18 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 24 Nov: he has a folder of third-party models and textures made for GTA 3, Vice City and San Andreas ("These are not
+  ... rockstar models. These are third-party models and are free to use, the same thing with the textures"). He wants:
+  the relevant ones used in the game; "a new model and texture system that is compatible with theirs such that people
+  can upload later on models and textures as mod"; that folder as the guideline ("I want models like these. I want
+  textures like these"); then web research for more like them. LEAD'S READING, until he says otherwise: rule 1 still
+  bars Rockstar's own assets and anything edited from them; a third-party file goes into the game or the repository only
+  when its own licence text allows redistribution (rule 3: CC0, CC BY, CC BY-SA, or the author's written permission),
+  checked file by file and credited in `docs/CREDITS.md`; "free to download" is not a licence. The mod system loads the
+  player's OWN files in their browser (the old games' model and texture file formats, plus glTF and PNG) and never
+  uploads or hosts them, so anyone can use any pack they have without us distributing it. The lead could NOT reach his
+  laptop from this session on 24 Nov (no folder offered); lanes MODS (loader) and a research lane started without it.
+
 - 23 Nov, small hours, on the sheet of round 2's first limb pass, which he marked by hand: "what's with the strange fold
   between arm and torso; also the thighs aren't accurate yet. This causes the clothing to look strange. Let's get closer
   to the reference images. Proportions and variation: there are many human body types, ectomorph, endomorph, etc., obese
