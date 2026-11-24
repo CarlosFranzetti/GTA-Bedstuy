@@ -49,3 +49,16 @@ if (import.meta.env?.VITE_HOSTED === '1') {
    (`safe` covers `?mods=off`. The `ModTarget` field names match `src/mods/registry.ts`; the "wiring types" test pins that `Vehicle.sources` and `MaterialLibrary` fit it.)
 2. In the `new Menu(overlay, { ... })` callbacks add: `onMods: () => modsApi?.open(),` (the Settings row only shows when `onMods` is given).
 - Cars spawned before the restore finishes stay stock until they respawn; nothing else needs a reload.
+
+## First real files (the lead, 24 Nov)
+
+The owner's reference pack holds one clearly fan-made item: a 2002 car mod (its readme names four modders as authors;
+no licence text). The lead downloaded its model and texture files into the session's tool-results folder (never the
+repository) and ran the parsers on them in a scratch test:
+
+- `parseDff` on the 1.2 MB model: OK. 57 frames, 30 geometries, about 25,700 triangles, materials with texture names.
+- `parseTxd` on the 4.4 MB texture dictionary: FAILED with "A chunk in the file claims to be larger than the file."
+  The file is complete (size matches Drive's). So the texture parser mis-reads at least one real PC dictionary of that
+  era (the readme lists 1024, 512, 256 and 128 pixel textures, one with alpha). To fix: lane MODS3.
+- Not shippable: it is other people's work without a licence, and far over a car's triangle budget. It is a mod-loader
+  test case only.

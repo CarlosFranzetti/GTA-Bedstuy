@@ -8,9 +8,12 @@ import type { IMaterialLibrary, IWorld2D } from '../types';
 import { INTERIORS, type InteriorId } from './defs';
 import { basic, box, gradientPlane, plane, RoomColliders, shell, sleeveRows } from './parts';
 import { PROCEDURAL_RECORDS } from '@/game/records';
+import { venueOfInterior } from '../venues/interiorDefs';
+import { buildVenueRoom } from '../venues/rooms';
 
-export type SpotKind = 'exit' | 'shop' | 'listen' | 'dj' | 'bar' | 'talk' | 'couch' | 'window';
-export interface Spot { id: string; kind: SpotKind; x: number; z: number; r: number; label: string }
+export type SpotKind = 'exit' | 'shop' | 'listen' | 'dj' | 'bar' | 'talk' | 'couch' | 'window' | 'mark' | 'train';
+/** `say`: toast text for the spot (VENUES). */
+export interface Spot { id: string; kind: SpotKind; x: number; z: number; r: number; label: string; say?: string }
 
 /** What the room hears: beat phase 0..1, tempo, loudness 0..1. */
 export interface Beat { phase: number; bpm: number; level: number; index: number; dark?: boolean }
@@ -273,5 +276,7 @@ export function buildClub(deps: RoomDeps): Room {
 }
 
 export function buildRoom(id: InteriorId, deps: RoomDeps): Room {
+  const venue = venueOfInterior(id);
+  if (venue) { const r = buildVenueRoom(venue, deps); return { ...r, id, dancers: 0 }; } // VENUES
   return id === 'deli' ? buildDeli(deps) : id === 'club' ? buildClub(deps) : buildHome(deps);
 }

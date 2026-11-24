@@ -53,6 +53,8 @@ export interface RigOpts {
   car?: { x: number; z: number; h?: number; type?: VehicleType };
   start?: Vec2; startHeading?: number;
   walls?: Array<Array<Vec2>>;
+  /** camera style (CAMERA seat); the camera class defaults to 'modern' */
+  style?: 'classic' | 'modern';
 }
 
 export class CamRig {
@@ -92,6 +94,7 @@ export class CamRig {
     if (opts.car) this.addCar(opts.car.x, opts.car.z, opts.car.h ?? 0, opts.car.type ?? 'sedan');
     this.ctx = { world: this.sim.world, vehicle: null, ignoreId: null };
     this.cam.world = this.sim.world;
+    if (opts.style) this.cam.setStyle(opts.style);
     // settle behind the standing player at 60 Hz, unrecorded
     this.rec = false;
     for (let i = 0; i < 120; i++) this.frameDt(1 / 60);
@@ -233,7 +236,7 @@ export function analyse(fr: CamFrame[], opts: { from?: number } = {}): Stats {
     for (const k of ['px', 'py', 'pz', 'lx', 'ly', 'lz', 'dx', 'dy', 'dz', 'fov', 'yaw', 'ux', 'uy', 'uz'] as const) if (!Number.isFinite(f[k])) s.nan++;
     const ag = f.py - groundAt(f.px, f.pz);
     if (ag < s.minAboveGround) { s.minAboveGround = ag; s.minAboveGroundAt = f.t; }
-    if (f.view !== 'hood' && f.view !== 'first' && f.first < 0.01) s.lookOff = Math.max(s.lookOff, Math.hypot(f.lx - f.bx, f.lz - f.bz));
+    if (f.view !== 'hood' && f.view !== 'bumper' && f.view !== 'first' && f.first < 0.01) s.lookOff = Math.max(s.lookOff, Math.hypot(f.lx - f.bx, f.lz - f.bz));
     if (f.hasCar && f.inVehicle && f.first < 0.5 && f.view !== 'hood' && carBoxContains(f, f.px, f.py, f.pz)) { s.insideCar++; if (s.insideCarAt < 0) s.insideCarAt = f.t; }
     if (i === 0 || i < from) continue;
     const a = fr[i - 1];

@@ -18,7 +18,7 @@
  */
 import type { Vec2 } from '@/core/Math2';
 import type { PoiDef, Side } from '@/world/types';
-import { INTERIORS, doorTrigger, type DoorDef, type InteriorId } from '@/world/interiors/defs';
+import { INTERIORS, applyVenueDoorsFor, doorTrigger, type DoorDef, type InteriorId } from '@/world/interiors/defs';
 import { NAV_TARGETS } from '@/game/missions/NavTargets';
 import type { Derived } from './derive';
 import type { RealFace } from './faces';
@@ -405,6 +405,7 @@ export function pickLotNear(places: RealPlaces, p: Vec2, kind: LotFit, used: Rea
  * interiors are built. No default-path file changes.
  */
 export function applyRealDoors(places: RealPlaces): void {
-  for (const id of Object.keys(INTERIORS) as InteriorId[]) Object.assign(INTERIORS[id].door, places.interiorDoor(id));
+  for (const id of Object.keys(INTERIORS) as InteriorId[]) { if (id.startsWith('venue:')) continue; Object.assign(INTERIORS[id].door, places.interiorDoor(id)); } // VENUES carry their own real doors
+  applyVenueDoorsFor('real');
   for (const t of NAV_TARGETS) { const p = doorTrigger(INTERIORS[t.id]); t.x = p.x; t.z = p.z; }
 }

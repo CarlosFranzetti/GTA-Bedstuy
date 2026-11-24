@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { angleDiff, clamp, wrapAngle, type Vec2 } from './Math2';
 import { LOOK_BACK_KEY, type Input } from './Input';
 import type { IWorld2D } from '@/world/types';
-import { CameraViews } from './CameraViews';
+import { CameraViews, CLASSIC_FIRST, type CameraStyle } from './CameraViews';
 import { FOOT_BOX, ROOF_MARGIN_CAR, ROOF_MARGIN_FOOT, CLEAR_IN, boxExit, lensGlare, raiseAmount, slackFollow, smoothstep, type BodyBox } from './CameraClearance';
 
 export type CameraMode = 'foot' | 'vehicle';
@@ -24,6 +24,45 @@ export interface CameraContext {
   /** Id of a body the lens should not shy from (the car the player is walking to). */
   ignoreId?: string | null;
 }
+
+/** Held keys of the classic style: a first-person look on foot, and a look to either side (raw codes: not part of the binding table). */
+export const LOOK_FIRST_KEY = 'KeyT';
+export const LOOK_LEFT_KEY = 'BracketLeft';
+export const LOOK_RIGHT_KEY = 'BracketRight';
+/**
+ * The classic style (CAMERA seat; every number and who chose it is in docs/swarm/tasks/CAMERA.md). Own judgement, by convention of an
+ * early-2000s open-world third-person camera: a fixed far rig behind and well above the body, a lazy follow of the direction of movement
+ * on foot, a soft yaw lag behind the car, no shoulder, no roll, no idle drift.
+ */
+export const CAM_CLASSIC = {
+  /** car rig at the middle distance; near and far scale it (CameraViews.CLASSIC_VEHICLE_VIEWS) */
+  vehicle: { distance: 6.2, height: 2.7, look: 1.2, fov: 64, fovTop: 70 },
+  /** extra pull-back (m) at top speed */
+  speedDistance: 1.6,
+  /** on foot: seconds of no look input before the view goes back behind; the lazy follow of movement: rate (1/s) at full pace, share at 90 degrees off, share running toward the lens */
+  footReturnDelay: 2.0,
+  footFollowRate: 3.4,
+  footFollowSide: 0.4,
+  /** speed (m/s) above which the body counts as moving (follow the heading); below it the view stays put */
+  footMoveSpeed: 0.6,
+  /** on foot: rate (1/s) of the return behind the body after a look, when standing still */
+  footSettleRate: 1.6,
+  /** pitch limits on foot and in a car (rad) */
+  pitchFoot: { min: -0.05, max: 0.8 },
+  pitchVehicle: { min: -0.05, max: 0.5 },
+  /** pitch eases back to the rig's own after this many seconds without vertical look, at this rate (1/s) */
+  pitchDelay: 1.0,
+  pitchRate: 2.5,
+  /** car: seconds before a mouse/stick look returns behind, ramp seconds, spring frequency (rad/s) of the soft lag in yaw */
+  carReturnDelay: 1.0,
+  carReturnRamp: 0.6,
+  carYawOmega: 5.0,
+  /** look behind / look to a side: spring frequency (rad/s): ~95 % of the way in 3/omega (0.07 s) */
+  lookOmega: 45,
+  /** the character fades out as the lens comes within this horizontal range of the head: fully visible at far, gone at near (m) */
+  fadeNear: 0.6,
+  fadeFar: 2.0,
+} as const;
 
 const MOUSE_SENS = 0.0025;
 /** Pitch limits per mode (radians above the horizon). */
@@ -183,6 +222,14 @@ export class ThirdPersonCamera {
   /** Static world used for wall avoidance when `update` is not handed one. */
   world: CameraWorld | null = null;
 
+  /** The camera style. Modern (the default of the class) is the over-the-shoulder rig and is unchanged; Settings picks classic through `setStyle`. */
+  private styleNow: CameraStyle = 'modern';
+  private styleCut = false;
+  private prevLookFirst = false;
+  private pitchIdle = 99;
+  private needReturn = true;
+  private sideAmt = 0; private sideVel = 0;
+  private fade = 1;
   private idle = 99;       // seconds since mouse/stick look input (a camera nobody has turned follows at full pace from the start)
   private still = 0;       // seconds with no input and a stationary target
   private yawVel = 0;
@@ -262,6 +309,19 @@ export class ThirdPersonCamera {
     this.camera.updateProjectionMatrix();
   }
 
+  get style(): CameraStyle { return this.styleNow; }
+  /** Switch between the classic and the modern camera. The next update is a clean cut. */
+  setStyle(style: CameraStyle): void {
+    if (style === this.styleNow) return;
+    this.styleNow = style;
+    this.views.setStyle(style);
+    this.styleCut = true;
+    this.backBlend = 0; this.backVel = 0; this.sideAmt = 0; this.sideVel = 0; this.cineBlend = 0; this.cineYaw = 0;
+    this.needReturn = true; this.pitchIdle = 99;
+    this.blendOn = false; this.blendT = 1;
+  }
+  /** 1 = the character is drawn normally, 0 = fully faded out because the lens is very close to the head (classic style on foot only). */
+  get bodyFade(): number { return this.fade; }
   /** Current shake amplitude 0..1 (decays to 0 over 0.4 s). */
   get shakeAmount(): number { return this.shake; }
   /** 0 = normal view, 1 = fully swung round to look back. */
@@ -335,11 +395,16 @@ export class ThirdPersonCamera {
     const veh = ctx?.vehicle ?? null;
     const vehicleMode = mode === 'vehicle';
     const first = !this.initialised;
-    const vrig = this.views.rig(mode);
+    const cl = this.styleNow === 'classic';
+    const styleCut = this.styleCut; this.styleCut = false;
+    // classic: a held key looks through the character's eyes (a cut in, a cut out)
+    const lookFirst = cl && !vehicleMode && input.isDown(LOOK_FIRST_KEY);
+    const vrig = lookFirst ? CLASSIC_FIRST : this.views.rig(mode);
     // A change of mode or of view starts either a clean cut (to or from first person, the hood, the cinematic view) or one blend.
     const cutClass = vrig.first || (vehicleMode && vrig.cinematic);
     const modeChanged = this.lastMode !== null && mode !== this.lastMode;
-    const viewChanged = this.views.serial !== this.seenSerial;
+    const viewChanged = this.views.serial !== this.seenSerial || lookFirst !== this.prevLookFirst;
+    this.prevLookFirst = lookFirst;
     this.seenSerial = this.views.serial;
     let cutNow = first;
     // The pivot differs between modes (the player's door spot vs the car's centre): carry the jump as an offset that the blend takes out,
@@ -351,7 +416,10 @@ export class ThirdPersonCamera {
       // returns behind the player by the usual two-second rule, so "forward" does not swing round under the player's thumb.
       if (mode === 'foot') { this.idle = 0; this.yawVel = 0; }
     }
-    if (!first && (modeChanged || viewChanged)) {
+    if (styleCut && !first) {
+      cutNow = true;
+      this.offX = 0; this.offZ = 0; this.blendOn = false; this.blendT = 1;
+    } else if (!first && (modeChanged || viewChanged)) {
       if (cutClass || this.prevCutClass) {
         cutNow = true;
         this.offX = 0; this.offZ = 0; this.blendOn = false; this.blendT = 1;
@@ -432,14 +500,20 @@ export class ThirdPersonCamera {
       this.pitch += ldy * MOUSE_SENS;
       this.idle = 0;
       this.yawVel = 0;
+      if (ldx !== 0) this.needReturn = true;
     } else {
       this.idle += dt;
+    }
+    this.pitchIdle = ldy !== 0 ? 0 : this.pitchIdle + dt;
+    if (cl && (first || styleCut)) {
+      this.pitch = vehicleMode ? 0 : (vrig.pitch ?? 0);
+      if (!vehicleMode) this.yaw = targetHeading; // a new game or a switch starts behind the body
     }
     this.views.tick(dt, mode);
     const snap = cutNow || this.views.cutThisFrame;
     this.snapped = snap;
     if (snap) this.initReach = false; // the wall reach of the old rig means nothing to the new one
-    const lim = vrig.first ? PITCH_FIRST : vehicleMode ? PITCH_VEH : PITCH_FOOT;
+    const lim = vrig.first ? PITCH_FIRST : cl ? (vehicleMode ? CAM_CLASSIC.pitchVehicle : CAM_CLASSIC.pitchFoot) : vehicleMode ? PITCH_VEH : PITCH_FOOT;
     this.pitch = clamp(this.pitch, lim.min, lim.max);
     if (anyInput || moveSpeed > MOVE_EPS) this.still = 0; else this.still += dt;
 
@@ -448,8 +522,10 @@ export class ThirdPersonCamera {
     // player. The spring's stiffness ramps up from zero, so the return starts slowly and gathers pace; while nobody touches
     // the look controls it stays at full pace and the camera simply follows the body round corners.
     const off = angleDiff(targetHeading, this.yaw); // yaw - heading, short arc
+    if (cl) this.classicYaw(dt, targetHeading, off, vehicleMode, moveSpeed, vrig.first, vrig.pitch ?? 0);
     const follow = vehicleMode || moveSpeed <= MOVE_EPS ? 1 : footFollow(off);
-    if (!this.holdView && !(vrig.first && !vehicleMode) && follow > 0 && this.idle > RECENTRE_DELAY) {
+    if (cl) { /* classic yaw and pitch are handled above */ }
+    else if (!this.holdView && !(vrig.first && !vehicleMode) && follow > 0 && this.idle > RECENTRE_DELAY) {
       const u = Math.min(1, (this.idle - RECENTRE_DELAY) / RECENTRE_RAMP);
       const pace = u * u * (3 - 2 * u);
       const omega = (vehicleMode ? YAW_OMEGA : YAW_OMEGA_FOOT) * Math.max(0.04, pace) * follow;
@@ -466,19 +542,25 @@ export class ThirdPersonCamera {
     // ---- look-back (spring on a 0..1 blend, no overshoot past 1) -------------------------------------------
     {
       const vs = vehicleMode ? (veh ? veh.speed : ctx?.speed ?? 0) : 0;
-      if (!vehicleMode) this.reversing = false;
+      if (!vehicleMode || cl) this.reversing = false; // classic: the view stays behind the car when reversing
       else if (!this.reversing && vs < -REVERSE_ENTER) this.reversing = true;
       else if (this.reversing && vs > -REVERSE_EXIT) this.reversing = false;
       const backWant = lookBackHeld || this.reversing ? 1 : 0;
-      const st = dampStep(this.backBlend - backWant, this.backVel, LOOKBACK_OMEGA, dt);
+      const st = dampStep(this.backBlend - backWant, this.backVel, cl ? CAM_CLASSIC.lookOmega : LOOKBACK_OMEGA, dt);
       this.backBlend = clamp(backWant + st.x, 0, 1);
       this.backVel = st.v;
+      if (cl) {
+        const sideWant = lookBackHeld || vrig.first ? 0 : (input.isDown(LOOK_RIGHT_KEY) ? 1 : 0) - (input.isDown(LOOK_LEFT_KEY) ? 1 : 0);
+        const ss = dampStep(this.sideAmt - sideWant, this.sideVel, CAM_CLASSIC.lookOmega, dt);
+        this.sideAmt = clamp(sideWant + ss.x, -1, 1);
+        this.sideVel = ss.v;
+      }
     }
 
     // ---- car: swing out of a corner and look into a slide (added to the view, never to `yaw`) ----------------------------------
     {
       let want = 0;
-      if (vehicleMode && veh && !vrig.first) {
+      if (vehicleMode && veh && !vrig.first && !cl) {
         const sp = veh.speed, lat = veh.lateralSpeed ?? 0;
         const slip = Math.abs(sp) > 1 ? Math.atan2(lat, Math.abs(sp)) * (sp < 0 ? -1 : 1) : 0;
         const live = clamp((Math.abs(sp) - 2) / 4, 0, 1);
@@ -489,7 +571,7 @@ export class ThirdPersonCamera {
     }
 
     // ---- idle cinematic ------------------------------------------------------------------------------------
-    if (this.still >= IDLE_CINEMATIC_AFTER) {
+    if (this.still >= IDLE_CINEMATIC_AFTER && !cl) {
       this.cineBlend = Math.min(1, this.cineBlend + CINE_IN * dt);
       this.cineYaw = wrapAngle(this.cineYaw + CINE_DRIFT * this.cineBlend * dt);
     } else {
@@ -517,8 +599,9 @@ export class ThirdPersonCamera {
     const extraLen = vehicleMode && veh?.spec ? Math.max(0, veh.spec.length - SEDAN.length) : 0;
     const extraH = vehicleMode && veh?.spec ? Math.max(0, veh.spec.height - SEDAN.height) : 0;
     const cine = vrig.cinematic && vehicleMode ? this.views.director.shot : null;
+    const CV = cl ? CAM_CLASSIC.vehicle : CAM_VEHICLE;
     const sedanRig = vehicleMode
-      ? { distance: CAM_VEHICLE.distance + extraLen + (veh?.spec?.camDist ?? 0), height: CAM_VEHICLE.height + extraH * 1.15 + (veh?.spec?.camHeight ?? 0), look: CAM_VEHICLE.look + 0.9 * extraH }
+      ? { distance: CV.distance + extraLen + (veh?.spec?.camDist ?? 0), height: CV.height + extraH * 1.15 + (veh?.spec?.camHeight ?? 0), look: CV.look + 0.9 * extraH }
       : CAM_FOOT;
     const vlen = veh?.spec?.length ?? SEDAN.length;
     const vh = veh?.spec?.height ?? SEDAN.height;
@@ -529,7 +612,7 @@ export class ThirdPersonCamera {
           ? { distance: cine.distance, height: cine.height, look: cine.look, forward: 0 }
           : { distance: sedanRig.distance * vrig.distScale, height: sedanRig.height * vrig.heightScale, look: sedanRig.look, forward: 0 }
       : { distance: vrig.distance, height: vrig.height, look: vrig.look, forward: 0 };
-    const wantDistance = (rig.distance + (vehicleMode && !vrig.first && !cine ? SPEED_DISTANCE * this.speedN : 0)) * (1 + CINE_ZOOM * this.cineBlend);
+    const wantDistance = (rig.distance + (vehicleMode && !vrig.first && !cine ? (cl ? CAM_CLASSIC.speedDistance : SPEED_DISTANCE) * this.speedN : 0)) * (1 + CINE_ZOOM * this.cineBlend);
     // a cut puts every value at its goal; a blend runs from the values it started with to the goal on one smoothstep; otherwise they follow the goal
     const bf = this.bf;
     const mix = (cur: number, from: number, want: number): number => snap ? want : blendFrame ? from + (want - from) * bs : cur + (want - cur) * k;
@@ -537,12 +620,12 @@ export class ThirdPersonCamera {
     this.height = mix(this.height, bf.height, rig.height);
     this.lookY = mix(this.lookY, bf.lookY, rig.look);
     this.forward = mix(this.forward, bf.forward, rig.forward);
-    const side = vehicleMode ? 0 : vrig.shoulder * this.views.side * (this.slide ? -1 : 1);
-    this.shoulder = mix(this.shoulder, bf.shoulder, side + aimShoulder(side, this.aimBias, vrig.first || vehicleMode));
+    const side = vehicleMode || cl ? 0 : vrig.shoulder * this.views.side * (this.slide ? -1 : 1);
+    this.shoulder = mix(this.shoulder, bf.shoulder, side + aimShoulder(side, this.aimBias, vrig.first || vehicleMode || cl));
     this.cineShotYaw = cine ? cine.yaw : 0;
 
     const fov = vehicleMode
-      ? (cine ? cine.fov : CAM_VEHICLE.fov + (CAM_VEHICLE.fovTop - CAM_VEHICLE.fov) * this.speedN + vrig.fov) + this.fovOffset
+      ? (cine ? cine.fov : CV.fov + (CV.fovTop - CV.fov) * this.speedN + vrig.fov) + this.fovOffset
       : vrig.fov + this.fovOffset;
     this.fovNow = mix(this.fovNow, bf.fov, fov);
     if (Math.abs(this.fovNow - this.camera.fov) > 0.01) {
@@ -557,13 +640,13 @@ export class ThirdPersonCamera {
       this.headingRate += (rate - this.headingRate) * (1 - Math.exp(-12 * dt));
     }
     const lat = vehicleMode ? (veh ? veh.speed : ctx?.speed ?? 0) * this.headingRate : 0;
-    const wantRoll = vehicleMode ? clamp(lat * ROLL_PER_G, -ROLL_MAX, ROLL_MAX) : first ? 0 : clamp(Math.min(moveSpeed, 7) * this.headingRate * ROLL_FOOT_PER, -ROLL_FOOT_MAX, ROLL_FOOT_MAX);
+    const wantRoll = cl ? 0 : vehicleMode ? clamp(lat * ROLL_PER_G, -ROLL_MAX, ROLL_MAX) : first ? 0 : clamp(Math.min(moveSpeed, 7) * this.headingRate * ROLL_FOOT_PER, -ROLL_FOOT_MAX, ROLL_FOOT_MAX);
     this.roll += (wantRoll - this.roll) * (first ? 1 : 1 - Math.exp(-ROLL_SMOOTH * dt));
     this.prevHeading = targetHeading;
     this.prevX = rawTarget.x; this.prevZ = rawTarget.z;
 
     // ---- rig placement: the pivot rides rigidly on the target; only the rig parameters are smoothed --------
-    const viewYaw = this.yaw + Math.PI * this.backBlend + this.cineYaw + this.cineShotYaw + this.swing * (1 - this.backBlend);
+    const viewYaw = this.yaw + Math.PI * this.backBlend + this.sideAmt * (Math.PI / 2) * (1 - this.backBlend) + this.cineYaw + this.cineShotYaw + this.swing * (1 - this.backBlend);
     const bx = Math.sin(viewYaw), bz = -Math.cos(viewYaw);
     const sx = -bz * this.shoulder, sz = bx * this.shoulder;
     const horiz = this.distance * Math.cos(this.pitch);
@@ -637,6 +720,11 @@ export class ThirdPersonCamera {
       this.initReach = false;
       this.slide = false;
     }
+    // classic: the character fades when the lens is very close to the head (the lens never goes through the body: this hides the last stretch)
+    if (cl && !vehicleMode) {
+      const dl = Math.hypot(this.pos.x - this.look.x, this.pos.z - this.look.z); // horizontal: the classic lens is high, so only a wall behind brings it near
+      this.fade = smoothstep(CAM_CLASSIC.fadeNear, CAM_CLASSIC.fadeFar, dl);
+    } else this.fade = 1;
     this.flareSuppress += (dynBlocked - this.flareSuppress) * (1 - Math.exp(-8 * dt));
     lensGlare.x = this.pos.x; lensGlare.y = this.pos.y; lensGlare.z = this.pos.z; lensGlare.active = true;
 
@@ -658,6 +746,47 @@ export class ThirdPersonCamera {
     this.lbAmount += (lbGoal - this.lbAmount) * (1 - Math.exp(-LETTERBOX_RATE * dt));
     if (Math.abs(lbGoal - this.lbAmount) < 0.002) this.lbAmount = lbGoal;
     this.paintBars();
+  }
+
+  /**
+   * Classic yaw and pitch. In a car: the view is locked behind the heading through a critically damped spring (the soft lag: it trails in
+   * a turn and catches up); a mouse or stick look is held CAM_CLASSIC.carReturnDelay and then returns the same way. On foot: after the
+   * look input has been quiet for footReturnDelay the view swings round behind the direction of movement, lazily (first order, rate
+   * footFollowRate at full pace; slower to the side, none when running toward the lens); standing still it stays put unless it was
+   * turned by a look, in which case it settles back behind. Integrated in fixed sub-steps so the result does not depend on the frame rate.
+   */
+  private classicYaw(dt: number, heading: number, off: number, vehicleMode: boolean, moveSpeed: number, first: boolean, restPitch: number): void {
+    const C = CAM_CLASSIC;
+    // pitch: back to the rig's own after a pause in vertical look
+    if (this.pitchIdle > C.pitchDelay && !this.holdView && !first) {
+      const want = vehicleMode ? 0 : restPitch;
+      this.pitch += (want - this.pitch) * (1 - Math.exp(-C.pitchRate * dt));
+    }
+    if (this.holdView || (first && !vehicleMode)) { this.yawVel = 0; return; }
+    if (vehicleMode) {
+      if (this.idle > C.carReturnDelay) {
+        const u = Math.min(1, (this.idle - C.carReturnDelay) / C.carReturnRamp);
+        const pace = u * u * (3 - 2 * u);
+        const st = dampStep(off, this.yawVel, C.carYawOmega * Math.max(0.04, pace), dt);
+        this.yaw = wrapAngle(heading + st.x);
+        this.yawVel = st.v;
+      } else this.yawVel = 0;
+      return;
+    }
+    this.yawVel = 0;
+    if (this.idle <= C.footReturnDelay) return;
+    let o = off;
+    if (moveSpeed > C.footMoveSpeed) {
+      const n = Math.max(1, Math.ceil(dt / 0.004)), h = dt / n;
+      for (let i = 0; i < n; i++) {
+        // share of full pace: 1 straight ahead, footFollowSide at 90 degrees, 0 from about 130 degrees (running toward the lens)
+        const f = clamp(C.footFollowSide + (1 - C.footFollowSide) * Math.cos(o), 0, 1);
+        o *= Math.exp(-C.footFollowRate * f * h);
+      }
+    } else if (this.needReturn) o *= Math.exp(-C.footSettleRate * dt);
+    else return;
+    if (Math.abs(o) < 0.02) this.needReturn = false;
+    this.yaw = wrapAngle(heading + o);
   }
 
   /**

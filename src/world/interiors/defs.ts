@@ -2,7 +2,10 @@
  * Interior definitions: where each door is on the street, where the room lives (far off the map, so its
  * 2D colliders never meet the city's), and the club's opening hours.
  */
-export type InteriorId = 'deli' | 'club' | 'home';
+import { applyVenueDoors, venueEventIds, venueInteriorDefs, type VenueInteriorId } from '../venues/interiorDefs';
+import { VENUE_IDS } from '../venues/venues';
+
+export type InteriorId = 'deli' | 'club' | 'home' | VenueInteriorId; // VENUES: the seven story places join as `venue:<id>`
 
 export interface DoorDef {
   /** Door centre on the building face (world x, z). */
@@ -49,9 +52,13 @@ export const INTERIORS: Record<InteriorId, InteriorDef> = {
     id: 'home', name: 'HOME', origin: { x: 3000, z: 3240 }, w: 8, d: 7, h: 2.8, sign: 'HOME',
     door: { x: -11.05, z: -36, outX: 1, outZ: 0, radius: 2.0 },
   },
+  ...venueInteriorDefs(),
 };
 
-export const INTERIOR_IDS: readonly InteriorId[] = ['deli', 'club', 'home'];
+/** VENUES: move the venue doors to the real map (called from `applyRealDoors`). */
+export const applyVenueDoorsFor = (map: 'grid' | 'real'): void => applyVenueDoors(INTERIORS, map);
+
+export const INTERIOR_IDS: readonly InteriorId[] = ['deli', 'club', 'home', ...VENUE_IDS.map((v): InteriorId => `venue:${v}`)];
 
 /** Story flag that MISS2's password mission sets to reveal the club door. */
 export const CLUB_UNLOCK_FLAG = 'aftersloth.unlocked';
@@ -90,4 +97,4 @@ export function inDoorBand(def: InteriorDef, x: number, z: number): boolean {
 export function outwardHeading(def: InteriorDef): number { return Math.atan2(def.door.outX, -def.door.outZ); }
 
 /** Ids used on the EventBus and by missions (MISS2 agreement): 'wax-deli', 'aftersloth', 'home'. */
-export const EVENT_ID: Record<InteriorId, string> = { deli: 'wax-deli', club: 'aftersloth', home: 'home' };
+export const EVENT_ID: Record<InteriorId, string> = { deli: 'wax-deli', club: 'aftersloth', home: 'home', ...venueEventIds() };

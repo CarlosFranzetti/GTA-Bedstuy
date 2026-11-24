@@ -129,6 +129,7 @@ export class MissionSystem {
   private collected: boolean[] = [];
   private bought = new Set<string>();
   private sold = 0;
+  private sceneOpen: string | null = null;
   private custT = 0;
   private custStay = 0;
   private custAt: Vec2 | null = null;
@@ -182,6 +183,9 @@ export class MissionSystem {
   isCompleted(id: string): boolean { return this.statusOf(id) === 'complete'; }
   /** Interior the host last reported entering (or null). */
   get insideInterior(): string | null { return this.inside; }
+
+  /** The scene the player just opened with F (see SceneObjective), or null. The host runs it and answers with a 'scene:done' signal. */
+  get sceneRequest(): { scene: string } | null { return this.isActive && this.sceneOpen !== null ? { scene: this.sceneOpen } : null; }
 
   /** Active DJ set the host should run (venue, length, pass mark), or null. */
   get djRequest(): DjRequest | null {
@@ -237,6 +241,11 @@ export class MissionSystem {
       this.toast(`${ob.npc}: "${line}"`, 'info');
       this.talkIdx++;
       if (this.talkIdx >= ob.lines.length) this.done = true;
+      return true;
+    }
+    if (ob.kind === 'scene') {
+      if (!this.reach(pos, ob.at, ob.radius, ob.presence ?? 'onFoot')) return false;
+      this.sceneOpen = ob.scene;
       return true;
     }
     if (ob.kind === 'interact') {
@@ -564,7 +573,7 @@ export class MissionSystem {
 
   /** Reset the per-objective scratch state. */
   private resetObjective(): void {
-    this.talkIdx = 0; this.presses = 0; this.done = false; this.fastFor = 0; this.banterIdx = 0; this.banterT = 0;
+    this.talkIdx = 0; this.presses = 0; this.done = false; this.sceneOpen = null; this.fastFor = 0; this.banterIdx = 0; this.banterT = 0;
     this.collected = []; this.bought = new Set(); this.sold = 0; this.custT = 0; this.custStay = 0; this.custAt = null; this.custN = 0;
     this.movingT = 0; this.spotsDone = []; this.forkOpts = []; this.spotted = 0; this.slackUsed = 0; this.stakeEvt = 0; this.stakeIn = false; this.softHinted = false;
     this.subQueue = []; this.subHold = 0;
@@ -646,7 +655,7 @@ export class MissionSystem {
 
   private promptFor(ob: ObjectiveDef, pos: Vec2): string {
     if (ob.kind === 'talkTo') return this.reach(pos, ob.at, ob.radius + TALK_RANGE_EXTRA, ob.presence ?? 'onFoot') ? `F  Talk to ${ob.npc}` : '';
-    if (ob.kind === 'interact') return this.reach(pos, ob.at, ob.radius, ob.presence ?? 'onFoot') ? `F  ${ob.prompt}` : '';
+    if (ob.kind === 'interact' || ob.kind === 'scene') return this.reach(pos, ob.at, ob.radius, ob.presence ?? 'onFoot') ? `F  ${ob.prompt}` : '';
     if (ob.kind === 'pickUp' && ob.prompt !== undefined) return this.reach(pos, ob.at, ob.radius, ob.presence) ? `F  ${ob.prompt}` : '';
     if (ob.kind === 'sell' && this.custAt && Math.hypot(pos.x - this.custAt.x, pos.z - this.custAt.z) <= CUSTOMER_RANGE) return `F  Sell ${ob.item}`;
     if (ob.kind === 'spots') {
@@ -757,6 +766,7 @@ export class MissionSystem {
       case 'djSet': return this.evalDj(ob);
       case 'buy': return this.evalBuy(ob);
       case 'sell': return this.evalSell(ob, pos, dt);
+      case 'scene': return this.evalScene(ob);
       case 'spots': {
         const n = this.spotsDone.filter(Boolean).length;
         this.hud.progress = n / ob.points.length;
@@ -844,6 +854,16 @@ export class MissionSystem {
       if (s.score >= ob.minScore) return true;
       this.fail('lowScore');
       return false;
+    }
+    return false;
+  }
+
+  private evalScene(ob: Extract<ObjectiveDef, { kind: 'scene' }>): boolean {
+    for (const s of this.sigs) {
+      if (s.type !== 'scene:done' || s.scene !== ob.scene) continue;
+      for (const f of ob.outcomes?.[s.outcome] ?? []) { this.story.set(f); this.opts.setFlag?.(f); }
+      this.sceneOpen = null;
+      return true;
     }
     return false;
   }
@@ -1130,7 +1150,7 @@ function presenceOk(req: 'onFoot' | 'inVehicle' | 'any', inVehicle: boolean): bo
 
 function objectivePoint(ob: ObjectiveDef): { x: number; z: number; r: number } | null {
   switch (ob.kind) {
-    case 'goTo': case 'pickUp': case 'deliver': case 'talkTo': case 'interact': return { x: ob.at.x, z: ob.at.z, r: ob.radius };
+    case 'goTo': case 'pickUp': case 'deliver': case 'talkTo': case 'interact': case 'scene': return { x: ob.at.x, z: ob.at.z, r: ob.radius };
     case 'holdSpeedBelow': return ob.at ? { x: ob.at.x, z: ob.at.z, r: ob.radius ?? 5 } : null;
     default: return null;
   }

@@ -120,8 +120,15 @@ export interface RaceObjective extends ObjectiveBase { kind: 'race'; route: Vec2
 /** Park up and watch: stay inside the circle for `seconds` ('blownCover' if you are out for more than `slack` seconds in total). `events` fire toasts at a time. */
 export interface StakeoutObjective extends ObjectiveBase { kind: 'stakeout'; at: Vec2; radius: number; seconds: number; slack?: number; presence?: Presence; events?: Array<{ at: number; text: string }> }
 
+/**
+ * A scripted scene run by the host's scene UI (a talk-down, a date, a haggle): press F inside the ring and the system exposes
+ * `sceneRequest`; the host runs the scene and answers with {type:'scene:done', scene, outcome}. `outcomes` maps an outcome
+ * to the story flags it sets (the objective completes on any outcome; an unknown outcome sets nothing).
+ */
+export interface SceneObjective extends ObjectiveBase { kind: 'scene'; scene: string; at: Vec2; radius: number; presence?: Presence; prompt: string; outcomes?: Record<string, string[]> }
+
 export type ObjectiveDef =
-  | TalkToObjective | InteractObjective | TailObjective | CollectObjective | WaitUntilHourObjective
+  | SceneObjective | TalkToObjective | InteractObjective | TailObjective | CollectObjective | WaitUntilHourObjective
   | EnterInteriorObjective | ExitInteriorObjective | DjSetObjective | BuyObjective | SellObjective
   | GoToObjective | PickUpObjective | DeliverObjective | SurviveWantedObjective | LoseWantedObjective
   | TimerObjective | HoldSpeedBelowObjective | EscapeRadiusObjective | EnterVehicleObjective
@@ -260,6 +267,8 @@ export type MissionSignal =
   | { type: 'shop:bought'; recordId: string; shop?: string; price?: number }
   | { type: 'dj:setFinished'; venue: string; score: number; minutes?: number }
   | { type: 'sold'; item: string }
+  /** A scene (see SceneObjective) ended with this outcome. */
+  | { type: 'scene:done'; scene: string; outcome: string }
   /** The player's vehicle hit something; `strength` is the engine's closing impulse (Vehicle 'impact'). */
   | { type: 'impact'; strength: number };
 

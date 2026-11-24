@@ -16,6 +16,9 @@ import type { IMaterialLibrary, IWorld2D } from '../types';
 import { CLUB_SLOT_FLAG, CLUB_UNLOCK_FLAG, EVENT_ID, INTERIORS, INTERIOR_IDS, inDoorBand, isClubHours, isClubOpen, outwardHeading, type InteriorId } from './defs';
 import { buildRoom, type Beat, type Room, type Spot } from './rooms';
 import { box } from './parts';
+import { venueOfInterior } from '../venues/interiorDefs';
+import { buildVenueExterior, type VenueExterior } from '../venues/exterior';
+import { hoursText, isOpen as venueIsOpen, venueById } from '../venues/venues';
 
 export const FADE_SECONDS = 0.28;
 export const DRINK_PRICE = 6;
@@ -63,6 +66,9 @@ export class Interiors {
   private readonly rooms = new Map<InteriorId, Room>();
   private readonly doors = new Map<InteriorId, THREE.Group>();
   private clubLamp: THREE.Mesh | null = null;
+  /** VENUES: street fronts of the seven story places (lights and gates follow the hour) */
+  private readonly venueFronts = new Map<InteriorId, VenueExterior>();
+  private venueTick = 0;
   private clock = 0;
   private lastPhase = 0;
   private beatIndex = 0;
@@ -89,6 +95,8 @@ export class Interiors {
 
   /** Is this door usable right now? */
   doorOpen(id: InteriorId): boolean {
+    const venue = venueOfInterior(id);
+    if (venue) return venueIsOpen(venue, this.d.getHour(), (f) => this.d.inventory.hasFlag(f));
     if (id !== 'club') return true;
     return isClubOpen(this.d.getHour(), this.d.inventory.hasFlag(CLUB_UNLOCK_FLAG));
   }
@@ -107,6 +115,8 @@ export class Interiors {
     if (this.st === 'outside') {
       const id = this.doorAt(pos);
       if (!id) return '';
+      const pv = venueOfInterior(id);
+      if (pv && !this.doorOpen(id)) return `Closed. ${venueById(pv).name} opens ${hoursText(pv)}`;
       if (id === 'club') {
         // hidden entrance: no hint at all until the password mission flagged it
         if (!this.d.inventory.hasFlag(CLUB_UNLOCK_FLAG)) return '';
@@ -129,6 +139,8 @@ export class Interiors {
     const id = this.doorAt(pos);
     if (!id) return false;
     if (!this.doorOpen(id)) {
+      const tv = venueOfInterior(id);
+      if (tv) this.d.onMessage?.(`${venueById(tv).name} is shut. Hours: ${hoursText(tv)}.`);
       if (id === 'club' && this.d.inventory.hasFlag(CLUB_UNLOCK_FLAG)) this.d.onMessage?.('The door is locked. Come back between 11 PM and 4 AM.');
       return false;
     }
@@ -154,19 +166,35 @@ export class Interiors {
       case 'exit': return this.exit();
       case 'shop': this.d.onAction?.({ kind: 'shop', interior }); return true;
       case 'listen': this.d.onAction?.({ kind: 'listen', interior }); return true;
-      case 'dj':
+      case 'dj': {
+        const iv = venueOfInterior(interior);
+        if (iv) {
+          this.d.events?.emit('venue:spot', { id: iv, spot: s.id });
+          if (!this.d.inventory.hasFlag(`venue.${iv}.booth`)) { this.d.onMessage?.('Ask the manager about a slot. Gigs are earned.'); return true; }
+          this.d.onAction?.({ kind: 'dj', interior, venue: 'aftersloth' });
+          return true;
+        }
         if (interior === 'club' && !this.d.inventory.hasFlag(CLUB_SLOT_FLAG)) { this.d.onMessage?.('DJ Sloth waves you off: "Slots are for regulars. Earn one."'); return true; }
         this.d.onAction?.({ kind: 'dj', interior, venue: interior === 'club' ? 'aftersloth' : 'home' });
         return true;
+      }
       case 'bar':
+        this.venueSpot(interior, s);
         if (this.d.inventory.spend(DRINK_PRICE)) this.d.onMessage?.(`You buy a drink for $${DRINK_PRICE}. It is cold and mostly ice.`);
         else this.d.onMessage?.(`A drink is $${DRINK_PRICE}. You are short.`);
         return true;
-      case 'talk': this.d.onMessage?.(OWNER_LINES[this.talkIdx++ % OWNER_LINES.length]); return true;
-      case 'couch': this.d.onMessage?.('You sink into the couch. Nobody has called. Peaceful.'); return true;
+      case 'talk': this.venueSpot(interior, s); this.d.onMessage?.(s.say ?? OWNER_LINES[this.talkIdx++ % OWNER_LINES.length]); return true;
+      case 'couch': this.venueSpot(interior, s); this.d.onMessage?.(s.say ?? 'You sink into the couch. Nobody has called. Peaceful.'); return true;
+      case 'mark': case 'train': this.venueSpot(interior, s); if (s.say) this.d.onMessage?.(s.say); return true;
       case 'window': this.d.onMessage?.('Throop Ave goes about its business below.'); return true;
     }
     return false;
+  }
+
+  /** VENUES: tells the missions which marked spot the player used (`venue:spot` { id: venue id, spot: spot id }). */
+  private venueSpot(interior: InteriorId, s: Spot): void {
+    const v = venueOfInterior(interior);
+    if (v) this.d.events?.emit('venue:spot', { id: v, spot: s.id });
   }
 
   /** World position of an interior spot. */
@@ -188,6 +216,7 @@ export class Interiors {
   update(dt: number, beat: { phase: number; bpm: number; level: number } | null = null): void {
     const step = Math.min(dt, 0.1);
     this.clock += step;
+    if (this.venueFronts.size && this.venueTick++ % 20 === 0) { const hr = this.d.getHour(); for (const ext of this.venueFronts.values()) ext.update(hr, (f) => this.d.inventory.hasFlag(f)); }
     if (this.clubLamp) (this.clubLamp.material as THREE.MeshBasicMaterial).color.set(this.doorOpen('club') ? '#2cff72' : '#552222');
     if (this.st === 'fadingIn' || this.st === 'fadingOut') {
       this.fadeT += step;
@@ -257,6 +286,13 @@ export class Interiors {
   }
 
   private buildDoor(id: InteriorId): void {
+    const vid = venueOfInterior(id);
+    if (vid) {
+      const ext = buildVenueExterior(vid, INTERIORS[id].door, this.d.materials);
+      ext.update(this.d.getHour(), (f) => this.d.inventory.hasFlag(f));
+      this.venueFronts.set(id, ext); this.root.add(ext.group); this.doors.set(id, ext.group);
+      return;
+    }
     const def = INTERIORS[id]; const dr = def.door;
     const g = new THREE.Group(); g.name = `door-${id}`;
     const alongX = dr.outX === 0; // door in a z-facing wall: wide along x

@@ -3833,3 +3833,9 @@ Started. Plan in docs/swarm/tasks/LOADSCREENS.md: kit, Anton-based block letteri
 
 ### 2026-11-24T02:12:22Z · Fable Hart (lead)
 @WRITER @MISSIONS @CAST: the OWNER has corrected the story's lines. Read the new last section of docs/swarm/teams/STORY-ASSETS-TEAMS.md now; it replaces my earlier lines. In short: (1) intimacy may be SHOWN, suggestive and non-explicit only (flirting, kissing, a cut-away, clothed, a comic beat, the morning after; no nudity, no depicted act, nothing explicit in text), with a Settings switch 'Intimate scenes: On / Off' designed in from the start (Off = plain fade); adults only. (2) Selling: consequences come from being CAUGHT (witness, heat, a bust takes the pack and cash); unseen deals just pay. (3) The homeless man: the fight is a real playable outcome AND he can be talked down. (4) Missions may have the player shoot people; gritty, with the humour kept; no gore beyond blood; minors never hurt and never in these scenes.
+
+### 2026-11-24T02:13:10Z · Paloma Reyes-Whitfield (WRITER)
+@MISSIONS ARC.md is up: docs/story/ARC.md. Act 1 ids and order: pico-rent-money -> pico-lunes-night -> pico-paper-the-walls -> pico-clems-corner -> (pico-size-medium, pico-second-wind) -> pico-not-a-date (after size-medium) -> pico-warm-up-slot (after second-wind and not-a-date). New small systems I ask for (top of ARC.md): handFlyers, thrift rack, guestList, crowd meter in djSet, reply picker (1-4 keys, sets flags, moves a mood or calm meter; talk-downs end calmed/walked/fight). Flags in BIBLE.md section 6. Act 1 mission pages next, one at a time in docs/story/missions/.
+
+### 2026-11-24T02:14:42Z · Imogen (RADIO4)
+Started. Plan: pure scheduler src/audio/sc/djMentions.ts, line pools src/audio/sc/djLines.ts, runner glue in RadioDirector.update, Announcer.djMention. Nothing can be heard from here.

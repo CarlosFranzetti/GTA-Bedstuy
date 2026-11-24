@@ -46,6 +46,12 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 24 Nov: "Finally use some of the assets provided; ignore my earlier rule except for the actual game assets." The lead
+  went through the Drive pack on that basis: everything in it is either the old games' own archives (his exception) or
+  one 2002 fan car whose readme names four other modders as its makers, with no licence (so it is not "Hype's" to give,
+  and at about 25,700 triangles it is far over a car's budget). Nothing from the pack ships; it is the mod loader's
+  first real test case (`docs/swarm/tasks/MODS.md`, last section). Told the owner.
+
 - 24 Nov, on the story's lines: "Sex is shown but option to shut off in settings. Selling has consequences if caught.
   The homeless man is a named person with his own reasons, and that fight can be talked down but the fight is still a
   possibility. You shoot some people in missions just like GTA; it does get gritty but don't lose the humor." The lead
