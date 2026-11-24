@@ -37,7 +37,7 @@ export interface VehicleEntry {
 export interface TextureEntry {
   kind: 'texture';
   key: TextureSlotKey;
-  /** a number, or 'all' */
+  /** a number, or 'all' (the default: every variant of that surface) */
   variant: number | 'all';
   /** colour image: .png .jpg .webp, or .txd (with `texture` naming which one) */
   image: string;
@@ -124,9 +124,10 @@ export function validateManifest(raw: unknown): ManifestResult {
       if (!(TEXTURE_SLOTS as readonly string[]).includes(key)) { errors.push(`${at}: "${slot}" is not a texture slot (try ${TEXTURE_SLOTS.slice(0, 5).join(', ')} ...).`); return; }
       const image = safePath(e.image);
       if (!image || !(IMAGE_EXT.test(image) || TXD_EXT.test(image))) { errors.push(`${at}: "image" must be a relative .png, .jpg, .webp or .txd path.`); return; }
-      let variant: number | 'all' = e.variant === 'all' ? 'all' : 0;
+      let variant: number | 'all' = 'all';
       if (variantRaw !== undefined) variant = variantRaw === 'all' ? 'all' : Number(variantRaw);
       else if (typeof e.variant === 'number') variant = e.variant;
+      else if (e.variant !== undefined && e.variant !== 'all') variant = Number.NaN;
       if (variant !== 'all' && !(Number.isInteger(variant) && variant >= 0 && variant < 16)) { errors.push(`${at}: "variant" must be a whole number 0 to 15, or "all".`); return; }
       const opt = (v: unknown): string | null => { if (v === undefined || v === null) return null; const p = safePath(v); if (!p || !IMAGE_EXT.test(p)) { errors.push(`${at}: "${String(v)}" must be a relative .png, .jpg or .webp path.`); return null; } return p; };
       const normal = opt(e.normal), roughness = opt(e.roughness);

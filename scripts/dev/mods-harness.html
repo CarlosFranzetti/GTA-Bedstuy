@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mods harness</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0d0d16; color: #fff; font: 14px system-ui, sans-serif; }
+  #overlay { position: absolute; inset: 0; }
+  #view { position: absolute; left: 0; top: 0; width: 480px; height: 270px; }
+  #log { position: absolute; left: 8px; bottom: 8px; max-width: 60ch; white-space: pre-wrap; font: 12px monospace; color: #9f9; }
+  #bar { position: absolute; right: 8px; top: 8px; z-index: 40; }
+</style>
+</head>
+<body>
+<canvas id="view" width="480" height="270"></canvas>
+<div id="bar"><button id="open">Open Mods</button></div>
+<div id="overlay"></div>
+<pre id="log"></pre>
+<script type="module" src="./mods-harness.mjs"></script>
+</body>
+</html>

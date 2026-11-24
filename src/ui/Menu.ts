@@ -80,6 +80,8 @@ export interface MenuCallbacks {
   onRadioLibrary?: () => void;
   /** Opens the credits roll (Settings > Game > Credits). Omit and the row is not shown. */
   onCredits?: () => void;
+  /** MODS: opens the Mods panel (Settings > Game > Mods). Omit and the row is not shown. */
+  onMods?: () => void;
   onInvertLookY?: (invert: boolean) => void;
   onReset?: () => void;
 }
@@ -1030,6 +1032,7 @@ export class Menu {
     mixRow('radiovol', 'radio', { get: () => this.state.radio, set: (v) => this.setRadio(v) });
     mixRow('sfxvol', 'sfx'); mixRow('enginevol', 'engine', undefined, 'Engine volume'); mixRow('voicevol', 'voices'); mixRow('ambvol', 'ambience');
     S.set('radiolib', { id: 'radiolib', label: 'Radio library', kind: 'action', desc: 'Opens the radio library: tracks, stations and the playlist.', press: () => { this.cb.onRadioLibrary?.(); } });
+    S.set('mods', { id: 'mods', label: 'Mods', kind: 'action', desc: 'Load your own car models and textures from files on this device.', visible: () => !!this.cb.onMods, press: () => { this.cb.onMods?.(); } }); // MODS
     S.set('credits', { id: 'credits', label: 'Credits', kind: 'action', desc: 'Who made the game, and who we thank.', visible: () => !!this.cb.onCredits, press: () => { this.cb.onCredits?.(); } });
     S.set('quit', {
       id: 'quit', label: 'Quit to Desktop', kind: 'action', desc: 'Closes the game window. Your autosave is kept. Press twice to confirm.',
@@ -1095,7 +1098,7 @@ export class Menu {
     const g = (...keys: GraphicsKey[]): RowSpec[] => keys.map((k) => G.get(k)!);
     const touchRows: RowSpec[] = TOUCH_ROWS.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}`, text: () => v, visible: () => this.inputMode === 'touch' }));
     const defs: Array<[SettingsGroup, RowSpec[]]> = [
-      ['game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, ...(this.opts.gameRows ?? []), S.get('credits')!, S.get('quit')!]],
+      ['game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, ...(this.opts.gameRows ?? []), S.get('mods')!, S.get('credits')!, S.get('quit')!]],
       ['controls', [S.get('invert')!, S.get('keys')!, ...touchRows]],
       ['audio', [S.get('master')!, S.get('radiovol')!, S.get('sfxvol')!, S.get('engineon')!, S.get('enginevol')!, S.get('voicevol')!, S.get('ambvol')!, S.get('hdvoices')!]],
       ['graphics', [S.get('windowmode')!, S.get('quality')!, S.get('autodetect')!, ...g('fpsCap', 'resolution', 'nativeDpr', 'showFps', 'shadows', 'drawDistance', 'treeRange', 'crowd', 'traffic', 'aa', 'textures', 'ao', 'bloom', 'dof', 'vignette', 'grain', 'fov')]],
