@@ -83,7 +83,7 @@ function cast(g: THREE.Group): Cast {
   const models: HumanModel[] = [];
   return {
     models,
-    add(m, x, z, heading) { put(m, x, z, heading); g.add(m.group); models.push(m); return m; },
+    add(m, x, z, heading) { put(m, x, z, heading); m.group.userData.person = true; g.add(m.group); models.push(m); return m; },
   };
 }
 const person = (deps: VenueRoomDeps, seed: string, opts: PedOptions = {}): HumanModel => buildPerson(deps.materials, new Rng(seed), opts);
@@ -95,7 +95,12 @@ function finish(id: VenueId, g: THREE.Group, kit: Kit, spots: VenueSpot[], peopl
     id, group: g, spawn: spawnOf(d), spots, update,
     stats() {
       let triangles = 0, draws = 0;
-      g.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && m.geometry) { draws++; const geo = m.geometry; triangles += (geo.index ? geo.index.count : geo.getAttribute('position').count) / 3; } });
+      const walk = (o: THREE.Object3D): void => {
+        if (o.userData.person) return; // people are counted by the caller (their detail level varies)
+        const m = o as THREE.Mesh; if (m.isMesh && m.geometry) { draws++; const geo = m.geometry; triangles += (geo.index ? geo.index.count : geo.getAttribute('position').count) / 3; }
+        o.children.forEach(walk);
+      };
+      walk(g);
       return { triangles: Math.round(triangles), draws, people: people.length };
     },
   };

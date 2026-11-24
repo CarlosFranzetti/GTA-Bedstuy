@@ -14,14 +14,19 @@ export interface DateScript {
   endings: { warm: string; friendly: string; cold: string; stoodUp: string };
 }
 export type DateEnding = 'warm' | 'friendly' | 'cold' | 'stoodUp';
-export interface DateOutcome { ending: DateEnding; liking: number; text: string; /** true for 'warm': the host fades to the next morning (advance the clock to about 9:00) */ fadeToMorning: boolean }
+/**
+ * 'cutaway': the warm ending with the player's setting "Intimate scenes: On": suggestive and non-explicit (flirting, a kiss, a door, the camera stays outside,
+ * a comic beat), then the morning after. 'fade': the same with the setting Off: a plain fade. 'none': any other ending. Never nudity, never an act shown.
+ */
+export type DateScene = 'cutaway' | 'fade' | 'none';
+export interface DateOutcome { ending: DateEnding; liking: number; text: string; scene: DateScene; /** true for 'warm': the host moves the clock to about 9:00 the next morning */ fadeToMorning: boolean }
 
 export class DateSession {
   liking = 0;
   index = 0;
   readonly picked: string[] = [];
   private finished: DateOutcome | null = null;
-  constructor(readonly script: DateScript, startLiking = 0) {
+  constructor(readonly script: DateScript, startLiking = 0, private readonly intimate = true) {
     if (script.adult !== true) throw new Error(`date ${script.id}: partner must be an adult`);
     this.liking = startLiking;
   }
@@ -37,11 +42,11 @@ export class DateSession {
     return { reply: c.reply, outcome: this.finished };
   }
   /** The meeting window passed with the player not there. */
-  standUp(): DateOutcome { this.finished = { ending: 'stoodUp', liking: this.liking - 2, text: this.script.endings.stoodUp, fadeToMorning: false }; return this.finished; }
+  standUp(): DateOutcome { this.finished = { ending: 'stoodUp', liking: this.liking - 2, text: this.script.endings.stoodUp, scene: 'none', fadeToMorning: false }; return this.finished; }
   private finish(): DateOutcome {
     const s = this.script;
     const ending: DateEnding = this.liking >= s.warmAt ? 'warm' : this.liking >= s.friendlyAt ? 'friendly' : 'cold';
-    return { ending, liking: this.liking, text: s.endings[ending], fadeToMorning: ending === 'warm' };
+    return { ending, liking: this.liking, text: s.endings[ending], scene: ending === 'warm' ? (this.intimate ? 'cutaway' : 'fade') : 'none', fadeToMorning: ending === 'warm' };
   }
   flags(): string[] { return this.script.beats.flatMap((b) => b.choices.filter((c) => this.picked.includes(c.id) && c.flag).map((c) => c.flag as string)); }
 }
@@ -51,7 +56,7 @@ export class DateBook {
   liking: Record<string, number> = {};
   seen = new Set<string>();
   /** Open a date. `start` is the partner's standing liking from earlier dates. */
-  begin(script: DateScript): DateSession { return new DateSession(script, this.liking[script.partner] ?? 0); }
+  begin(script: DateScript, intimate = true): DateSession { return new DateSession(script, this.liking[script.partner] ?? 0, intimate); }
   record(script: DateScript, o: DateOutcome): void { this.liking[script.partner] = Math.max(-5, Math.min(10, o.liking)); this.seen.add(script.id); }
   serialize(): DateLog { return { v: 1, liking: { ...this.liking }, seen: [...this.seen] }; }
   restore(d: unknown): boolean {

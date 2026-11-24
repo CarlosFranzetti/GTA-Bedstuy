@@ -68,7 +68,7 @@ export const VENUES: readonly VenueRow[] = [
     blurb: 'Three screens, four games, and one argument a night.',
     hours: { open: 11, close: 2 }, requiresFlag: null, look: { bg: '#10243d', fg: '#f4f1e6', accent: '#e63946' },
     grid: { lot: 'r4c1-E-5', street: 'Marcus Garvey Blvd', x: 238.95, z: 252.1, outX: 1, outZ: 0 },
-    real: { bbl: '3016090001', street: 'Marcus Garvey Blvd', x: 252.5, z: 140.1, outX: -1, outZ: 0 },
+    real: { bbl: '3017770042', street: 'Dekalb Ave', x: 196.51, z: -93.18, outX: 0, outZ: 1 },
   },
   {
     id: 'afterhours', name: 'Sunrise Annex', sign: 'SUNRISE ANNEX', kind: 'afterhours',
