@@ -328,11 +328,18 @@ export function paintPanel(c: C, p: Panel, R: Rnd, w: number, h: number): void {
   wall(c, w, h, R, p.kind, p.tone);
   p.bg(g);
   const size = Math.min(wide ? h * 0.27 : h * 0.17, w * 0.28);
+  // a broad fat-cap fill behind the piece, in its shadow colour, so the lettering sits on paint and not on bare wall
+  { const bx = wide ? w * 0.62 : w * 0.5, bw = (wide ? w * 0.62 : w * 0.9) * 0.46;
+    c.save(); c.globalAlpha = 0.5;
+    for (let k = 0; k < 4; k++) { const y = (wide ? p.wy[0] : p.wy[1]) * h - size * (0.15 + k * 0.17); spray(c, bx - bw + R.r(-30, 30), y + R.r(-12, 12), bx + bw + R.r(-30, 30), y + R.r(-12, 12), size * 0.5, p.style.block, R, R.r(-10, 10)); }
+    c.restore(); }
   const words = !wide && p.word.includes(' ') ? p.word.split(' ') : [p.word];
   const base = ((wide ? p.wy[0] : p.wy[1]) + (words.length > 1 ? 0.08 : 0)) * h;
   words.forEach((t, i) => drawWord(c, t, wide ? w * 0.62 : w * 0.5, base - (words.length - 1 - i) * size * 1.12, words.length > 1 ? size * 1.15 : size, wide ? w * 0.62 : w * 0.92, p.style, R));
   p.fg(g);
   stencil(c, R.pick(['star', 'arrow', 'bolt'] as const), w * R.r(0.78, 0.92), h * R.r(0.55, 0.7), Math.min(w, h) * 0.05, p.style.fill, R);
   stencil(c, 'arrow', w * R.r(0.06, 0.12), h * R.r(0.52, 0.62), Math.min(w, h) * 0.04, p.style.hi, R);
+  const n = Math.round((w * h) / 700);
+  for (let k = 0; k < n; k++) { c.fillStyle = R.f() < 0.55 ? 'rgba(0,0,0,0.12)' : 'rgba(255,245,230,0.06)'; c.fillRect(R.f() * w, R.f() * h, 1.6, 1.6); }
   vignette(c, w, h);
 }

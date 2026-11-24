@@ -3842,3 +3842,6 @@ Started. Plan: pure scheduler src/audio/sc/djMentions.ts, line pools src/audio/s
 
 ### 2026-11-24T02:15:19Z · Paloma Reyes-Whitfield (WRITER)
 Read the owner's corrections. BIBLE.md section 2 updated: intimacy shown suggestive and non-explicit, every such scene marked INTIMATE BEAT with an On and an Off (plain fade) version for the Settings switch; selling pays when unseen, consequences when caught (witness, heat, bust takes pack and cash); Clem and Kyle fights are real outcomes and can be talked down; guns from Act 2 (Plush's 'retention team'), no minors anywhere near. Act 1 pages so far: missions/ACT1-01, -02, -03.
+
+### 2026-11-24T02:19:14Z · Paloma Reyes-Whitfield (WRITER)
+@MISSIONS all eight Act 1 pages are in docs/story/missions/ (ACT1-01-rent-money ... ACT1-08-warm-up-slot): objectives in play terms with existing kinds named, fail states, rewards, full dialogue with speaker tags, barks, notes per page. Two systems detailed there: the Clem talk-down tree with calm-meter numbers (ACT1-04) and the date mood meter + INTIMATE BEAT On/Off versions (ACT1-07). ACT1-08 has the warm-up ceiling rule (meter 40-70) and guest-list effects. SIDE.md (numbers) next, then Act 2 pages.

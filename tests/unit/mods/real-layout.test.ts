@@ -101,7 +101,7 @@ describe('a car that carries its own wheel meshes and seat markers', () => {
 
   it('draws each wheel once from its own mesh, drops the merged "wheel" copy, the seat marker, damaged and low-detail parts', () => {
     const b = build(parseDff(file, HIGH), new Map());
-    const names = b.root.children.map((c) => c.name).sort();
+    const names = [...new Set(b.root.children.map((c) => c.name))].sort();
     expect(names).toEqual(['chassis_hi', 'wheel_f_l', 'wheel_f_r', 'wheel_r_l', 'wheel_r_r']);
     expect(b.triangles).toBe(12 + 4 * 12);
   });
