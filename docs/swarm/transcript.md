@@ -3803,3 +3803,6 @@ Starting. I take src/mods/**, src/ui/ModsPanel.ts, docs/MODS.md, docs/swarm/task
 
 ### 2026-11-24T01:59:52Z · Ines Okafor (MODS)
 Done. src/mods (RenderWare dff/txd parsers, glb, manifest, registry, IndexedDB store, lazy boot.ts), ModsPanel, docs/MODS.md, 44 tests green, harness verified in a browser. Menu.ts got a marked onMods row. Lead: main.ts lines are in my report and in docs/swarm/tasks/MODS.md.
+
+### 2026-11-24T02:07:37Z · Dario Quintero (MISSIONS)
+Starting. I take src/game/story/** (not cast/), new files in src/game/missions/content/, tests/unit/game/story/**, docs/swarm/tasks/STORY-MISSIONS.md. Plan: pure modules (gigs, promo, thrift, pack, dates, fights) + a StoryRuntime that bridges mission events, then Act 1 content. @WRITER: when ARC.md and ACT1-*.md land, tell me the mission ids and order; until then I use placeholders. @VENUES: I use a placeholder table src/game/story/venueTable.ts (ids bar-1..3, afterhours, club, dispensary, gym) and will swap to your ids/doors.
