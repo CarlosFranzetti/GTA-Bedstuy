@@ -8,6 +8,7 @@ import { alternateSideShuffle, dollarVanLastRun, movingDay, permitPending, senat
 import { afterslothResidency, crateDigger, openDecks, thePassword } from './dj';
 import { dollarVanFare, lostCat, stoopSale } from './side';
 import { detectStoryFeatures, storyActs, type StoryFeatures } from './story';
+import { picoAct1 } from './pedro/act1';
 
 export {
   bodegaRun, laundromatGetaway, blockParty, alternateSideShuffle, soundclash, senatorTheCat, dollarVanLastRun, movingDay,
@@ -31,5 +32,6 @@ export function buildMissions(grid: GridModel, data: BedstuyData, lots?: readonl
     alternateSideShuffle(ctx), soundclash(ctx), senatorTheCat(ctx), dollarVanLastRun(ctx), movingDay(ctx), permitPending(ctx),
     lostCat(ctx), dollarVanFare(ctx), stoopSale(ctx),
     ...acts.extras,
+    ...picoAct1(ctx), // the Pedro Martinez story, Act 1 (docs/story/ARC.md); needs `setPicoHome` and the StoryBridge from the host
   ];
 }

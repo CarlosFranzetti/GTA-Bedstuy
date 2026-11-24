@@ -46,6 +46,14 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 24 Nov, FUTURE TASKS he listed (not started; queue them as usage allows, one group each): roads and buildings and
+  more actual locations and architecture; world elements; lighting; objects; weapons; ideas; load screens; giving the
+  lead more resources (a Hugging Face token, a web browser); usability, UX and GUI; voiceovers; and TWO PREVIEW PAGES
+  for him: (1) "a web artifact that lets me preview the radio stations without using the game"; (2) a separate one that
+  "lets me see 3d models and rotate, with and without texture, and lets me load alternate textures if available
+  (chars, vehicles, buildings, and other)". The lead's plan: build both as private web pages for him right after the
+  current release check, from the game's own station list and model builders.
+
 - 24 Nov: "Finally use some of the assets provided; ignore my earlier rule except for the actual game assets." The lead
   went through the Drive pack on that basis: everything in it is either the old games' own archives (his exception) or
   one 2002 fan car whose readme names four other modders as its makers, with no licence (so it is not "Hype's" to give,

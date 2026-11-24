@@ -38,7 +38,7 @@ export const CHORDS: Record<ChordName, { root: number; pad: number[] }> = {
   Fm9: { root: 41, pad: [56, 60, 63, 67] },
   Dbmaj7: { root: 37, pad: [56, 60, 65, 68] },
   Bbm9: { root: 34, pad: [56, 61, 65, 70] },
-  C7b9: { root: 36, pad: [55, 58, 61, 64] },
+  C7b9: { root: 36, pad: [58, 61, 64, 67] },
 };
 export const CYCLE: ChordName[] = ['Fm9', 'Dbmaj7', 'Bbm9', 'C7b9'];
 export const BAR_CHORDS: ChordName[] = Array.from({ length: LOOP_BARS }, (_, i) => CYCLE[i & 3]);

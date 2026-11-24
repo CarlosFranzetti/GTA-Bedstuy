@@ -10,6 +10,16 @@ import { drawPanel, PANELS } from '/src/ui/loadart/index.ts';
 const q = new URLSearchParams(location.search);
 const W = Number(q.get('w') ?? 1280), H = Number(q.get('h') ?? 720), cols = Number(q.get('cols') ?? 2), sc = Number(q.get('scale') ?? 0.5), seed = Number(q.get('seed') ?? 1);
 const only = q.get('only');
+if (q.get('screen')) {   // the real loading screen on its own (no game): ?screen=1&step=3 (steps done)&n=2 (swaps to wait for)
+  const { LoadingScreen, BOOT_STEPS } = await import('/src/render/Loading.ts');
+  const ld = new LoadingScreen(document.body);
+  const k = Number(q.get('step') ?? 3);
+  BOOT_STEPS.forEach((st, i) => { if (i < k) ld.done(st.id); else if (i === k) ld.begin(st.id); });
+  for (let i = 0; i < 80 && !(ld.shotIndex >= 0); i++) await new Promise((r) => setTimeout(r, 100));
+  await new Promise((r) => setTimeout(r, 2200));
+  window.__ready = { shot: ld.shotIndex, tip: ld.tipText };
+  throw new Error('screen-mode-done');
+}
 await document.fonts.load('80px Anton');
 const idx = only !== null ? [Number(only)] : PANELS.map((_, i) => i);
 const cw = Math.round(W * sc), ch = Math.round(H * sc), rows = Math.ceil(idx.length / cols);

@@ -154,7 +154,7 @@ describe('scheduling', () => {
     const l = new FakeCtx(), ld = new Node(l);
     const lt = createLoadingTheme(l as unknown as AudioContext, ld as unknown as AudioNode, { manual: true });
     lt.start(); lt.scheduleUntil(lt.activeNodes ? 120 : 120);
-    console.log("PEAK", peak, "loading", peakSources(l)); expect(peak).toBeLessThanOrEqual(peakSources(l) + 14);
+    expect(peak).toBeLessThanOrEqual(peakSources(l) + 14);
     // persistent voices: 8 pad oscillators, 1 sub bass, 1 vibrato lfo
     const persistent = ctx.nodes.filter((n) => n.kind === 'src' && n.stops.length === 0).length;
     expect(persistent).toBe(10);
@@ -184,11 +184,11 @@ describe('start, stop, volume, pause', () => {
   });
   it('schedules nothing after stop and nothing while paused; resume carries on from the same step', () => {
     const { ctx, th } = setup();
-    th.start(); th.scheduleUntil(5);
+    th.start(); th.scheduleUntil(15);
     th.pause(); expect(th.paused).toBe(true);
-    const before = th.nodesCreated; th.scheduleUntil(30); expect(th.nodesCreated).toBe(before);
-    ctx.currentTime = 20; th.resume(); expect(th.paused).toBe(false);
-    th.scheduleUntil(30); expect(th.nodesCreated).toBeGreaterThan(before);
+    const before = th.nodesCreated; th.scheduleUntil(35); expect(th.nodesCreated).toBe(before);
+    ctx.currentTime = 40; th.resume(); expect(th.paused).toBe(false);
+    th.scheduleUntil(60); expect(th.nodesCreated).toBeGreaterThan(before);
     th.stop(0); const n = th.nodesCreated; th.scheduleUntil(99); expect(th.nodesCreated).toBe(n);
     th.pause(); th.resume(); expect(th.paused).toBe(false); // harmless when not running
   });

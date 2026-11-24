@@ -14,14 +14,15 @@ for (let i = 0; i < 80; i++) { try { if ((await fetch(`http://localhost:${port}/
 const browser = await chromium.launch();
 const errors = [];
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
+  const vp = /vw=(\d+)&vh=(\d+)/.exec(query); const page = await browser.newPage({ viewport: vp ? { width: +vp[1], height: +vp[2] } : { width: 1280, height: 720 } });
+  page.on('pageerror', (e) => { if (!/screen-mode-done/.test(String(e))) errors.push(String(e).slice(0, 300)); });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });
   await page.route(/^https?:\/\/(?!localhost)/, (r) => r.abort());
   await page.goto(`http://localhost:${port}/scripts/dev/loadart-sheet.html?${query}`, { waitUntil: 'load', timeout: 120000 });
   await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
+  if (/screen=1/.test(query)) { await page.screenshot({ path: out }); console.log(out, JSON.stringify(await page.evaluate(() => window.__ready))); throw new Error('done'); }
   const r = await page.evaluate(() => ({ info: window.__ready, data: document.querySelector('canvas').toDataURL('image/png') }));
   writeFileSync(out, Buffer.from(r.data.split(',')[1], 'base64'));
   console.log(out, JSON.stringify(r.info));
-} finally { await browser.close(); dev.kill(); }
+} catch (e) { if (String(e).indexOf('done') < 0) throw e; } finally { await browser.close(); dev.kill(); }
 if (errors.length) console.error('errors', errors.slice(0, 6));
