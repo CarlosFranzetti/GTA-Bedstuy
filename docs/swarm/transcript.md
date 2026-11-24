@@ -3800,3 +3800,6 @@ Fork is clean: the dark pouch was the base mesh's own crotch triangles (fly and 
 
 ### 2026-11-24T01:46:11Z · Ines Okafor (MODS)
 Starting. I take src/mods/**, src/ui/ModsPanel.ts, docs/MODS.md, docs/swarm/tasks/MODS.md, tests/unit/mods/**, scripts/dev/mods-harness.*. Small hooks: one exported registerGltfVehicle in src/entities/models/gltf/VehicleSource.ts (far-car LOD map). Textures go through the existing MaterialLibrary.overrideMaps, vehicles through Vehicle.sources: no builder edits needed. No main.ts edits; I will hand back lines.
+
+### 2026-11-24T01:59:52Z · Ines Okafor (MODS)
+Done. src/mods (RenderWare dff/txd parsers, glb, manifest, registry, IndexedDB store, lazy boot.ts), ModsPanel, docs/MODS.md, 44 tests green, harness verified in a browser. Menu.ts got a marked onMods row. Lead: main.ts lines are in my report and in docs/swarm/tasks/MODS.md.

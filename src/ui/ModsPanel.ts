@@ -68,7 +68,9 @@ export class ModsPanel {
     col.append(this.drop);
     if (opts.safeMode) {
       const safe = mk('div', 'md-drop', 'Safe mode: no mod was loaded this time.');
-      safe.append(mk('div', 'md-row')).append(this.btn('Remove every mod from this device', () => { void registry.store.clear().then(() => this.say([{ text: 'All stored mods were removed. Open the game without ?mods=off to use the panel normally.', kind: 'good' }])); }, 'danger'));
+      const srow = mk('div', 'md-row');
+      srow.append(this.btn('Remove every mod from this device', () => { void registry.store.clear().then(() => this.say([{ text: 'All stored mods were removed. Open the game without ?mods=off to use the panel normally.', kind: 'good' }])); }, 'danger'));
+      safe.append(srow);
       col.append(safe);
     }
     this.msg = mk('div', 'md-msg'); this.msg.setAttribute('role', 'status');

@@ -242,3 +242,15 @@ describe('docs example', () => {
     for (const src of ['src/assets/models/vehicle-sedan.glb', 'src/assets/textures/cc0/asphalt/color_1k.jpg', 'src/assets/textures/cc0/asphalt/normal_1k.jpg', 'src/assets/textures/cc0/asphalt/rough_1k.jpg']) expect(existsSync(src), src).toBe(true);
   });
 });
+
+import { Vehicle } from '@/entities/Vehicle';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { Rng } from '@/core/Rng';
+import type { ModTarget } from '@/mods/registry';
+
+describe('wiring types', () => {
+  it('the real Vehicle.sources and MaterialLibrary fit ModTarget (what main.ts passes)', () => {
+    const target: ModTarget = { vehicleSources: Vehicle.sources, materials: new MaterialLibrary(new Rng(1)) };
+    expect(typeof target.materials.overrideMaps).toBe('function');
+  });
+});

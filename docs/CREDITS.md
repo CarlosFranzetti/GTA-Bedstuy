@@ -418,3 +418,10 @@ The macOS (Apple Silicon) and Windows (x64) apps are the hosted web build inside
 | Brooklyn overview map layer (street centrelines `inkn-q76z`, borough boundaries `gthc-hcne`, neighbourhood label points `9nt8-h7nd`) and real-map street furniture | `resources/web/data/*.json` | NYC Open Data public datasets (credit: City of New York). The terms page was not re-read by NATIVE2; the rows above treat these datasets the same way. | https://opendata.cityofnewyork.us |
 
 Not in the installer, fetched by the player's machine at run time (never bundled): the SoundCloud player, the live radio streams, the radio schedule API, and (opt-in "HD voices") kokoro-js with its eSpeak NG phonemizer from jsDelivr and the Kokoro model from Hugging Face. Where each comes from is listed in `docs/NATIVE.md`.
+
+## Mods (24 Nov 2026)
+
+The game ships NO third-party mod pack. Players load their own `.glb`, image, RenderWare `.dff` and `.txd` files from their own disk;
+the files are parsed in the browser and kept only on that device (`docs/MODS.md`). The `.dff` and `.txd` readers (`src/mods/rw/`) were
+written from the publicly documented chunk layouts; no third-party code is included. The worked example in `docs/examples/mod-example/`
+refers to two CC0 assets already credited above (the Kenney sedan and the Poly Haven asphalt set).
