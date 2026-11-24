@@ -36,6 +36,8 @@ export const ANNOUNCER_JINGLE_DELAY_S = 1.8;
 export const ANNOUNCER_TUNE_COOLDOWN_S = 20;
 /** Widget level while the announcer talks (1 = full). */
 export const ANNOUNCER_DUCK = 0.22;
+/** RADIO4: widget level while the announcer names the DJ (a lighter duck: the music stays audible under the name). */
+export const ANNOUNCER_DJ_DUCK = 0.4;
 const DUCK_RELEASE_PER_S = 1.6;
 
 export interface BroadcastContext {
@@ -75,7 +77,7 @@ export interface AnnouncerEnv {
 
 export interface SetInfo { title: string; user?: string; dj?: string }
 
-export type AnnounceKind = 'id' | 'set' | 'ident' | 'hour';
+export type AnnounceKind = 'id' | 'set' | 'ident' | 'hour' | 'dj';
 
 type Phase = 'idle' | 'speaking' | 'text';
 
@@ -195,6 +197,20 @@ export class Announcer {
     return true;
   }
 
+  /**
+   * RADIO4: names the DJ of the mix on air (a line from src/audio/sc/djLines.ts). Returns false, and says nothing, when the announcer
+   * cannot take it right now (nothing tuned, WBSY Talk on, paused, already speaking, a line waiting); the caller tries again.
+   * Spoken by the station's own announcer voice, shown through `line`, ducks the music a little, obeys the radio volume and pause.
+   */
+  djMention(text: string): boolean {
+    const def = this.def;
+    if (!def || !this.persona || this.paused || this.env.talkBusy() || this.phase !== 'idle' || this.pending) return false;
+    const t = text.trim();
+    if (!t) return false;
+    this.begin('dj', [spokenText(t)], [{ who: DJ_COPY[def.id].who, text: t }]);
+    return this.phase !== 'idle';
+  }
+
   setPaused(p: boolean): void {
     if (p === this.paused) return;
     this.paused = p;
@@ -311,7 +327,7 @@ export class Announcer {
       return;
     }
     this.phase = 'speaking';
-    this.setDuckNow(ANNOUNCER_DUCK);
+    this.setDuckNow(kind === 'dj' ? ANNOUNCER_DJ_DUCK : ANNOUNCER_DUCK);
     const hub = this.env.hub;
     if (hub) {
       const rl = rlines ?? lines.map((text) => ({ who: DJ_COPY[def.id].who, text }));

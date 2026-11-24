@@ -1,0 +1,622 @@
+{
+ "generated": "24 Nov 2026",
+ "models": {
+  "psx-sedan": {
+   "id": "psx-sedan",
+   "source": "psx-style-cars",
+   "kind": "car",
+   "cls": "sedan",
+   "triangles": 312,
+   "bytes": 34840,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    2.041,
+    1.548,
+    4.6
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "psx-sedan4": {
+   "id": "psx-sedan4",
+   "source": "psx-style-cars",
+   "kind": "car",
+   "cls": "sedan",
+   "triangles": 454,
+   "bytes": 45164,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    1.812,
+    1.334,
+    4.8
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "psx-police": {
+   "id": "psx-police",
+   "source": "psx-style-cars",
+   "kind": "car",
+   "cls": "cop",
+   "triangles": 472,
+   "bytes": 48696,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    1.85,
+    1.493,
+    4.9
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "psx-taxi": {
+   "id": "psx-taxi",
+   "source": "psx-style-cars",
+   "kind": "car",
+   "cls": "cab",
+   "triangles": 440,
+   "bytes": 46448,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    1.866,
+    1.506,
+    4.9
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "psx-hatch": {
+   "id": "psx-hatch",
+   "source": "psx-style-cars",
+   "kind": "car",
+   "cls": "hatch",
+   "triangles": 448,
+   "bytes": 47340,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    1.84,
+    1.49,
+    3.9
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "psx-wagon": {
+   "id": "psx-wagon",
+   "source": "psx-style-cars",
+   "kind": "car",
+   "cls": "wagon",
+   "triangles": 438,
+   "bytes": 45896,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    1.955,
+    1.662,
+    4.7
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "psx-minivan": {
+   "id": "psx-minivan",
+   "source": "psx-style-cars",
+   "kind": "car",
+   "cls": "minivan",
+   "triangles": 476,
+   "bytes": 52120,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    2.642,
+    2.134,
+    4.9
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "psx-stepvan": {
+   "id": "psx-stepvan",
+   "source": "psx-style-cars",
+   "kind": "car",
+   "cls": "stepvan",
+   "triangles": 376,
+   "bytes": 38160,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    2.757,
+    2.816,
+    6
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "kenney-sedan": {
+   "id": "kenney-sedan",
+   "source": "kenney",
+   "kind": "car",
+   "cls": "sedan",
+   "triangles": 1368,
+   "bytes": 77108,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    2.706,
+    2.345,
+    4.6
+   ],
+   "nodes": 5,
+   "wheelNodes": 4
+  },
+  "kenney-taxi": {
+   "id": "kenney-taxi",
+   "source": "kenney",
+   "kind": "car",
+   "cls": "cab",
+   "triangles": 1408,
+   "bytes": 77360,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    2.618,
+    2.618,
+    4.8
+   ],
+   "nodes": 5,
+   "wheelNodes": 4
+  },
+  "kenney-police": {
+   "id": "kenney-police",
+   "source": "kenney",
+   "kind": "car",
+   "cls": "cop",
+   "triangles": 1640,
+   "bytes": 90816,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    2.371,
+    2.055,
+    4.9
+   ],
+   "nodes": 6,
+   "wheelNodes": 4
+  },
+  "kenney-suv": {
+   "id": "kenney-suv",
+   "source": "kenney",
+   "kind": "car",
+   "cls": "suv",
+   "triangles": 1810,
+   "bytes": 94912,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    2.694,
+    2.335,
+    4.85
+   ],
+   "nodes": 6,
+   "wheelNodes": 5
+  },
+  "kenney-van": {
+   "id": "kenney-van",
+   "source": "kenney",
+   "kind": "car",
+   "cls": "cargovan",
+   "triangles": 1418,
+   "bytes": 79500,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    2.836,
+    2.553,
+    5.2
+   ],
+   "nodes": 5,
+   "wheelNodes": 4
+  },
+  "kenney-delivery": {
+   "id": "kenney-delivery",
+   "source": "kenney",
+   "kind": "car",
+   "cls": "boxtruck",
+   "triangles": 1620,
+   "bytes": 109232,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    3.046,
+    3.351,
+    6.6
+   ],
+   "nodes": 6,
+   "wheelNodes": 4
+  },
+  "kenney-hatch-sports": {
+   "id": "kenney-hatch-sports",
+   "source": "kenney",
+   "kind": "car",
+   "cls": "hothatch",
+   "triangles": 1424,
+   "bytes": 94284,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    1.779,
+    1.505,
+    3.9
+   ],
+   "nodes": 5,
+   "wheelNodes": 4
+  },
+  "kenney-garbage": {
+   "id": "kenney-garbage",
+   "source": "kenney",
+   "kind": "car",
+   "cls": "garbage",
+   "triangles": 2268,
+   "bytes": 129184,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    3.71,
+    3.71,
+    8
+   ],
+   "nodes": 7,
+   "wheelNodes": 4
+  },
+  "oga-bus": {
+   "id": "oga-bus",
+   "source": "oga-vehicles",
+   "kind": "car",
+   "cls": "bus",
+   "triangles": 3678,
+   "bytes": 165492,
+   "textures": [],
+   "sizeM": [
+    4.584,
+    3.59,
+    11.5
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "oga-pickup": {
+   "id": "oga-pickup",
+   "source": "oga-vehicles",
+   "kind": "car",
+   "cls": "pickup",
+   "triangles": 2956,
+   "bytes": 137132,
+   "textures": [],
+   "sizeM": [
+    2.123,
+    2.259,
+    5.4
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "kenney-skateboard": {
+   "id": "kenney-skateboard",
+   "source": "kenney",
+   "kind": "prop",
+   "cls": "skateboard",
+   "triangles": 432,
+   "bytes": 28876,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    0.366,
+    0.209,
+    0.8
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "mb-hydrant": {
+   "id": "mb-hydrant",
+   "source": "milkandbanana",
+   "kind": "prop",
+   "cls": "hydrant",
+   "triangles": 662,
+   "bytes": 27832,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    0.589,
+    0.8,
+    0.591
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "mb-streetlight": {
+   "id": "mb-streetlight",
+   "source": "milkandbanana",
+   "kind": "prop",
+   "cls": "streetlight",
+   "triangles": 216,
+   "bytes": 10180,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    1.132,
+    7.5,
+    0.361
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "mb-manhole": {
+   "id": "mb-manhole",
+   "source": "milkandbanana",
+   "kind": "prop",
+   "cls": "manhole",
+   "triangles": 232,
+   "bytes": 14224,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    0.7,
+    0.032,
+    0.7
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "mb-cone": {
+   "id": "mb-cone",
+   "source": "milkandbanana",
+   "kind": "prop",
+   "cls": "cone",
+   "triangles": 82,
+   "bytes": 5624,
+   "textures": [
+    "128x128"
+   ],
+   "sizeM": [
+    0.535,
+    0.7,
+    0.535
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "kenney-trafficlight": {
+   "id": "kenney-trafficlight",
+   "source": "kenney",
+   "kind": "prop",
+   "cls": "trafficlight",
+   "triangles": 114,
+   "bytes": 15132,
+   "textures": [
+    "64x64",
+    "64x64"
+   ],
+   "sizeM": [
+    0.901,
+    6,
+    3.37
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "kenney-dumpster": {
+   "id": "kenney-dumpster",
+   "source": "kenney",
+   "kind": "prop",
+   "cls": "dumpster",
+   "triangles": 22,
+   "bytes": 17444,
+   "textures": [
+    "64x64",
+    "64x64",
+    "64x64"
+   ],
+   "sizeM": [
+    1.8,
+    1.634,
+    1.361
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "kenney-bin": {
+   "id": "kenney-bin",
+   "source": "kenney",
+   "kind": "prop",
+   "cls": "bin",
+   "triangles": 68,
+   "bytes": 5172,
+   "textures": [],
+   "sizeM": [
+    0.461,
+    0.95,
+    0.52
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  },
+  "oga-mailbox": {
+   "id": "oga-mailbox",
+   "source": "oga-mailbox",
+   "kind": "prop",
+   "cls": "mailbox",
+   "triangles": 176,
+   "bytes": 24232,
+   "textures": [
+    "32x32"
+   ],
+   "sizeM": [
+    0.185,
+    1.25,
+    0.588
+   ],
+   "nodes": 1,
+   "wheelNodes": 0
+  }
+ },
+ "surfaces": {
+  "asphalt-plain": {
+   "id": "asphalt-plain",
+   "source": "oga-textures",
+   "kind": "surface",
+   "bytes512": 259490,
+   "bytes256": 65248,
+   "seamRatio": 1.18,
+   "tileable": true,
+   "tileM": 4,
+   "texelsPerM512": 128
+  },
+  "asphalt-cracked": {
+   "id": "asphalt-cracked",
+   "source": "polyhaven",
+   "kind": "surface",
+   "bytes512": 254705,
+   "bytes256": 64500,
+   "seamRatio": 1.16,
+   "tileable": true,
+   "tileM": 4,
+   "texelsPerM512": 128
+  },
+  "sidewalk-slabs": {
+   "id": "sidewalk-slabs",
+   "source": "polyhaven",
+   "kind": "surface",
+   "bytes512": 255078,
+   "bytes256": 64914,
+   "seamRatio": 1.04,
+   "tileable": true,
+   "tileM": 3,
+   "texelsPerM512": 171
+  },
+  "brick-red": {
+   "id": "brick-red",
+   "source": "polyhaven",
+   "kind": "surface",
+   "bytes512": 245065,
+   "bytes256": 64318,
+   "seamRatio": 3.11,
+   "tileable": false,
+   "tileM": 2.5,
+   "texelsPerM512": 205
+  },
+  "brick-mixed": {
+   "id": "brick-mixed",
+   "source": "polyhaven",
+   "kind": "surface",
+   "bytes512": 237647,
+   "bytes256": 63655,
+   "seamRatio": 1.34,
+   "tileable": true,
+   "tileM": 2.5,
+   "texelsPerM512": 205
+  },
+  "brick-painted": {
+   "id": "brick-painted",
+   "source": "polyhaven",
+   "kind": "surface",
+   "bytes512": 244499,
+   "bytes256": 63745,
+   "seamRatio": 1.47,
+   "tileable": true,
+   "tileM": 2.5,
+   "texelsPerM512": 205
+  },
+  "brownstone": {
+   "id": "brownstone",
+   "source": "polyhaven",
+   "kind": "surface",
+   "bytes512": 247548,
+   "bytes256": 64273,
+   "seamRatio": 1.07,
+   "tileable": true,
+   "tileM": 3,
+   "texelsPerM512": 171
+  },
+  "limestone": {
+   "id": "limestone",
+   "source": "polyhaven",
+   "kind": "surface",
+   "bytes512": 244198,
+   "bytes256": 63394,
+   "seamRatio": 0.96,
+   "tileable": true,
+   "tileM": 3,
+   "texelsPerM512": 171
+  },
+  "shutter": {
+   "id": "shutter",
+   "source": "polyhaven",
+   "kind": "surface",
+   "bytes512": 234491,
+   "bytes256": 62081,
+   "seamRatio": 1.06,
+   "tileable": true,
+   "tileM": 2.5,
+   "texelsPerM512": 205
+  },
+  "awning-canvas": {
+   "id": "awning-canvas",
+   "source": "ambientcg",
+   "kind": "surface",
+   "bytes512": 194379,
+   "bytes256": 52166,
+   "seamRatio": 0.98,
+   "tileable": true,
+   "tileM": 1,
+   "texelsPerM512": 512
+  },
+  "awning-navy": {
+   "id": "awning-navy",
+   "source": "ambientcg",
+   "kind": "surface",
+   "bytes512": 259524,
+   "bytes256": 65430,
+   "seamRatio": 1.11,
+   "tileable": true,
+   "tileM": 1,
+   "texelsPerM512": 512
+  },
+  "grate-storm": {
+   "id": "grate-storm",
+   "source": "ambientcg",
+   "kind": "surface",
+   "bytes512": 134768,
+   "bytes256": 38146,
+   "seamRatio": 0.08,
+   "tileable": false,
+   "tileM": 0.7,
+   "texelsPerM512": 731
+  }
+ }
+}

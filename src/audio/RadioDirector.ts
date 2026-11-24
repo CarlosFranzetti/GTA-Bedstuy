@@ -21,7 +21,8 @@ import type { SpeechLike, UtteranceLike } from './talk/TalkPlayer';
 import { ScStation, SC_STORAGE_KEY } from './sc/ScStation';
 import { RaFeed, matcherFor } from './sc/RaFeed';
 import { mixesFor } from './sc/mixes';
-import { Announcer, DEFAULT_BROADCAST, type BroadcastContext } from './announcer/Announcer';
+import { Announcer, DEFAULT_BROADCAST, speakable, type BroadcastContext } from './announcer/Announcer';
+import { DjMentionRunner } from './sc/djMentions';
 
 export const CROSSFADE_SECONDS = 0.5;
 export const MYLIB_ID = 'mylib';
@@ -126,6 +127,8 @@ export class RadioDirector {
   /** Live internet-radio stations by id. */
   readonly liveStations = new Map<string, LiveStation>();
   readonly announcer: Announcer;
+  /** RADIO4: names the DJ of the mix on air (start, now and then, thanks near the end). */
+  readonly djMentions: DjMentionRunner;
   /** Called with a short message when a station is off the air and the dial moves on. */
   onToast: ((msg: string) => void) | null = null;
   private toastText = '';
@@ -164,7 +167,7 @@ export class RadioDirector {
       this.scMap.set(def.id, st);
       st.onBetweenMixes = (prev) => {
         if (!this.on || this.current.sc?.id !== def.id) return;
-        this.announcer.betweenSets(prev, st.nowPlaying);
+        if (this.announcer.betweenSets(prev, st.nowPlaying) && st.nowPlaying?.user) this.djMentions.noteSetAnnounced();
         this.onSweeper?.(this.current);
       };
     }
@@ -201,6 +204,13 @@ export class RadioDirector {
       random: v?.random ?? Math.random,
       dj: v?.dj,
       hub: v?.hub,
+    });
+    this.djMentions = new DjMentionRunner({
+      clock: () => (this.on && !this.paused ? this.currentSc?.djClock ?? null : null),
+      station: () => { const c = this.current; return this.on && c.kind === 'sc' ? { id: c.id, name: c.name } : null; },
+      say: (text) => this.announcer.djMention(text),
+      random: v?.random ?? Math.random,
+      speakable: (n) => speakable(n, 80),
     });
     this.refreshDial();
     const saved = this.lastStore?.get();

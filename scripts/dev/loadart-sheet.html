@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>loadart sheet</title>
+<style>
+@font-face { font-family: "Anton"; src: url("/fonts/Anton-Regular.woff2") format("woff2"); }
+html,body{margin:0;background:#222}
+</style></head>
+<body><script type="module">
+// LOADSCREENS harness: draws the graffiti loading panels. ?w=1280&h=720 (panel size) &cols=2 &scale=0.5 (sheet shrink) &seed=1 &only=3 (one panel) &time=1
+import { drawPanel, PANELS } from '/src/ui/loadart/index.ts';
+const q = new URLSearchParams(location.search);
+const W = Number(q.get('w') ?? 1280), H = Number(q.get('h') ?? 720), cols = Number(q.get('cols') ?? 2), sc = Number(q.get('scale') ?? 0.5), seed = Number(q.get('seed') ?? 1);
+const only = q.get('only');
+await document.fonts.load('80px Anton');
+const idx = only !== null ? [Number(only)] : PANELS.map((_, i) => i);
+const cw = Math.round(W * sc), ch = Math.round(H * sc), rows = Math.ceil(idx.length / cols);
+const sheet = document.createElement('canvas'); sheet.width = cw * cols; sheet.height = ch * rows;
+const sc2 = sheet.getContext('2d'); sc2.fillStyle = '#000'; sc2.fillRect(0, 0, sheet.width, sheet.height);
+const times = [];
+idx.forEach((pi, k) => {
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const t0 = performance.now(); drawPanel(cv.getContext('2d'), pi, seed, W, H); times.push(Math.round(performance.now() - t0));
+  sc2.drawImage(cv, (k % cols) * cw, Math.floor(k / cols) * ch, cw, ch);
+});
+document.body.appendChild(sheet);
+window.__ready = { times, size: [sheet.width, sheet.height] };
+</script></body></html>

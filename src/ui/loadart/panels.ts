@@ -4,7 +4,7 @@
  * line) so the same picture works on a wide screen and a tall phone. People are bold silhouettes with two or three flat tones:
  * nobody is a real person.
  */
-import { circ, ell, fig, INK, mist, poly, rect, smooth, spray, stencil, scribble, vignette, wall, type C, type Rnd, type WallTone } from './kit';
+import { circ, ell, fig, INK, mist, poly, rect, smooth, spray, stencil, vignette, wall, type C, type Rnd, type WallTone } from './kit';
 import { drawWord, type WordStyle } from './letters';
 
 export interface Geo { c: C; R: Rnd; w: number; h: number; s: number; cx: number; gy: number; wide: boolean }
@@ -100,7 +100,7 @@ function stoop(c: C, x0: number): void {
 
 export const PANELS: readonly Panel[] = [
   {
-    id: 'decks', word: 'DECKS', kind: 'concrete', tone: { h: 270, s: 22, l: 17 }, wy: [0.46, 0.4], zoom: 1,
+    id: 'decks', word: 'DECKS', kind: 'concrete', tone: { h: 270, s: 22, l: 17 }, wy: [0.3, 0.4], zoom: 1,
     style: { fill: '#e8307a', hi: '#ff93bd', block: '#5a1580', glow: '#e8307a' },
     bg(g) {
       const { c, w, h, R } = g;
@@ -137,7 +137,7 @@ export const PANELS: readonly Panel[] = [
     },
   },
   {
-    id: 'stoop', word: 'STOOP', kind: 'brick', tone: { h: 12, s: 42, l: 30 }, wy: [0.4, 0.4], zoom: 0.86,
+    id: 'stoop', word: 'STOOP', kind: 'brick', tone: { h: 12, s: 42, l: 30 }, wy: [0.3, 0.4], zoom: 0.86,
     style: { fill: '#f2c230', hi: '#fff0a0', block: '#a2321c', glow: '#ff9a3a' },
     bg(g) {
       const { c, R, w, h } = g;
@@ -164,7 +164,7 @@ export const PANELS: readonly Panel[] = [
     },
   },
   {
-    id: 'kerb', word: 'NIGHT SHIFT', kind: 'concrete', tone: { h: 225, s: 24, l: 16 }, wy: [0.42, 0.38], zoom: 0.9,
+    id: 'kerb', word: 'NIGHT SHIFT', kind: 'concrete', tone: { h: 225, s: 24, l: 16 }, wy: [0.3, 0.4], zoom: 0.9,
     style: { fill: '#28c8d8', hi: '#a8f4ff', block: '#1a4a8a', glow: '#28c8d8', drips: 4 },
     bg(g) {
       const { c, w, h, R } = g;
@@ -196,7 +196,7 @@ export const PANELS: readonly Panel[] = [
     },
   },
   {
-    id: 'cat', word: 'BODEGA', kind: 'brick', tone: { h: 25, s: 30, l: 24 }, wy: [0.38, 0.36], zoom: 0.95,
+    id: 'cat', word: 'BODEGA', kind: 'brick', tone: { h: 25, s: 30, l: 24 }, wy: [0.3, 0.4], zoom: 0.95,
     style: { fill: '#9ae03a', hi: '#e2ff9a', block: '#245a1c', glow: '#9ae03a' },
     bg(g) {
       const { c, w, h } = g;
@@ -230,7 +230,7 @@ export const PANELS: readonly Panel[] = [
     },
   },
   {
-    id: 'el', word: 'ELEVATED', kind: 'concrete', tone: { h: 210, s: 14, l: 22 }, wy: [0.3, 0.3], zoom: 0.9,
+    id: 'el', word: 'ELEVATED', kind: 'concrete', tone: { h: 210, s: 14, l: 22 }, wy: [0.3, 0.4], zoom: 0.9,
     style: { fill: '#ff6a2b', hi: '#ffc08a', block: '#7a1e2a', glow: '#ff6a2b' },
     bg(g) {
       const { c, w, h } = g;
@@ -262,7 +262,7 @@ export const PANELS: readonly Panel[] = [
     },
   },
   {
-    id: 'roof', word: 'ROOFTOP', kind: 'brick', tone: { h: 8, s: 30, l: 26 }, wy: [0.38, 0.36], zoom: 0.95,
+    id: 'roof', word: 'ROOFTOP', kind: 'brick', tone: { h: 8, s: 30, l: 26 }, wy: [0.3, 0.4], zoom: 0.95,
     style: { fill: '#f2c230', hi: '#fff0a0', block: '#c43a2a', glow: '#ffb03a', drips: 4 },
     bg(g) {
       const { c, w, h } = g;
@@ -292,7 +292,7 @@ export const PANELS: readonly Panel[] = [
     },
   },
   {
-    id: 'hydrant', word: 'BLOCK PARTY', kind: 'brick', tone: { h: 18, s: 36, l: 27 }, wy: [0.36, 0.34], zoom: 0.95,
+    id: 'hydrant', word: 'BLOCK PARTY', kind: 'brick', tone: { h: 18, s: 36, l: 27 }, wy: [0.3, 0.4], zoom: 0.95,
     style: { fill: '#ff4fa0', hi: '#ffb0d6', block: '#3a1a8a', glow: '#ff4fa0' },
     bg(g) {
       const { c, w, h } = g, cols = ['#e8307a', '#f2c230', '#28c8d8', '#9ae03a', '#ff6a2b'];
@@ -323,15 +323,15 @@ export interface RenderOpts { seed: number; w: number; h: number }
 /** Draws panel `p` onto `c` (a context sized w by h). Same seed gives the same picture. */
 export function paintPanel(c: C, p: Panel, R: Rnd, w: number, h: number): void {
   const wide = w / h >= 1.15;
-  const s = (wide ? h / 900 : Math.min(w / 1000, h / 900) * 1.5) * p.zoom;
-  const g: Geo = { c, R, w, h, s, cx: wide ? w * 0.5 : w * 0.5, gy: wide ? h * 0.86 : h * 0.8, wide };
+  const s = (wide ? (h / 900) * 0.8 : Math.min(w / 1000, h / 900) * 1.25) * p.zoom;
+  const g: Geo = { c, R, w, h, s, cx: wide ? w * 0.5 : w * 0.5, gy: wide ? h * 0.8 : h * 0.72, wide };
   wall(c, w, h, R, p.kind, p.tone);
   p.bg(g);
   const base = (wide ? p.wy[0] : p.wy[1]) * h;
   const size = Math.min(wide ? h * 0.3 : h * 0.17, w * 0.28);
-  drawWord(c, p.word, wide ? w * 0.57 : w * 0.5, base, size, wide ? w * 0.62 : w * 0.92, p.style, R);
+  drawWord(c, p.word, wide ? w * 0.6 : w * 0.5, base, size, wide ? w * 0.66 : w * 0.92, p.style, R);
   p.fg(g);
   stencil(c, R.pick(['star', 'arrow', 'bolt'] as const), w * R.r(0.78, 0.92), h * R.r(0.55, 0.7), Math.min(w, h) * 0.05, p.style.fill, R);
-  scribble(c, w * R.r(0.05, 0.12), h * R.r(0.5, 0.62), Math.min(w, h) * 0.07, p.style.hi, R);
+  stencil(c, 'arrow', w * R.r(0.06, 0.12), h * R.r(0.52, 0.62), Math.min(w, h) * 0.04, p.style.hi, R);
   vignette(c, w, h);
 }

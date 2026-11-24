@@ -453,6 +453,20 @@ export class ScStation {
   }
   /** Virtual position (seconds) in the current mix. */
   get position(): number { return this.pos; }
+  /**
+   * RADIO4: what the DJ-name announcements need: the mix (its URL), the position in it, its length and the DJ's name as written in
+   * mixes.json (or the feed's artist). Null until the mix is really playing and has had its mid-mix start, so a position that is
+   * about to jump is never read; also null when the station is off or paused.
+   */
+  get djClock(): { key: string; pos: number; durationS: number; dj: string } | null {
+    if (!this.active || this.paused || this.state !== 'ready' || this.play_ !== 'playing' || this.startPending) return null;
+    const key = this.currentUrl();
+    if (!key) return null;
+    const meta = this.curSet ? null : this.list[this.index]?.meta;
+    const dj = (this.curSet ? this.curSet.dj : meta?.dj) ?? '';
+    const durationS = this.duration > 0 ? this.duration : this.curSet ? this.curSet.duration : (meta?.minutes ?? 0) * 60;
+    return { key, pos: this.pos, durationS, dj };
+  }
 
   /* ---------- control ---------- */
 
