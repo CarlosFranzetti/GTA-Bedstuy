@@ -59,7 +59,7 @@ const gv = (id: string, t: string): number => Math.max(-1, Math.min(1, 1.5 * bel
  * group and nobody is a type.
  */
 export function faceTraits(spec: PedSpec): FaceTraits {
-  const id = spec.id, g = (t: string): number => gv(id, t) * faceDebug.stress;
+  const id = spec.seed ?? spec.id, g = (t: string): number => gv(id, t) * faceDebug.stress;
   const sx = spec.sex === 'm' ? 1 : spec.sex === 'f' ? -1 : 0;
   const age = spec.age ?? 'adult', old = age === 'old' ? 1 : 0, kid = age === 'kid' ? 1 : age === 'teen' ? 0.45 : 0;
   const fat = Math.max(-1, Math.min(1.3, bodyTypeOf(spec).weight)) + 0.35 * g('heft'), thin = Math.max(0, -fat);
@@ -422,7 +422,7 @@ export function headGear(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec, 
   const lm = s.landmarks, Hh = sc.crownY - lm.chinY, Y = (t: number): number => lm.chinY + t * Hh;
   const hr = (y: number): { rx: number; rz: number; cz: number } => sc.ringAt(Math.min(0.99, Math.max(0.05, tOf(y))));
   const seg = hi ? 18 : 10;
-  const id = spec.id;
+  const id = spec.seed ?? spec.id;
   const rand = (salt: string): number => (hash(id + salt) % 10000) / 10000;
   const covered = spec.hat !== 'none', hijab = spec.hat === 'hijab';
   const mapTo = (r: PxRect) => (p: P3): [number, number] => {

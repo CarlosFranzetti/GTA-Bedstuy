@@ -63,6 +63,8 @@ export type PopGroup = 'ba' | 'ca' | 'la' | 'wh' | 'ea' | 'sa' | 'me' | 'mx' | '
 
 export interface PedSpec {
   id: string;
+  /** CAST: the identity seed of a named person. Face, build and hair pieces are drawn from `seed ?? id`, so one person keeps one face and body across outfits (each outfit is its own id and its own bake). */
+  seed?: string;
   /** who this person is (decoupled from the outfit): crowd group, sex (x = androgynous), age band; picks the MakeHuman body shape */
   group?: PopGroup; sex?: 'm' | 'f' | 'x'; age?: 'kid' | 'teen' | 'adult' | 'old';
   role: PedRole;

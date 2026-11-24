@@ -28,7 +28,7 @@ export interface EyePatch {
 
 /** inputs the shape's landmarks give: hs and wsx are the painter's head scales */
 export function buildEyePatch(s: Pick<MhShape, 'landmarks'>, spec: PedSpec, L: MhLod): EyePatch | null {
-  const lm = s.landmarks, hs = (lm.crownY - lm.chinY) / 0.2285, wsx = lm.eyeX / 0.029, E = eyeShapeOf(spec), bag = hash(spec.id + 'bag');
+  const lm = s.landmarks, hs = (lm.crownY - lm.chinY) / 0.2285, wsx = lm.eyeX / 0.029, E = eyeShapeOf(spec), bag = hash((spec.seed ?? spec.id) + 'bag');
   const n = L.position.length / 3, nT = L.index.length / 3;
   const P0 = new Float32Array(L.position); if (L.faceDelta) for (let i = 0; i < L.faceDelta.length && i < P0.length; i++) P0[i] -= L.faceDelta[i];      // (the leg tubes are appended after the morph: no delta for them)
   const nv1 = 1 + (RINGS.length - 1) * NA, nvT = nv1 * 2;

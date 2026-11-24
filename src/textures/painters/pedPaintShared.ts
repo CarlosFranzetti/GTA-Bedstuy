@@ -75,7 +75,7 @@ export type ShoeStyle = 'sneaker' | 'boot' | 'dress';
 
 /** everything the painters need to know about one person, computed once per bake */
 export function makeLook(b: BakeInput) {
-  const s = b.spec, lm = b.landmarks, R = b.rig, top = s.top, bot = s.bottom, face = s.face, id = s.id;
+  const s = b.spec, lm = b.landmarks, R = b.rig, top = s.top, bot = s.bottom, face = s.face, id = s.seed ?? s.id;
   const skin = rgb(s.skin);
   const female = s.sex === 'f', old = s.age === 'old', kid = s.age === 'kid', teen = s.age === 'teen', kidish = kid || teen;
   const hs = (lm.crownY - lm.chinY) / 0.2285, wsx = lm.eyeX / 0.029, edm = (lm.eyeY - lm.chinY) / hs;

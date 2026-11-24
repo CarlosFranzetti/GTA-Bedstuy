@@ -179,7 +179,7 @@ const MALE_TYPES: BodyTypeId[] = ['avg', 'athletic', 'heavy', 'tall-thin', 'shor
 const FEMALE_TYPES: BodyTypeId[] = ['avg', 'slim', 'pear', 'wiry', 'petite', 'heavy', 'tall-thin', 'soft', 'obese', 'pear', 'avg', 'skinny-fat'];
 
 /** a person's body type: explicit (`spec.body`), else by age, build and a stable pick from their id (so the same person always looks the same) */
-export function bodyTypeId(spec: Pick<PedSpec, 'id' | 'build' | 'sex' | 'age' | 'role'> & { body?: BodyTypeId }): BodyTypeId {
+export function bodyTypeId(spec: Pick<PedSpec, 'id' | 'build' | 'sex' | 'age' | 'role'> & { body?: BodyTypeId; seed?: string }): BodyTypeId {
   if (spec.body) return spec.body;
   const age = spec.age ?? 'adult';
   if (spec.role === 'player' && age !== 'kid') return spec.sex === 'f' ? 'avg' : 'athletic';      // the player is the model the camera sits behind: a fit build
@@ -259,7 +259,7 @@ const builds = new Map<string, PersonBuild>();
  * (the type shifts it: tall and short versions of every build), the neck, shoulder and leg-length draws are independent of all of it.
  */
 export function bodyBuildOf(spec: Parameters<typeof bodyTypeId>[0]): PersonBuild {
-  const id = bodyTypeId(spec), ac = ageClassOf(spec), sx: 'm' | 'f' | 'x' = spec.sex === 'f' ? 'f' : spec.sex === 'x' ? 'x' : 'm', key = `${spec.id}|${id}|${sx}|${ac}`;
+  const id = bodyTypeId(spec), ac = ageClassOf(spec), sx: 'm' | 'f' | 'x' = spec.sex === 'f' ? 'f' : spec.sex === 'x' ? 'x' : 'm', key = `${spec.seed ?? spec.id}|${id}|${sx}|${ac}`;
   const hit = builds.get(key); if (hit) return hit;
   const c = CAST[id], r = stream(h32(key + '|somato'));
   const years = 18 + 52 * r.next(), gB = r.gauss(), gM = r.gauss(), gH = r.gauss(), gN = r.gauss(), gS = r.gauss(), gL = r.gauss();

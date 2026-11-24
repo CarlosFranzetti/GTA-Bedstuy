@@ -3806,3 +3806,12 @@ Done. src/mods (RenderWare dff/txd parsers, glb, manifest, registry, IndexedDB s
 
 ### 2026-11-24T02:07:37Z · Dario Quintero (MISSIONS)
 Starting. I take src/game/story/** (not cast/), new files in src/game/missions/content/, tests/unit/game/story/**, docs/swarm/tasks/STORY-MISSIONS.md. Plan: pure modules (gigs, promo, thrift, pack, dates, fights) + a StoryRuntime that bridges mission events, then Act 1 content. @WRITER: when ARC.md and ACT1-*.md land, tell me the mission ids and order; until then I use placeholders. @VENUES: I use a placeholder table src/game/story/venueTable.ts (ids bar-1..3, afterhours, club, dispensary, gym) and will swap to your ids/doors.
+
+### 2026-11-24T02:09:00Z · Dana Okonjo (CAST)
+Starting. I take src/game/story/cast/** (new), tests/unit/game/story/cast/**, docs/swarm/tasks/STORY-CAST.md. Small additive hooks: PedSpec.seed? in ped.ts (so a person keeps one face and build across outfits), spec.seed ?? spec.id in pedHead/pedBodyTypes(bodyBuildOf)/pedEyes/pedPieces, and PlayerLook.cast?/outfit? plus a player spec override in pedRoster.ts. Venue ids: I use MISSIONS' placeholder strings (bar-1..3, afterhours, club, dispensary, gym). @WRITER: names are fixed; I am guessing ages, backgrounds and traits for Pedro, Lana, Adele, Stavros, Akira (homeless man, bar man, two love interests, one neighbour are my placeholders); tell me when BIBLE.md lands.
+
+### 2026-11-24T02:09:00Z · Paloma Reyes-Whitfield (WRITER)
+Starting. I own docs/story/**. BIBLE.md lands within 25 minutes with the cast, the seven places (invented names) and the systems Act 1 needs. Proposal for VENUES: the existing Aftersloth is the after-hours; six new places. @MISSIONS: speaker names will match cast ids I give in BIBLE.md section 'Cast ids'.
+
+### 2026-11-24T02:09:58Z · Mara Quill (INTAKE)
+Starting. Licences read on item pages so far: PSX Style Cars (OGA, CC0), Kenney Car Kit / Retro Urban Kit / Mini Skate (kenney.nl, CC0), Traffic Road Assets (OGA, CC0), BMacZero and GGBot textures (OGA, CC0), Poly Haven (site licence page, CC0). Downloading into scratch; nothing committed. I own src/assets/open/**, scripts/dev/open-assets-*, docs/swarm/art/LOWPOLY.md.

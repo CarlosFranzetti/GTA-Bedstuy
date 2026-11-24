@@ -242,7 +242,8 @@ const PEOPLE: Person[] = [
 
 // ---------------------------------------------------------------- the player's looks
 
-export interface PlayerLook { group: PopGroup; variant: number }
+/** `cast` / `outfit` (CAST, 24 Nov): a named character from src/game/story/cast is the player; absent in every older save, which keeps its random look */
+export interface PlayerLook { group: PopGroup; variant: number; cast?: string; outfit?: string }
 const PLAYER_HAIR: Record<PopGroup, Array<PedSpec['hair']>> = {
   ba: ['fade', 'locs', 'afro', 'short', 'fade'], ca: ['short', 'locs', 'fade', 'fade', 'short'], la: ['short', 'fade', 'short', 'crop', 'fade'], wh: ['short', 'long', 'fade', 'crop', 'short'], ea: ['short', 'fade', 'long', 'crop', 'short'],
   sa: ['short', 'fade', 'short', 'crop', 'fade'], me: ['short', 'fade', 'short', 'crop', 'short'], mx: ['afro', 'short', 'puff', 'fade', 'short'], hj: ['short', 'short', 'short', 'short', 'short'],
@@ -260,6 +261,9 @@ export const PLAYER_LOOKS: WardrobeEntry[] = [
 ];
 const PLAYER_VARIANTS = PLAYER_LOOKS.length;
 const playerId = (l: PlayerLook): string => `player-${l.group}-${l.variant}`;
+/** CAST: while set, the player is this registered spec (src/game/story/cast/player.ts registers it first); `playerSpecId()` returns it */
+let castSpecId: string | null = null;
+export function setPlayerCastSpec(id: string | null): void { castSpecId = id; }
 /** a fresh random look per page load / new game (fixed under test); UI10's save / load restores it with setPlayerLook */
 let look: PlayerLook = { group: 'ba', variant: 0 };
 let lookInit = false;
@@ -270,6 +274,7 @@ export function getPlayerLook(): PlayerLook { initLook(); return { ...look }; }
 export function setPlayerLook(l: PlayerLook): void {
   lookInit = true;
   look = { group: GROUPS.includes(l.group) && l.group !== 'hj' ? l.group : 'ba', variant: Math.max(0, Math.min(PLAYER_VARIANTS - 1, Math.floor(l.variant) || 0)) };
+  if (typeof l.cast === 'string' && l.cast) { look.cast = l.cast; if (typeof l.outfit === 'string') look.outfit = l.outfit; }
 }
 /** A look from a seed string: any group except the religious-dress one, any of the three hair / skin variants. */
 export function randomPlayerLook(seed: string): PlayerLook {
@@ -277,7 +282,7 @@ export function randomPlayerLook(seed: string): PlayerLook {
   const h = hash(seed);
   return { group: gs[h % gs.length], variant: (h >>> 8) % PLAYER_VARIANTS };
 }
-export function playerSpecId(): string { initLook(); return playerId(look); }
+export function playerSpecId(): string { initLook(); return castSpecId ?? playerId(look); }
 
 // ---------------------------------------------------------------- the roster
 

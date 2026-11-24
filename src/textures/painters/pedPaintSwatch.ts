@@ -24,7 +24,7 @@ const offWhite = (c: RGB): RGB => [Math.min(c[0], 232), Math.min(c[1], 230), Mat
 const hasHair = (h: string): boolean => h !== 'bald';
 
 export function paintSwatches(img: Uint8ClampedArray, size: number, K: Look, R: Record<'hair' | 'hat' | 'gear' | 'torso' | 'pelvis' | 'shoe', PxRect>): void {
-  const s = K.s, id = s.id, hair = K.hairC;
+  const s = K.s, id = s.seed ?? s.id, hair = K.hairC;
   const style = s.hair;
   const curly = style === 'afro' || style === 'puff' || style === 'curly' || style === 'peyot' || style === 'afroL';
   const plaited = style === 'braids' || style === 'locs' || style === 'twists' || style === 'cornrows' || style === 'boxbraids' || style === 'locsS';
