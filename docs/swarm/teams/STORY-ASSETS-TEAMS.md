@@ -55,6 +55,6 @@ per task, and get this all going now."
 | LOOK | `docs/swarm/art/LOWPOLY.md`, a sheet tool | The written art rules of the new look and a first conversion of one car class and three street surfaces |
 
 
-STATUS, 24 Nov: the owner stopped the first wave before any seat started (and the MODS lane with it). Nothing here is
-running. Do not start seats until he says so. Brand names and logos on third-party assets are allowed since his 24 Nov
-change to rule 4 (MEMORY.md).
+STATUS, 24 Nov: the owner paused the first wave before it started, changed rule 4 (real brand names and logos on
+third-party assets are allowed; venues and shops keep invented parody names: MEMORY.md), then said "Let's continue
+all". The seats and the MODS lane start now.
