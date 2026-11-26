@@ -7,6 +7,12 @@ import { VENUE_IDS } from '../venues/venues';
 
 export type InteriorId = 'deli' | 'club' | 'home' | VenueInteriorId; // VENUES: the seven story places join as `venue:<id>`
 
+/**
+ * LEAD, 26 Nov: the venues seat was cut off by the usage limit with the seven places half built (no lots on the real map yet).
+ * Until that work is finished and seen in the running game the venue interiors stay OUT of the door list, so the game is as it was.
+ */
+export const VENUES_ON = false;
+
 export interface DoorDef {
   /** Door centre on the building face (world x, z). */
   x: number; z: number;
@@ -52,13 +58,13 @@ export const INTERIORS: Record<InteriorId, InteriorDef> = {
     id: 'home', name: 'HOME', origin: { x: 3000, z: 3240 }, w: 8, d: 7, h: 2.8, sign: 'HOME',
     door: { x: -11.05, z: -36, outX: 1, outZ: 0, radius: 2.0 },
   },
-  ...venueInteriorDefs(),
-};
+  ...(VENUES_ON ? venueInteriorDefs() : {}),
+} as Record<InteriorId, InteriorDef>;
 
 /** VENUES: move the venue doors to the real map (called from `applyRealDoors`). */
-export const applyVenueDoorsFor = (map: 'grid' | 'real'): void => applyVenueDoors(INTERIORS, map);
+export const applyVenueDoorsFor = (map: 'grid' | 'real'): void => { if (VENUES_ON) applyVenueDoors(INTERIORS, map); };
 
-export const INTERIOR_IDS: readonly InteriorId[] = ['deli', 'club', 'home', ...VENUE_IDS.map((v): InteriorId => `venue:${v}`)];
+export const INTERIOR_IDS: readonly InteriorId[] = ['deli', 'club', 'home', ...(VENUES_ON ? VENUE_IDS.map((v): InteriorId => `venue:${v}`) : [])];
 
 /** Story flag that MISS2's password mission sets to reveal the club door. */
 export const CLUB_UNLOCK_FLAG = 'aftersloth.unlocked';

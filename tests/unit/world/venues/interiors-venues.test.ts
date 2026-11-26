@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { Interiors, FADE_SECONDS, type InteriorsDeps } from '@/world/interiors/Interiors';
-import { INTERIORS, doorTrigger, type InteriorId } from '@/world/interiors/defs';
+import { INTERIORS, VENUES_ON, doorTrigger, type InteriorId } from '@/world/interiors/defs';
 import { Inventory } from '@/game/Inventory';
 import { PROCEDURAL_RECORDS } from '@/game/records';
 import { World2D } from '@/physics/World2D';
@@ -79,7 +79,8 @@ describe('rooms', () => {
   });
 });
 
-describe('through the door', () => {
+// LEAD, 26 Nov: the venues are switched off (VENUES_ON) until the seat's work is finished; these run again when it is on
+describe.skipIf(!VENUES_ON)('through the door', () => {
   function make(hour: number) {
     const h = { v: hour }; const msgs: string[] = []; const log: Array<[string, unknown]> = []; const actions: unknown[] = []; const tele: number[][] = [];
     const inventory = new Inventory(PROCEDURAL_RECORDS, null);

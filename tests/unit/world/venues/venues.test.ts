@@ -13,7 +13,7 @@ import { deriveGeometry } from '@/world/roadnet/derive';
 import { blockFaces } from '@/world/roadnet/faces';
 import { placeLots, type RealLot } from '@/world/roadnet/lotsReal';
 import { RealPlaces, type PlacesTable } from '@/world/roadnet/placesReal';
-import { INTERIORS } from '@/world/interiors/defs';
+import { INTERIORS, VENUES_ON } from '@/world/interiors/defs';
 import { DISCOVER_M, VENUES, VENUE_IDS, VENUE_ROOM, hoursText, isOpen, venueById, venueDoor, venueNear, venuePlaces, venuePosition, type MapName } from '@/world/venues/venues';
 
 const core = (await import('@/world/data/roadnet-core.json')).default as unknown as import('@/world/roadnet/codec').RoadNetJson;
@@ -51,7 +51,7 @@ describe('registry', () => {
     const origins = [...VENUE_IDS.map((id) => VENUE_ROOM[id]), ...(['deli', 'club', 'home'] as const).map((id) => ({ ...INTERIORS[id] }))].map((r) => ({ x: r.origin.x, z: r.origin.z, rad: Math.hypot(r.w, r.d) / 2 }));
     for (let i = 0; i < origins.length; i++) for (let j = i + 1; j < origins.length; j++) expect(Math.hypot(origins[i].x - origins[j].x, origins[i].z - origins[j].z)).toBeGreaterThan(origins[i].rad + origins[j].rad + 20);
   });
-  it('venues are in the shared interior table', () => {
+  it.skipIf(!VENUES_ON)('venues are in the shared interior table', () => {
     for (const id of VENUE_IDS) expect(INTERIORS[`venue:${id}` as const].name).toBe(venueById(id).name);
   });
 });
