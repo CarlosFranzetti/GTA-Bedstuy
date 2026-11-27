@@ -7,14 +7,14 @@ import type { VehicleType } from '@/world/types';
 import { DT, Sim, input, makeVehicle, stubMaterials } from './harness';
 import type { SoakWorld } from './stuck-soak-lib';
 
-export interface MiscReport { tunnelTrials: number; tunnelled: number; tunnelCases: string[]; jitterTrials: number; jittery: number; jitterMax: number; exitTrials: number; exitOverlap: number; exitFar: number; exitCases: string[]; rescues: number }
+export interface MiscReport { tunnelTrials: number; tunnelled: number; tunnelCases: string[]; jitterTrials: number; jittery: number; jitterMax: number; exitTrials: number; exitOverlap: number; exitFar: number; exitCases: string[]; rescues: number; rescuesBy: { tunnel: number; jitter: number; exit: number } }
 
 const TYPES: VehicleType[] = ['sedan', 'suv', 'hatch', 'pickup', 'cargovan', 'bus'];
 
 export function miscChecks(w: SoakWorld, seed: number, n = 150): MiscReport {
   const rng = new Rng(seed * 31 + 5);
   const walls = w.anchors.filter((a) => a.kind === 'wall');
-  const rep: MiscReport = { tunnelTrials: 0, tunnelled: 0, tunnelCases: [], jitterTrials: 0, jittery: 0, jitterMax: 0, exitTrials: 0, exitOverlap: 0, exitFar: 0, exitCases: [], rescues: 0 };
+  const rep: MiscReport = { tunnelTrials: 0, tunnelled: 0, tunnelCases: [], jitterTrials: 0, jittery: 0, jitterMax: 0, exitTrials: 0, exitOverlap: 0, exitFar: 0, exitCases: [], rescues: 0, rescuesBy: { tunnel: 0, jitter: 0, exit: 0 } };
   const r0 = w.physics.rescues;
   // 1. tunnelling: flat out into a wall
   for (let i = 0; i < n * 8 && rep.tunnelTrials < n; i++) {
@@ -39,6 +39,7 @@ export function miscChecks(w: SoakWorld, seed: number, n = 150): MiscReport {
     if (passed) { rep.tunnelled++; if (rep.tunnelCases.length < 8) rep.tunnelCases.push(`${a.id} v${v0} ang${Math.round(ang * 57.3)} at ${a.x.toFixed(0)},${a.z.toFixed(0)}`); }
     w.physics.removeBody(car.body.id);
   }
+  rep.rescuesBy.tunnel = w.physics.rescues - r0;
   // 2. jitter at rest: a parked row (some slightly overlapped) with a person leaning on it and walking along it
   for (let i = 0; i < n * 8 && rep.jitterTrials < n; i++) {
     const a = walls[Math.floor(rng.next() * walls.length)];
@@ -79,6 +80,7 @@ export function miscChecks(w: SoakWorld, seed: number, n = 150): MiscReport {
     w.physics.removeBody(p.body.id);
     for (const c of cars) w.physics.removeBody(c.body.id);
   }
+  rep.rescuesBy.jitter = w.physics.rescues - r0 - rep.rescuesBy.tunnel;
   // 3. exit: get into a parked car near a wall / neighbours, get out, nobody may stand inside anything
   for (let i = 0; i < n * 8 && rep.exitTrials < n; i++) {
     const a = walls[Math.floor(rng.next() * walls.length)];
@@ -120,5 +122,6 @@ export function miscChecks(w: SoakWorld, seed: number, n = 150): MiscReport {
     w.physics.removeBody(p.body.id); w.physics.removeBody(car.body.id); for (const o of others) w.physics.removeBody(o.body.id);
   }
   rep.rescues = w.physics.rescues - r0;
+  rep.rescuesBy.exit = rep.rescues - rep.rescuesBy.tunnel - rep.rescuesBy.jitter;
   return rep;
 }

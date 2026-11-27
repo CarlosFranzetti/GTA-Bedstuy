@@ -362,7 +362,7 @@ export class World2D implements IWorld2D {
   /** Wedged driven cars freed by gliding to a free pose. */
   reliefs = 0;
   /** The rescue backstop switch (tests compare with and without it). */
-  static rescueEnabled = true;
+  static rescueEnabled = typeof process === 'undefined' || process.env.STUCK_NORESCUE !== '1';
   onRescue: ((body: Body2D, fromX: number, fromZ: number) => void) | null = null;
 
   private watchOverlap(e: Entry, dt: number): void {

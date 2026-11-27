@@ -44,9 +44,12 @@ try {
     return Object.values(by).sort((p, q) => p.dd - q.dd).map((c) => ({ id: c.id, type: c.type, dd: +c.dd.toFixed(0), len: c.len }));
   }, wantTypes);
   report.availableTypes = cars;
-  const pick = (t) => cars.find((c) => c.type === t);
+  // only cars within 400 m of the start (a teleport across the real map streams in a district and can kill the page for memory)
+  const nearby = cars.filter((c) => c.dd < 400).sort((p, q) => p.len - q.len);
+  const pick = (t) => nearby.find((c) => c.type === t);
   const chosen = wantTypes.map(pick).filter(Boolean);
-  if (!chosen.length) chosen.push(...cars.slice(0, 3));
+  if (chosen.length < 3) for (const c of [nearby[0], nearby[Math.floor(nearby.length / 2)], nearby[nearby.length - 1]]) if (c && !chosen.includes(c)) chosen.push(c);
+  report.chosen = chosen.map((c) => `${c.type} ${c.len}m`);
   const cases = [];
   for (const c of chosen) for (const style of ['classic', 'modern']) for (const approach of ['driver', 'passenger', 'behind']) cases.push({ car: c, style, approach });
 
