@@ -33,6 +33,8 @@ export interface TalkStationEnv {
   context: () => Partial<VoiceContext>;
   setBed: (level: number) => void;
   random?: () => number;
+  /** TALK3: the first tune-in lands part-way into a show (default true). */
+  midStart?: boolean;
 }
 
 export class TalkStation implements TalkLike {
@@ -45,7 +47,7 @@ export class TalkStation implements TalkLike {
   private peeked = false;
   private gen = 0;
 
-  constructor(private readonly env: TalkStationEnv) { this.schedule = new TalkSchedule(env.random ?? Math.random); }
+  constructor(private readonly env: TalkStationEnv) { this.schedule = new TalkSchedule(env.random ?? Math.random, undefined, undefined, { midStart: env.midStart ?? true }); }
 
   get isActive(): boolean { return this.active; }
   get stationName(): string { return this.env.hub.canSpeak ? TALK_NAME : TALK_NAME_UNAVAILABLE; }

@@ -94,3 +94,8 @@ export function registerPedCast(c: CastMember, keep = 300): void {
   byId.set(c.id, c);
   if (byId.size > CAST.length + keep) for (const k of [...byId.keys()]) if (k.startsWith('ped:') && k !== c.id) { byId.delete(k); if (byId.size <= CAST.length + keep / 2) break; }
 }
+
+/** TALK3: show cast loaded with WBSY's extra shows (src/audio/voice/shows/extra.ts). An id already in the cast is kept as it is. */
+export function registerShowCast(list: readonly CastMember[]): void {
+  for (const c of list) if (!byId.has(c.id)) byId.set(c.id, c);
+}

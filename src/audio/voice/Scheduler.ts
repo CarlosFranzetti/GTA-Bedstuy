@@ -17,7 +17,15 @@ export type Random = () => number;
 export class Rotation<T> {
   private bag: number[] = [];
   private lastIdx = -1;
-  constructor(private readonly items: readonly T[], private readonly random: Random = Math.random) {}
+  private readonly items: T[];
+  constructor(items: readonly T[], private readonly random: Random = Math.random) { this.items = [...items]; }
+  /** TALK3: adds items (shows loaded later); they join the current bag at random places, so nothing repeats early. */
+  extend(more: readonly T[]): void {
+    for (const it of more) {
+      this.items.push(it);
+      if (this.bag.length > 0) this.bag.splice(Math.min(this.bag.length, Math.floor(this.random() * (this.bag.length + 1))), 0, this.items.length - 1);
+    }
+  }
   get size(): number { return this.items.length; }
   /** Remaining items before the pool refills. */
   get remaining(): number { return this.bag.length; }
@@ -168,16 +176,27 @@ export class TalkSchedule {
   /** Everything that went on air, newest last (tests and the transcript). */
   readonly aired: string[] = [];
 
-  constructor(private readonly random: Random = Math.random, shows: readonly Show[] = TALK_SHOWS, ads: readonly Show[] = ADS) {
+  constructor(private readonly random: Random = Math.random, shows: readonly Show[] = TALK_SHOWS, ads: readonly Show[] = ADS,
+    private readonly opts: { midStart?: boolean } = {}) {
     this.shows = new Rotation(shows, random);
     this.ads = new Rotation(ads, random);
+  }
+
+  /** TALK3: more shows and ads (WBSY's extra shows, loaded on demand). */
+  addShows(shows: readonly Show[], ads: readonly Show[] = []): void {
+    if (shows.length) this.shows.extend(shows);
+    if (ads.length) this.ads.extend(ads);
   }
 
   get current(): TalkBlock | null { return this.block; }
 
   /** The block on air (starting one if needed). `ctx` resolves slots when a block starts. */
   ensure(ctx: Partial<VoiceContext>): TalkBlock {
-    if (!this.block) this.block = this.start(this.shows.next(), ctx, false);
+    if (!this.block) {
+      this.block = this.start(this.shows.next(), ctx, false);
+      // TALK3: the first tune-in joins a show already under way (a line in its first three quarters), as the music stations start mid-mix.
+      if (this.opts.midStart && this.block.lines.length > 4) this.block.at = Math.floor(this.random() * this.block.lines.length * 0.75);
+    }
     return this.block;
   }
 

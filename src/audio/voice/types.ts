@@ -43,6 +43,8 @@ export interface ScriptLine {
   text: string;
   /** Only airs when the live state matches: 'wanted' (stars >= 1), 'calm' (no stars), 'mission' (a mission was completed), 'bulletin' (STORY bulletins available), 'rain', 'night'. */
   when?: 'wanted' | 'calm' | 'mission' | 'bulletin' | 'rain' | 'night';
+  /** TALK3: the real person a parody impression sends up (`who` is the invented performer, who says so on air). */
+  parodyOf?: string;
 }
 
 export type ShowKind = 'callin' | 'realestate' | 'board' | 'wellness' | 'latenight' | 'interview' | 'news' | 'ad';

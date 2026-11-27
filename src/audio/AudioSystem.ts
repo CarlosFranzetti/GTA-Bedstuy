@@ -29,6 +29,9 @@ import { Mixer, engineBusGain, type MixKey } from './Mixer';
 import type { Surface } from './vehicle/fx';
 import type { Listener, TrafficCar } from './vehicle/nodes';
 import { loadBundledScript, loadGroupChatScript, GROUPCHAT_NAME, type TalkSegment } from './talk/script';
+import { loadGroupChatRotation } from './talk/rotation';
+import { loadExtraShows } from './voice/shows/extra';
+import { registerShowCast } from './voice/cast';
 
 /** Seconds of audio queued ahead of currentTime by the radio sequencer. */
 const LOOKAHEAD = 0.1;
@@ -226,6 +229,11 @@ export class AudioSystem {
       context: () => this.radio.broadcastContext,
       setBed: (level) => this.setBed(level),
     });
+    // TALK3: WBSY Talk's extra shows, ads and cast (hosted and native builds; src/audio/voice/shows/extra.ts).
+    if (talk instanceof TalkStation) {
+      const st = talk;
+      void loadExtraShows().then((x) => { if (x) { registerShowCast(x.cast); st.schedule.addShows(x.shows, x.ads); } }).catch(() => undefined);
+    }
     // RADIO3: The Group Chat, a second scripted station on its own script (src/audio/talk/script-groupchat.json, hosted and native builds only).
     let chat: TalkPlayer | undefined;
     if (opts.groupChatScript || hostedBuild()) {
@@ -236,7 +244,11 @@ export class AudioSystem {
       }, opts.groupChatScript ?? [], { name: GROUPCHAT_NAME, random: Math.random });
       if (!opts.groupChatScript) {
         const c = chat;
-        void loadGroupChatScript().then((segs) => { if (segs.length) c.setScript(segs); }).catch(() => undefined);
+        // TALK3: the script as a shuffled rotation of bits (old script cut into its bits plus the new ones), a new order every pass.
+        void loadGroupChatRotation(Math.random).then((rot) => {
+          if (rot) { const pass = rot.nextPass(); if (pass.length) { c.setScript(pass, () => rot.nextPass()); return; } }
+          return loadGroupChatScript().then((segs) => { if (segs.length) c.setScript(segs); });
+        }).catch(() => undefined);
       }
     }
     this.radio = new RadioDirector(library, talk, undefined, opts.sc, {
