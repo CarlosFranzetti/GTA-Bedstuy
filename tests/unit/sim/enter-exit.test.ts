@@ -116,6 +116,7 @@ describe('entering and exiting a car beside obstacles', () => {
     sim.world.addBody(player.body);
     events.on('enterVehicle', () => sim.world.removeBody(player.body.id));
     events.on('exitVehicle', () => sim.world.addBody(player.body));
+    let exitAt = { x: player.body.pos.x, z: player.body.pos.z };
     for (let i = 0; i < 20; i++) {
       const got = player.tryEnter([car]);
       expect(got).toBe(car);
@@ -123,12 +124,23 @@ describe('entering and exiting a car beside obstacles', () => {
       expect(player.inVehicle).toBe(true);
       player.exit();
       sim.run(0.4);
+      if (i === 0) exitAt = { x: player.body.pos.x, z: player.body.pos.z };
       expect(Number.isFinite(player.body.pos.x + player.body.pos.z)).toBe(true);
       expect(car.driver).toBeNull();
-      // walk back near the door for the next round
-      player.body.pos.x = car.doorPos().x + 0.5;
-      player.body.pos.z = car.doorPos().z;
+      // walk back to the door for the next round: where the exit left the player, beside the door (CARFIT: the old spot,
+      // 0.5 m along world +x from the door, can be on the car's far side, and then the walk goes ROUND the car (CARENTRY,
+      // up to 1.5 s), never through it; that case is the extra round below)
+      player.body.pos.x = exitAt.x;
+      player.body.pos.z = exitAt.z;
     }
+    // a start the door cannot be reached from in a straight line: the walk goes round the car, and the player is still in within 1.6 s
+    player.body.pos.x = car.doorPos().x + 0.5;
+    player.body.pos.z = car.doorPos().z;
+    expect(player.tryEnter([car])).toBe(car);
+    sim.run(1.6);
+    expect(player.inVehicle).toBe(true);
+    player.exit();
+    sim.run(0.4);
     expect(Math.hypot(car.body.pos.x - 5, car.body.pos.z - 5)).toBeLessThan(0.05);
     expect(Math.abs(car.body.heading - 1.0)).toBeLessThan(0.01);
   });

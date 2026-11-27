@@ -77,6 +77,26 @@ describe('pinned: sealed in by cars too tall to climb: squeeze out sideways', ()
   });
 });
 
+// CARFIT (27 Nov): switching the backstop off above is honest only because the SAME scenes are also run with it on. With the rescue on, a player
+// pinned in any of these scenes must end clear: either the rescue moved them out, or Jump (pressed once the prompt shows) took them over.
+describe('pinned, with the STUCK rescue switched on: the player always ends clear of every collider', () => {
+  for (const def of ALL_SCENES) {
+    it(def.name, () => {
+      World2D.rescueEnabled = true;
+      try {
+        const s = build(def);
+        prepare(def, s);
+        s.run(PINNED_AFTER + 1.5, def.escapeKeys);
+        s.run(0.05, {}, 0); // Jump, as a player would once the prompt shows (a no-op if the rescue has already freed them)
+        s.run(3.0, {});
+        expect(s.player.isVaulting).toBe(false);
+        expect(s.inside, 'left inside a collider').toBe(false);
+        expect(s.freeRun, 'clear ground').toBeGreaterThanOrEqual(1.5);
+      } finally { World2D.rescueEnabled = false; }
+    });
+  }
+});
+
 describe('the profile comes from the spec at run time', () => {
   it('a sedan hood is vaultable, its cabin is not, a box truck and a bus never are', () => {
     const p = topProfile(VEHICLE_SPECS.sedan)!;

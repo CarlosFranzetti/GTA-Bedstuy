@@ -149,14 +149,14 @@ const BRAKE_APPLY = 7.5;
 const BRAKE_RELEASE = 14;
 const OPPOSE_BRAKE = 0.8;
 const HANDBRAKE_DECEL_FRAC = 0.2;
-const STEER_RATE = 5.6;           // full lock in ~0.18 s at a crawl (keys)
+const STEER_RATE = 4.5;           // CARFIT (owner's pick, between quick 5.6 and weighty 3.4): full lock in ~0.27 s at a crawl (keys)
 const STEER_RATE_SPEED = 30;      // m/s scale on which the key rate falls: at 60 km/h (16.7 m/s) it is still 3.6/s, 0.28 s to lock
 const STEER_RETURN_MULT = 1.0;
 const ANALOG_FOLLOW = 7;
 /** STUCK: a stick (or touch) is followed this fast. Was 7 (90 percent of a stick step in 0.33 s: it felt like a lagging wheel). */
-const ANALOG_FOLLOW_STICK = 11;
+const ANALOG_FOLLOW_STICK = 9.5; // CARFIT: between quick 11 and weighty 8
 /** STUCK: while the brake is hard on (and no handbrake), the yaw rate is held to this share of the calm cap: braking with the wheel turned bends the line, it does not spin the car (hot hatch: 91 degrees by the stop, now about half). */
-const BRAKE_YAW_FRAC = 0.8;
+const BRAKE_YAW_FRAC = 0.72;      // CARFIT: between quick 0.8 and weighty 0.65
 const BRAKE_YAW_FROM = 0.25;
 /** The knobs above that a feel comparison changes (tests/unit/sim/stuck-controls-lib.ts reads and sets them); the defaults are what ships. */
 export const FEEL = { steerRate: STEER_RATE, stickFollow: ANALOG_FOLLOW_STICK, brakeYawFrac: BRAKE_YAW_FRAC };

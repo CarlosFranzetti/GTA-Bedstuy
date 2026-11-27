@@ -3920,3 +3920,9 @@ Done. In the running game 12 cases: before 9 had the lens within the near plane 
 
 ### 2026-11-27T15:33:59Z · Marlowe (CARFIT)
 Starting: reading CARENTRY and STUCK notes.
+
+### 2026-11-27T15:36:04Z · Marlowe (CARFIT)
+Fixed camera-smooth (now asserts a cut) and enter-exit (walk-round start spot). Looking at vault-pinned.
+
+### 2026-11-27T15:38:15Z · Marlowe (CARFIT)
+vault-pinned: now also tests rescue ON. FEEL set to 4.5/9.5/0.72. A stuck-regress discriminating test shifted with the feel; scanning for new trial indices.
