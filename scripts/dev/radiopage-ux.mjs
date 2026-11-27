@@ -19,14 +19,15 @@ await page.evaluate((id) => { const p = window.__radioPage; p.unlockAudio(); p.t
 await page.waitForTimeout(9000);
 await page.screenshot({ path: `${out}/${tag}-1-first-screen.png` });
 await page.screenshot({ path: `${out}/${tag}-2-full.png`, fullPage: true });
-const rep = await page.evaluate(() => {
+const rep = await page.evaluate((ALL) => {
   const vw = innerWidth, small = [];
   for (const e of document.querySelectorAll('button, a, input, select, [role=button], [role=slider], [tabindex]')) {
     const r = e.getBoundingClientRect(); if (r.width === 0 || r.height === 0) continue;
+    if (!ALL && e.checkVisibility && !e.checkVisibility({ contentVisibilityAuto: true, visibilityProperty: true })) continue; // inside a closed <details>
     if (r.width < 44 || r.height < 44) small.push(`${e.tagName.toLowerCase()}${e.id ? '#' + e.id : ''}.${String(e.className).split(' ')[0]} ${Math.round(r.width)}x${Math.round(r.height)} "${(e.textContent || e.getAttribute('aria-label') || '').trim().slice(0, 24)}"`);
   }
   const v = window.__radioPage.view();
   return { overflowX: document.documentElement.scrollWidth > vw, pageHeight: document.documentElement.scrollHeight, viewport: [vw, innerHeight], status: v.status, title: v.title, smallTargets: small.length, small: small.slice(0, 40) };
-});
+}, a.includes('--count-hidden'));
 console.log(JSON.stringify(rep, null, 1));
 await browser.close();

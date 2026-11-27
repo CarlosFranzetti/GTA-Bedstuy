@@ -109,7 +109,7 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
   const wcard = h('section', 'card wide sccard');
   wcard.append(h('h2', '', 'SoundCloud player'));
   wcard.append(h('div', 'widget', '', { id: 'widget' }));
-  wcard.append(h('p', 'note', 'Plays in SoundCloud\'s own player. If sound stays silent, press play in it.'));
+  wcard.append(h('p', 'note', 'Press play in the player if sound stays silent.'));
   const widget = wcard.querySelector('.widget') as HTMLElement;
   const scLink = h('div', 'linkrow');
   wcard.append(scLink);

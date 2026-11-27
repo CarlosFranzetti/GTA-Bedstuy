@@ -232,50 +232,53 @@ details.sec h3 { font-family: var(--label); font-weight: 600; font-size: 16px; m
 /* ===== RADIOUX: phones (JS uses the same 700 px query to move the caption under the status row) ===== */
 @media (max-width: 700px) {
   body { font-size: 16px; padding: 10px max(12px, env(safe-area-inset-right, 0px)) calc(84px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); overflow-x: hidden; }
-  .wrap, #app { gap: 10px; }
+  .wrap, #app { gap: 8px; }
   header { flex-wrap: nowrap; justify-content: space-between; align-items: center; min-height: 44px; }
   h1 { font-size: 24px; } .sub { display: none; }
   .back { display: inline-flex; align-items: center; min-height: 44px; padding: 0 2px 0 12px; font-family: var(--label); font-weight: 700; font-size: 16px; text-transform: uppercase; letter-spacing: .08em; text-decoration: none; }
-  .scene { padding: 34px 6px 6px; }
+  .scene { padding: 24px 6px 6px; }
   .step, .shadow, .feet, .stk, .spk { display: none; }
-  .handle { left: 16%; width: 68%; top: -26px; } .aerial { width: 52px; height: 52px; top: -22px; right: 3%; }
+  .handle { left: 18%; width: 64%; top: -20px; } .aerial { width: 46px; height: 46px; top: -18px; right: 3%; }
   .body { grid-template-columns: 1fr; grid-template-areas: "con"; padding: 8px 22px; border-radius: 16px; gap: 0; }
   .body::before, .body::after { content: ""; position: absolute; top: 14px; bottom: 14px; width: 10px; border-radius: 5px; border: 1px solid #050506; background: repeating-linear-gradient(0deg, #0b0b0d 0 3px, #5a5c64 3px 5px); }
   .body::before { left: 6px; } .body::after { right: 6px; }
   .console { padding: 7px 8px; gap: 6px; border-radius: 12px; }
-  .plate { padding: 0 2px; } .plate b { font-size: 17px; } .plate span { display: none; } .plate .led-pw { margin-left: auto; }
+  .plate { position: absolute; top: 14px; right: 16px; z-index: 2; padding: 0; } .plate b, .plate span { display: none; }
   .display { grid-template-columns: 74px 1fr; padding: 8px 10px 5px; min-height: 0; gap: 0 10px; }
   .emb-big { width: 74px; height: 74px; }
   .freq { font-size: 34px; } .stn { font-size: 20px; } .np { font-size: 16px; } .meta { font-size: 14px; }
-  .vis { height: 20px; margin-top: 2px; gap: 2px; } .vlabel { font-size: 11px; }
+  .vis { height: 20px; margin-top: 2px; gap: 2px; } .vlabel { position: absolute; top: 6px; right: 10px; grid-column: auto; font-size: 10px; }
   .strip { padding: 6px 10px 3px; touch-action: pan-y; }
-  .scale { height: 64px; }
+  .scale { height: 70px; }
   .mk { pointer-events: none; } .mk::before { display: none; }
-  .mk.r0 { top: 0; } .mk.r1 { top: 15px; } .mk.r2 { top: 30px; } .mk { width: 15px; height: 15px; margin-left: -7px; }
+  .mk.r0 { top: 0; } .mk.r1 { top: 14px; } .mk.r2 { top: 28px; } .mk { width: 15px; height: 15px; margin-left: -7px; }
   .liveEnd { font-size: 11px; }
   .knobs { gap: 6px; padding: 0 2px; }
   .knob { width: 50px; height: 50px; } .knob.tune { width: 54px; height: 54px; }
   .kn label { font-size: 11px; } .leds { font-size: 11px; gap: 3px 8px; }
   .keys { gap: 4px; }
   .key { min-height: 56px; padding: 4px 1px; border-width: 2px; } .key span { font-size: 15px; letter-spacing: .02em; } .key svg { width: 20px; height: 20px; }
-  .ctlrow .status { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 4px; padding: 10px 12px; }
+  .ctlrow .status { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 2px; padding: 7px 12px; }
+  .status b { line-height: 1.1; } .status .reason:empty { display: none; }
   .status b { font-size: 19px; }
   .reason { flex: none; font-size: 15px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .stbtns { flex-direction: column; } .stbtns button { width: 100%; }
   .big { min-height: 56px; font-size: 20px; text-align: center; letter-spacing: .06em; text-transform: uppercase; }
   .status[data-level="tap"] { background: #2a1d08; border-color: var(--amber); border-width: 2px; border-left-width: 6px; }
-  .caption { min-height: 64px; padding: 6px 12px; border-radius: 8px; }
+  .caption { min-height: 56px; padding: 6px 12px; border-radius: 8px; }
   .cap-idle { font-size: 16px; } .cap-text { font-size: 19px; } .cap-who { font-size: 16px; } .cap-head { margin-bottom: 2px; }
   .card { padding: 8px 10px; } .card h2 { margin-bottom: 6px; font-size: 15px; }
+  .sccard > h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); margin: 0; }
   .sccard .widget { margin-top: 0; min-height: 0; } .widget iframe { width: 100% !important; height: 132px !important; display: block; }
   .sccard .note { margin: 4px 0 0; font-size: 14px; }
+  .sccard { position: relative; }
   .dial { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .preset { min-height: 60px; padding: 5px 8px 5px 5px; gap: 8px; } .preset .pe { width: 44px; height: 44px; } .preset .n { font-size: 16px; }
   .cols { grid-template-columns: 1fr; }
   details.st summary { min-height: 48px; align-items: center; }
-  .note a, ol.mixes a, details.st li a, .secbody li a { display: inline-block; padding: 12px 2px; word-break: break-word; }
+  .note a, details.st li a, .secbody li a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 2px; word-break: break-word; }
   ol.mixes { padding-left: 26px; } ol.mixes li { margin: 0; }
-  ol.mixes li a { display: block; padding: 11px 0 2px; } ol.mixes li .dim { display: block; padding-bottom: 8px; font-size: 14px; }
+  ol.mixes li a { display: flex; align-items: center; min-height: 44px; padding: 4px 0; } ol.mixes li .dim { display: block; padding-bottom: 6px; font-size: 14px; }
   .clear { min-width: 88px; }
   .mini { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; align-items: center; gap: 8px; padding: 8px max(12px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); background: #1d1a1e; border-top: 2px solid #000; box-shadow: 0 -6px 18px rgba(0,0,0,.55); transition: transform .25s, visibility 0s; }
   .mini.tucked { transform: translateY(100%); visibility: hidden; transition: transform .25s, visibility 0s .25s; }

@@ -216,3 +216,31 @@ speaker, not a different voice.
 * Dropouts caused by a busy main thread (items 4 and 11) are mitigations, not proven fixes.
 * The street scene uses a synthetic radio track and three baked speech clips; the ped speech did not go through the `street` fx bank.
 * Tests: `npx vitest run tests/unit/audio` and `npx tsc --noEmit` (see the final report).
+
+## 5. Stutter, again (27 Nov, the lead)
+
+The owner still hears the engine stutter after the 22 Nov fixes. Checked and ruled out on 27 Nov: the engine simulation in a straight
+full-throttle run and a tapped-throttle cruise for all 46 car types (no limiter bounce, no gear hunting; only `beater` and `dollarvan`
+misfire, by design). New suspect, fixed: the game writes engine state once per DRAWN frame (several fixed steps in one frame all land
+on the same audio time), and pitch was smoothed with a 30 ms time constant. Slow or uneven frames turn a rising note into a staircase,
+and a 150 ms hitch into a hold and a jump. The earlier offline checks stepped at a steady 57 updates a second and could not see it.
+
+Fix: `glide()` in `src/audio/vehicle/nodes.ts` draws a straight line from where the pitch is to the new value over a little more
+than the measured gap between frames, aimed slightly ahead along the trend. It keeps its own account of the line (a first version
+used `cancelAndHoldAtTime`, which returned half the value now and then in Chromium when the hold fell on a ramp's end).
+
+Measured with `scripts/dev/engine-glide-check.mjs` (real classes, offline render in Chromium, sedan, full throttle; flutter = cents
+away from the note's own 60 ms average, by autocorrelation; gear changes are in the number, so it is not zero when perfect):
+
+| frames | old peak / rms cents | new peak / rms cents |
+| --- | --- | --- |
+| 60 a second | 17.9 / 4.07 | 32.8 / 5.38 |
+| 30 a second | 16.0 / 4.21 | 26.1 / 5.69 |
+| 20 a second | 16.0 / 4.38 | 26.0 / 5.34 |
+| 45 with 150 ms hitches | 284.1 / 13.81 | 42.1 / 6.02 |
+
+Reading: across hitches the note is far steadier. At steady rates this metric is slightly HIGHER with the fix; the lead believes that
+is the gear changes being followed more sharply (less lag), but has not separated the two. Largest sample step unchanged (no clicks).
+NOT HEARD by anyone here. If the owner still hears it, the next things to try are listed by cost: record 20 seconds of the game's
+output on his machine; lower the number of engine partials on slow frames; move the engine to an AudioWorklet that runs the
+simulation on the audio thread.
