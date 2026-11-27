@@ -290,5 +290,7 @@ details.sec h3 { font-family: var(--label); font-weight: 600; font-size: 16px; m
   .mb svg { width: 22px; height: 22px; } .mb-play { background: var(--amber); color: #1a1205; border-color: var(--amber); }
   .mb-play:hover:not(:disabled) { background: #ffc468; } .mb-play.attn { background: #7fd18b; border-color: #7fd18b; }
 }
+@media (min-width: 701px) and (max-width: 900px) { .body { grid-template-columns: .55fr 1.7fr .55fr; } .stk { display: none; } .display { grid-template-columns: 80px 1fr; } .emb-big { width: 80px; height: 80px; } .freq { font-size: 34px; } }
+@media (max-width: 380px) { .display { grid-template-columns: 60px 1fr; } .emb-big { width: 60px; height: 60px; } .np { font-size: 15px; } .meta { font-size: 13px; } .freq { font-size: 30px; } .stn { font-size: 18px; } }
 @media (max-width: 360px) { .key span { font-size: 14px; } .freq { font-size: 30px; } .mini-em { display: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } .cone, .tw { transform: none; } }

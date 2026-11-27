@@ -368,3 +368,95 @@ describe('BOOMBOX: captions and log', () => {
     page.dispose();
   });
 });
+
+describe('RADIOUX: phone layout', () => {
+  const mountPhone = (phone = true) => {
+    const s = setup();
+    const root = document.createElement('div'); document.body.appendChild(root);
+    const off = mount(root, s.page, { reduced: true, raf: false, phone });
+    return { ...s, root, off };
+  };
+  it('has a mini player whose buttons call the same actions', () => {
+    const { page, root, off } = mountPhone();
+    const btn = (k: string) => root.querySelector(`.mini [data-mini="${k}"]`) as HTMLButtonElement;
+    expect(btn('prev')).toBeTruthy(); expect(btn('play')).toBeTruthy(); expect(btn('next')).toBeTruthy();
+    expect(root.querySelector('.mini .mini-em svg')).toBeTruthy();
+    expect(page.isOn).toBe(false);
+    btn('play').click();
+    expect(page.isOn).toBe(true);
+    const first = page.currentId;
+    btn('next').click();
+    expect(page.currentId).not.toBe(first);
+    btn('prev').click();
+    expect(page.currentId).toBe(first);
+    btn('play').click();
+    expect(page.isOn).toBe(false);
+    off(); page.dispose();
+  });
+  it('a tile tap tunes AND plays', () => {
+    const { page, root, off } = mountPhone();
+    expect(page.isOn).toBe(false);
+    (root.querySelector('button.preset[data-id="talk"]') as HTMLButtonElement).click();
+    expect(page.isOn).toBe(true);
+    expect(page.currentId).toBe('talk');
+    off(); page.dispose();
+  });
+  it('the SoundCloud card shows for SoundCloud stations only; the others get a one-line note', () => {
+    const { page, root, off } = mountPhone();
+    const card = root.querySelector('.sccard') as HTMLElement, line = root.querySelector('.scline') as HTMLElement;
+    page.tune('bkhouse');
+    expect(card.hidden).toBe(false); expect(line.hidden).toBe(true);
+    for (const id of ['talk', 'groupchat', 'wnyc']) { page.tune(id); expect(card.hidden).toBe(true); expect(line.hidden).toBe(false); expect(line.textContent!.length).toBeGreaterThan(10); }
+    off(); page.dispose();
+  });
+  it('has the five collapsible sections with 48 px summaries rules, closed except a log with entries', () => {
+    const { page, root, off } = mountPhone();
+    const secs = Array.from(root.querySelectorAll('details.sec')) as HTMLDetailsElement[];
+    expect(secs.map((d) => d.querySelector('summary')!.textContent)).toEqual(['Set timeline', 'What was said', 'About this station and its mixes', 'What is on each station', 'Settings']);
+    expect(secs.every((d) => !d.open)).toBe(true);
+    page.noteLine({ who: 'Pell', text: 'Hello.', kind: 'talk', parodyOf: '', stationId: 'talk', station: 'WBSY Talk' });
+    expect((root.querySelector('details.sec-log') as HTMLDetailsElement).open).toBe(true);
+    expect((root.querySelector('details.sec-tl') as HTMLDetailsElement).open).toBe(false);
+    off(); page.dispose();
+  });
+  it('the strip marks are decoration: no buttons, no tab stops, no focus; swiping steps one station', async () => {
+    const { page, root, off } = mountPhone();
+    const marks = Array.from(root.querySelectorAll('.mk'));
+    expect(marks.length).toBe(17);
+    for (const m of marks) { expect(m.tagName).not.toBe('BUTTON'); expect(m.hasAttribute('tabindex')).toBe(false); expect(m.getAttribute('aria-hidden')).toBe('true'); }
+    expect(root.querySelectorAll('.scale button, .scale [tabindex]').length).toBe(0);
+    page.tune('bkhouse');
+    const from = page.currentId;
+    const strip = root.querySelector('.strip') as HTMLElement;
+    const ev = (type: string, x: number) => { const e = new Event(type, { bubbles: true }) as Event & Record<string, unknown>; Object.assign(e, { pointerType: 'touch', pointerId: 1, clientX: x, clientY: 100 }); strip.dispatchEvent(e); };
+    ev('pointerdown', 200); ev('pointermove', 150); ev('pointerup', 150);
+    await new Promise((r) => setTimeout(r, 350));
+    expect(from).toBe('bkhouse');
+    expect(page.currentId).not.toBe(from);
+    off(); page.dispose();
+  });
+  it('on a phone a tap on a mark does nothing; on a desktop it tunes', () => {
+    for (const phone of [true, false]) {
+      const { page, root, off } = mountPhone(phone);
+      (root.querySelector('.mk[data-id="talk"]') as HTMLElement).click();
+      expect(page.isOn).toBe(!phone);
+      off(); page.dispose();
+    }
+  });
+  it('the caption sits under the status row on a phone and inside the boombox on a desktop', () => {
+    const a = mountPhone(true);
+    expect((a.root.querySelector('.caption') as HTMLElement).parentElement).toBe(a.root);
+    a.off(); a.page.dispose();
+    const b = mountPhone(false);
+    expect((b.root.querySelector('.caption') as HTMLElement).parentElement!.classList.contains('body')).toBe(true);
+    b.off(); b.page.dispose();
+  });
+  it('the volume range and the status button are wired', () => {
+    const { page, root, off } = mountPhone();
+    const r = root.querySelector('input[type="range"]') as HTMLInputElement;
+    r.value = '30'; r.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(page.volume).toBeCloseTo(0.3, 5);
+    expect(root.querySelector('.status button.go')!.textContent).toBe('Tap to start sound');
+    off(); page.dispose();
+  });
+});
