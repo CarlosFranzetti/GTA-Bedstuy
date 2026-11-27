@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>sceneui sheet</title>
+<style>html,body{margin:0;height:100%;background:#2b2f36;font-family:system-ui,sans-serif;color:#ddd}
+.grid{display:grid;grid-template-columns:860px 390px;gap:12px;padding:12px;width:max-content}
+.cell{position:relative}.cell h4{margin:0 0 4px;font:600 12px system-ui;opacity:.7}
+iframe{border:0;display:block;background:#444;border-radius:6px}
+/* the stand-in street behind each card */
+body.inner{background:linear-gradient(#8d9fb4,#a69c8a 55%,#59595c 55%,#3a3a3d)}
+</style></head>
+<body>
+<script type="module">
+// SCENEUI: the scene card and the thrift rack on a standalone page (no WebGL). ?mode=scene|rack|date|ending|sheet, &sz=desktop|phone.
+import '/src/ui/type.css';
+import { SceneCard } from '/src/ui/story/SceneCard.ts';
+import { RackPanel } from '/src/ui/story/RackPanel.ts';
+import { FlyerPrompt } from '/src/ui/story/FlyerPrompt.ts';
+import { FightScene, DateScene } from '/src/game/story/scenes.ts';
+import { FIGHT_CLEM } from '/src/game/story/fights.ts';
+import { DATE_MARGO } from '/src/game/story/dateScripts.ts';
+import { DateSession } from '/src/game/story/dates.ts';
+import { Nightlife } from '/src/game/story/nightlife.ts';
+const q = new URLSearchParams(location.search);
+const mode = q.get('mode') ?? 'sheet';
+if (mode === 'sheet') {
+  const g = document.createElement('div'); g.className = 'grid'; document.body.appendChild(g);
+  const cell = (label, m, w, h) => { const c = document.createElement('div'); c.className = 'cell'; c.innerHTML = `<h4>${label}</h4>`; const f = document.createElement('iframe'); f.src = `?mode=${m}`; f.width = w; f.height = h; c.appendChild(f); g.appendChild(c); };
+  cell('Scene card, desktop (Clem talk-down, calm and tension)', 'scene', 860, 440); cell('Scene card, 390 px', 'scene', 390, 440);
+  cell('Thrift rack, desktop', 'rack', 860, 440); cell('Thrift rack, 390 px', 'rack', 390, 440);
+  cell('Date, liking meter, desktop', 'date', 860, 300); cell('Warm date: a dark cut, 390 px', 'ending', 390, 300);
+  window.__ready = new Promise((res) => { let n = 0; for (const f of document.querySelectorAll('iframe')) f.addEventListener('load', () => { if (++n === 6) setTimeout(res, 1200); }); });
+} else {
+  document.body.classList.add('inner');
+  const host = { canPay: () => true, pay: () => {}, hasFlag: (f) => f === 'pico.sleeveCredit' };
+  const src = { scene: null, choose(n) { this.scene?.choose(n); } };
+  const card = new SceneCard(document.body, src, { pads: () => [] });
+  if (mode === 'scene') {
+    const s = new FightScene('clem', FIGHT_CLEM, host); src.scene = s; s.choose(1); s.tick(2.5); card.update(0);
+  } else if (mode === 'date') {
+    const s = new DateScene('d', new DateSession(DATE_MARGO, 2, true)); src.scene = s; s.choose(1); card.update(0);
+  } else if (mode === 'ending') {
+    const s = new DateScene('d', new DateSession(DATE_MARGO, 99, true)); for (let i = 0; i < 12 && !s.result; i++) s.choose(1);
+    card.showEnding(s.frame()); card.update(0);
+  } else if (mode === 'rack') {
+    const nl = new Nightlife(); const w = { v: 120 };
+    const rack = new RackPanel(document.body, nl, { canPay: (n) => w.v >= n, pay: (n) => { w.v += n; }, cash: () => w.v });
+    rack.openRack('rack-a', 50);
+    const av = nl.racks.get('rack-a').available; rack.buy(av[0].id); rack.buy(av[2].id);
+  }
+}
+</script></body></html>

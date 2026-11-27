@@ -44,13 +44,13 @@ for (const type of types) for (const seed of seeds) {
   const H = sp.height, L = sp.length;
   const shots = [
     // from the driver's seat: head at the wheel's x, a little behind the wheel, looking forward and slightly down at the dash
-    () => { cam.fov = 72; cam.position.set(c ? c.wheelX : -0.35, c ? c.seatY + 0.5 : H * 0.7, c ? c.wheelZ + 0.45 : 0); cam.lookAt(c ? c.wheelX * 0.3 : 0, c ? c.dashY - 0.12 : H * 0.6, c ? c.dashZ - 1.5 : -3); },
+    () => { cam.fov = 78; cam.position.set(c ? c.wheelX : -0.35, c ? c.seatY + 0.6 : H * 0.7, c ? c.seatZ - 0.02 : 0); cam.lookAt(c ? c.wheelX * 0.3 : 0, c ? c.dashY - 0.12 : H * 0.6, c ? c.dashZ - 1.5 : -3); },
     // behind and above: roughly the chase camera looking down through the rear glass
     () => { cam.fov = 48; cam.position.set(0.5, H + 0.55, L * 0.5 + 1.1); cam.lookAt(0, H * 0.62, -L * 0.2); },
     // in front, above the bonnet, looking back through the windscreen
     () => { cam.fov = 48; cam.position.set(0.9, H + 0.6, -(L * 0.5 + 0.9)); cam.lookAt(0, H * 0.62, 0); },
     // x-ray: body, glass and hood hidden, so the cabin parts show; from behind and above, three-quarter
-    () => { cam.fov = 44; const hide = []; m.group.traverse((o) => { if (o.isMesh && ['body', 'glass', 'hood', 'cargo'].includes(o.name)) { hide.push(o); o.visible = false; } }); window.__hide = hide; cam.position.set(1.3, H + 1.0, (c ? c.seatZ : 0) + 2.3); cam.lookAt(0, (c ? c.seatY : 0.8) + 0.3, (c ? c.dashZ : -1) + 0.9); },
+    () => { cam.fov = 44; const hide = []; m.group.traverse((o) => { if (o.isMesh && ['body', 'glass', 'hood', 'cargo'].includes(o.name)) { hide.push(o); o.visible = false; } }); window.__hide = hide; cam.position.set(1.15, H + 0.75, (c ? c.seatZ : 0) + 2.0); cam.lookAt(0, (c ? c.seatY : 0.8) + 0.3, (c ? c.dashZ : -1) + 0.9); },
   ];
   shots.forEach((fn, i) => {
     fn(); cam.updateProjectionMatrix();

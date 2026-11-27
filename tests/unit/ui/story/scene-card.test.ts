@@ -99,7 +99,6 @@ describe('SceneCard', () => {
   it('shows the closing line after the bridge ended the scene, until a key or the time is up', () => {
     const src = new Src(); const c = make(src, { endingSeconds: 3 });
     const s = new DateScene('d', new DateSession(DATE_MARGO, 6, true)); src.scene = s; c.update(0);
-    const warm = s.session.script.beats ? 0 : 0; void warm;
     // play the date to its end with the first reply each time
     for (let i = 0; i < 12 && !s.result; i++) s.choose(1);
     const f = s.frame();

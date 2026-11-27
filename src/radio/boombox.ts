@@ -10,8 +10,8 @@ const KEY_ICONS: Record<string, string> = {
   set: '<path d="M4 7h12l-3-3M20 17H8l3 3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
   off: '<path d="M12 3v9M6.5 7a8 8 0 1 0 11 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
 };
-const key = (id: string, label: string, icon: string, extra = ''): string =>
-  `<button type="button" class="key ${extra}" data-key="${id}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${KEY_ICONS[icon]}</svg><span>${label}</span></button>`;
+const key = (id: string, label: string, icon: string, extra = '', aria = ''): string =>
+  `<button type="button" class="key ${extra}" data-key="${id}"${aria ? ` aria-label="${aria}"` : ''}><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${KEY_ICONS[icon]}</svg><span>${label}</span></button>`;
 
 function speaker(side: 'l' | 'r'): string {
   const s = side;
@@ -44,7 +44,8 @@ const STICKERS_R = `
 export function boomboxHtml(marks: DialMark[], names: Record<string, string>): string {
   const ticks = dialTicks().map((t) => `<span class="tk${t.major ? ' mj' : ''}" style="left:${(t.pos * 100).toFixed(2)}%">${t.label ? `<em>${t.label}</em>` : ''}</span>`).join('');
   const order = stripOrder(marks);
-  const mk = marks.map((m) => `<button type="button" class="mk r${order.indexOf(m.id) % 3}" tabindex="-1" aria-hidden="true" data-id="${m.id}" title="${names[m.id] ?? m.id}" style="left:${(m.pos * 100).toFixed(2)}%">${emblemSvg(m.id)}</button>`).join('');
+  /* RADIOUX: the marks are decoration, not buttons: no tab stop, no focus. On a desktop the strip's click handler tunes by mark; on a phone they take no pointer. */
+  const mk = marks.map((m) => `<span class="mk r${order.indexOf(m.id) % 3}" aria-hidden="true" data-id="${m.id}" title="${names[m.id] ?? m.id}" style="left:${(m.pos * 100).toFixed(2)}%">${emblemSvg(m.id)}</span>`).join('');
   return `<div class="scene"><div class="lamp" aria-hidden="true"></div>
 <div class="bb" role="group" aria-label="Boombox radio">
 <svg class="handle" viewBox="0 0 600 70" aria-hidden="true" focusable="false"><path d="M30 68V40Q30 10 70 10H530Q570 10 570 40V68" fill="none" stroke="#0b0b0c" stroke-width="22" stroke-linecap="round"/><path d="M30 68V40Q30 10 70 10H530Q570 10 570 40V68" fill="none" stroke="#4c4e55" stroke-width="12" stroke-linecap="round"/><path d="M70 6H530" stroke="#bfc3ca" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/></svg>
@@ -70,7 +71,7 @@ ${speaker('l')}
 <div class="leds" data-slot="leds"><span data-led="sc"><i></i>SC</span><span data-led="live"><i></i>STREAM</span><span data-led="talk"><i></i>TALK</span><span data-led="air"><i></i>ON AIR</span></div>
 <div class="kn"><div class="knob tune" data-slot="tune" role="slider" tabindex="0" aria-label="Tuning" aria-valuemin="0" aria-valuemax="100"><div class="cap"></div></div><label>TUNING</label></div>
 </div>
-<div class="keys">${key('prev', 'Previous', 'prev')}${key('play', 'Tune in', 'play', 'wide')}${key('next', 'Next', 'next')}${key('set', 'Next set', 'set')}${key('off', 'Off', 'off')}</div>
+<div class="keys">${key('prev', 'Prev', 'prev', '', 'Previous station')}${key('play', 'Play', 'play', 'wide')}${key('next', 'Next', 'next', '', 'Next station')}${key('set', 'New set', 'set', '', 'Next set')}${key('off', 'Off', 'off', '', 'Radio off')}</div>
 </div>
 ${speaker('r')}
 <section class="caption" aria-label="Announcer caption" aria-live="polite"><p class="cap-idle">The announcer's and the hosts' lines show up here.</p><div class="cap-live"><div class="cap-head"><b class="cap-who"></b><span class="cap-kind"></span><span class="cap-tag" hidden>PARODY</span></div><p class="cap-text"></p></div></section>

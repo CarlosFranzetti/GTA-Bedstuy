@@ -157,7 +157,7 @@ export class SceneCard {
     this.line.textContent = f.line;
     this.root.setAttribute('aria-label', f.who);
     this.meters.replaceChildren(...(f.meters ?? []).map((m) => this.meterEl(m)));
-    this.meters.hidden = !f.meters?.length;
+    this.meters.hidden = !f.meters?.length || !!f.cut;
     const d = this.doc;
     this.opts.replaceChildren(...f.options.map((o, i) => {
       const b = d.createElement('button');

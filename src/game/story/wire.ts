@@ -113,7 +113,7 @@ export function wireStory(host: StoryWireHost): StoryWire {
     },
     interact(): boolean { return flyer.press() !== null; },
     onSetFinished: (e) => bridge.onSetFinished(e),
-    reload(): void { nl.loadFrom(host.missions.story); },
+    reload(): void { if (!nl.loadFrom(host.missions.story)) nl.restore(new Nightlife().serialize()); /* a reset or a save without the story block: new-game state */ },
     fighterDown(): void { (bridge.scene as FightScene | null)?.fighterDown?.(); },
     playerDown(): void { (bridge.scene as FightScene | null)?.playerDown?.(); },
     dispose(): void { card.dispose(); rack.dispose(); flyer.dispose(); bridge.dispose(); },
