@@ -228,7 +228,7 @@ export interface ScStationDef {
 const kw = (alts: string): RegExp => new RegExp(`(?:^|[^a-z0-9])(?:${alts})(?:$|[^a-z0-9])`, 'i');
 
 /** Dial text for the announcers, per SoundCloud station id. */
-const SC_FREQ: Record<ScStationId, string> = {
+export const SC_FREQ: Record<ScStationId, string> = {
   bkhouse: 'ninety point nine', dublab: 'ninety one point seven', hiphop: 'ninety three point five', boogie: 'ninety five point three',
   weird: 'ninety seven point one', yard: 'ninety eight point nine', flashback: 'ninety-nine point one', latin: 'one hundred and two point three', sc: 'one hundred point one',
 };

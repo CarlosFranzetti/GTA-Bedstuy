@@ -186,6 +186,8 @@ export interface ScEnv {
   /** Random DJ sets from ra-nyc; null disables the pool. */
   feed: RaFeed | null;
   random: () => number;
+  /** RADIOPAGE: where the station's real player frame lives and how it looks. Absent = the game: a hidden frame in document.body. The /radio page shows the player in the page, as SoundCloud's terms expect. */
+  widgetHost?: { el: HTMLElement; css: string };
 }
 
 function defaultLoadApi(): Promise<ScApi> {
@@ -586,14 +588,14 @@ export class ScStation {
 
   /** Shows the real SoundCloud player in a corner so its own play button can be tapped. */
   private exposeWidget(): void {
-    if (!this.frame || this.exposed) return;
+    if (!this.frame || this.exposed || this.env.widgetHost) return;
     this.exposed = true;
     this.frame.style.cssText = 'position:fixed;left:8px;bottom:8px;width:min(300px,calc(100vw - 16px));height:120px;border:0;opacity:1;z-index:2147483000;pointer-events:auto;border-radius:6px;';
     this.frame.setAttribute('aria-hidden', 'false');
     this.frame.tabIndex = 0;
   }
   private hideWidget(): void {
-    if (!this.frame || !this.exposed) return;
+    if (!this.frame || !this.exposed || this.env.widgetHost) return;
     this.exposed = false;
     this.frame.style.cssText = HIDDEN_CSS;
     this.frame.setAttribute('aria-hidden', 'true');
@@ -775,7 +777,7 @@ export class ScStation {
       if (!this.picked) this.pickNext(true);
       const url = this.currentUrl();
       if (!url || !this.hasSources) { this.state = 'idle'; this.noSourceAt = this.env.now(); this.listeners.forEach((fn) => fn()); return; }
-      const frame = this.makeFrame(doc, widgetSrc(url));
+      const frame = this.makeFrame(doc, widgetSrc(url), this.env.widgetHost);
       this.frame = frame;
       this.loadedUrl = url;
       const widget = api.Widget(frame);
@@ -827,8 +829,17 @@ export class ScStation {
     this.play_ = 'idle';
   }
 
-  private makeFrame(doc: Document, src: string): HTMLIFrameElement {
+  private makeFrame(doc: Document, src: string, host?: { el: HTMLElement; css: string }): HTMLIFrameElement {
     const f = doc.createElement('iframe');
+    if (host) {
+      f.src = src;
+      f.title = `SoundCloud player (${this.id})`;
+      f.dataset.station = this.id;
+      f.setAttribute('allow', 'autoplay; encrypted-media');
+      f.style.cssText = host.css;
+      host.el.appendChild(f);
+      return f;
+    }
     f.src = src;
     f.title = 'SoundCloud player (hidden)';
     f.setAttribute('allow', 'autoplay; encrypted-media');

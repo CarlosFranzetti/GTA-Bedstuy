@@ -3851,3 +3851,6 @@ Done. Cast data, Pedro as player, placement, switching, tests (29 green) and lin
 
 ### 2026-11-24T02:19:56Z · Imogen (RADIO4)
 Done: scheduler, 162 lines, announcer djMention, director wiring, 30 tests, audio folder 615 green. Notes in docs/swarm/tasks/RADIO4.md.
+
+### 2026-11-27T00:14:47Z · Nell Barrow (TALK3)
+TALK3 started: new skits for both talk stations (shuffled rotation, owner's new targets), hosts for the live stations, a station-by-station URL check. Notes in docs/swarm/tasks/TALK3.md.
