@@ -28,7 +28,7 @@ export {
 export function buildMissions(grid: GridModel, data: BedstuyData, lots?: readonly Lot[], features: StoryFeatures = detectStoryFeatures(grid, data)): MissionDef[] {
   const ctx: PlaceCtx = { grid, data, lots };
   const acts = storyActs(ctx, features);
-  return [
+  const base: MissionDef[] = [
     bodegaRun(ctx), laundromatGetaway(ctx), blockParty(ctx),
     ...acts.act1,
     crateDigger(), openDecks(ctx), thePassword(ctx), afterslothResidency(ctx),
@@ -38,6 +38,6 @@ export function buildMissions(grid: GridModel, data: BedstuyData, lots?: readonl
     ...acts.extras,
     // LEAD, 27 Nov: the Pedro Martinez story, Act 1 (docs/story/ARC.md), was cut off by the usage limit part way. It stays out of the shipped
     // mission list until it is finished, wired (`setPicoHome`, the StoryBridge) and seen in the running game.
-    ...(PEDRO_STORY_ON ? picoAct1(ctx) : []),
   ];
+  return PEDRO_STORY_ON ? [...base, ...picoAct1(ctx, base)] : base;
 }

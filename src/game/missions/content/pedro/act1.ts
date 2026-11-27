@@ -226,6 +226,22 @@ export function picoWarmUpSlot(c: PlaceCtx): MissionDef {
   };
 }
 
-export function picoAct1(c: PlaceCtx): MissionDef[] {
-  return [picoRentMoney(c), picoLunesNight(c), picoPaperTheWalls(c), picoClemsCorner(c), picoSizeMedium(c), picoSecondWind(c), picoNotADate(c), picoWarmUpSlot(c)];
+/**
+ * The eight missions. `others` are the missions already in the game: a giver ring that lands on (or within a few metres of) one of
+ * theirs, or on another Pedro ring, is walked away along a fixed spiral until it is clear. The placeholder positions share
+ * sidewalks with existing places, and on the real map `offset` snaps to the same sidewalk, so clearance is checked on the built values.
+ */
+export function picoAct1(c: PlaceCtx, others: readonly Pick<MissionDef, 'giver' | 'triggerRadius'>[] = []): MissionDef[] {
+  const out = [picoRentMoney(c), picoLunesNight(c), picoPaperTheWalls(c), picoClemsCorner(c), picoSizeMedium(c), picoSecondWind(c), picoNotADate(c), picoWarmUpSlot(c)];
+  const taken: Array<Pick<MissionDef, 'giver' | 'triggerRadius'>> = [...others];
+  const STEPS: Array<[number, number]> = [[12, 0], [0, 12], [-12, 0], [0, -12], [18, 12], [-18, 12], [18, -12], [-18, -12], [26, 0], [0, 26], [-26, 0], [0, -26]];
+  for (const d of out) {
+    const base = d.giver;
+    const clear = (p: Vec2): boolean => taken.every((t) => Math.hypot(p.x - t.giver.x, p.z - t.giver.z) > d.triggerRadius + t.triggerRadius + 3 && Math.hypot(p.x - t.giver.x, p.z - t.giver.z) > 12);
+    let p = base;
+    for (let k = 0; k < STEPS.length && !clear(p); k++) p = offset(base, STEPS[k][0], STEPS[k][1]);
+    d.giver = p;
+    taken.push(d);
+  }
+  return out;
 }

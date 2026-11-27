@@ -430,3 +430,7 @@ The five fixed names keep CAST's ids; correct these notes to match section 4:
 - `akira`: 44, Japanese-American former pro boxer who owns Second Wind Boxing Club (not a booking agent or label man):
   compact and strong, a flattened nose, a gym hoodie, wraps on his hands. Body "athletic" or "wiry", not "ecto".
 - `pedro`: kept as CAST made him (lean, mustard bomber, record bag), age 31.
+
+Names added by the mission pages, also not checked: records "Cumbia del Malecón", "Salsa Para Lavar Platos", "Brooklyn
+Lights"; bands Los Hermanos Arenal, Orquesta La Plancha, The Fulton Street Ensemble; extras Ms. Viola (gym), Doña Carmen
+(Sabor a Lunes); Bluebird Movers; Plush's job titles (Head of Retention and so on, generic).

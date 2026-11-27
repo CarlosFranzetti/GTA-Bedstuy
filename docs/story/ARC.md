@@ -67,7 +67,7 @@ rounds for Stavros (repeatable after 3), Lana's flips (after 5), the gym (after 
 | 3 | `pico-brooklyn-lights` | Brooklyn Lights | Pedro | Clem's Corner, WAX DELI, park | Earn Clem's yes: find the sleeve, find Hollis, find Clem's old bass at a pawn shop (pay); if `pico.clem.fought`, an apology mission first | Clem plays the opening night | 1 |
 | 4 | `pico-permit` | Permit to Dance | Adele | Ironside Station House, Auntie G's stoop | A street-party permit by the book: signatures from 12 neighbours (spots), Sgt. Kowalski's form, a generator from the hospital's old stock | The block says yes | 1 |
 | 5 | `pico-fight-night` | Fight Night | Pedro | Second Wind (`gym:ring`) | Akira's fundraiser against FORMWORK's lease: one sanctioned three-round bout (the only fight the story ASKS for, gloves, a referee) and Pedro DJs the walk-outs | The gym is safe for a year | 1 |
-| 6 | `pico-investor-relations` | Investor Relations | Lana | Tincture & Ledger, Kyle's open house | Lana's leverage: MOTH ledger + Stavros's papers; a reply picker with Kyle; his one human moment | Kyle releases Stavros or is exposed (by path) | 2, A2-8 |
+| 6 | `pico-investor-relations` | Investor Relations | Lana | Tincture & Ledger, Kyle's open house | Lana's leverage: MOTH ledger + Stavros's papers; Kyle's open house has hired security ("Head of Guest Experience"), and if the talk fails it is a gunfight Pedro and Lana fight through (switch at will); a reply picker with Kyle on the roof; his one human moment | Kyle releases Stavros or is exposed (by path) | 2, A2-8 |
 | 7 | `pico-stavros-chooses` | Stavros Chooses | Pedro | Mothhouse, Stavros's yard | Stavros: lend the Huracán his last speakers or sell them to Kyle; what he chooses depends on Act 2 flags | Sound for the finale | 6 |
 | 8 | `pico-huracan` | El Huracán | Pedro, Lana, Adele (switch at will) | The street beside The Milk Run, the whole block | The finale: Adele runs the street (hurt people, police), Lana the line and the look, Pedro a 6-minute set with Clem on bass; the crowd meter is the whole block | The ending (three variations by flags); free roam after with all three | 3, 4, 5, 7 |
 
@@ -88,6 +88,6 @@ Sunday on Rebolo's corner, by phone video).
 
 ## What is written in full and what is outline
 
-- Full scene, objectives, fails, rewards and dialogue: all eight Act 1 missions (`missions/ACT1-01` to `ACT1-08`).
-- Act 2: see `missions/` for the ones written in full; the rest are the rows above.
-- Act 3: outline only (this table).
+- Full scene, objectives, fails, rewards and dialogue: all eight Act 1 missions (`missions/ACT1-01` to `ACT1-08`) and all
+  eight Act 2 missions (`missions/ACT2-01` to `ACT2-08`).
+- Act 3: outline only (the table above).

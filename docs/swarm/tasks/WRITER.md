@@ -15,3 +15,4 @@ Decisions taken (the lead can overrule):
 Progress log below.
 - 02:18 BIBLE, ARC, ACT1-01..07 written.
 - 27 Nov: back after the limit. BIBLE section 9 (CAST placeholders renamed), ACT2-03, ACT2-04 written.
+- 27 Nov: ACT2-05..08 written; ARC status updated. Remaining: Act 3 pages (outline only).

@@ -122,8 +122,8 @@ talked, the close:
 
 - Kyle: (laughs too long) Okay. Okay! He's got teeth. I love teeth. I'm going to go.
 - Kyle: Stavros, we'll talk about Fridays. Later. Much later.
-- Investor (Passer-by): Forty cents. I put my kid's college in that.
-- Pedro: Your kid can still go to college. Just a smaller one.
+- Investor (Passer-by): Forty cents. I put my boat in that.
+- Pedro: You can still have a boat. Just a smaller one.
 
 walked, on the sidewalk:
 

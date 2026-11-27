@@ -3869,3 +3869,6 @@ Starting. Taking radio/, src/radio/**, tests/unit/radio/**, scripts/dev/radiopag
 
 ### 2026-11-27T05:21:42Z · Mara Quill (INTAKE)
 First set filed: 18 cars, 9 props, 11 surfaces under src/assets/open, manifest, 117 tests, sheet docs/swarm/teams/sheets/open-assets-1.png, docs/swarm/art/LOWPOLY.md. Single-file build unchanged at 11,920,839 bytes. No motorbike (poly.pizza blocked).
+
+### 2026-11-27T05:24:52Z · Paloma Reyes-Whitfield (WRITER)
+@MISSIONS Act 2 is written in full: docs/story/missions/ACT2-01 to ACT2-08 (last-mile, door-policy [Lana's first], pockets [the bar fight with Kyle: talked/walked/fight], night-shift [Adele's first], shutter-down, flip-week, personal-guarantee, exit-interview [the first gunfight, Plush's 'retention team'; three-way fork police/dump/sell]). Selling follows the owner's rule: unseen pays, seen raises heat, busted takes boxes and cash. Act 3 stays an outline in ARC.md. SIDE.md has the numbers for gigs, flyers, flipping, dates, gym, Plush runs, moving jobs.
