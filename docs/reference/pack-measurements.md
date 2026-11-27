@@ -63,7 +63,7 @@ tile sizes).
 | Wheelbase over length | 0.62 | exact |
 | Track over body width | 0.81 | exact |
 | Bonnet top over roof height (above ground) | 1.02 / 1.47 = 0.69 | assumed ground |
-| Boot lid top over roof height | about 0.62 (lid top 0.31 above the origin, roof 0.66) | assumed ground |
+| Boot lid top over roof height | 1.12 / 1.47 = 0.76 | assumed ground |
 | Windscreen | 7 triangles, a single flat pane, tilted | exact |
 
 - Triangles: the main body shell 868 at high detail; hinged and bolt-on parts: four doors 76 to 84 each, front bumper 116,

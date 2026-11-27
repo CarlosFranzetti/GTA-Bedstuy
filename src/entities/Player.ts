@@ -184,7 +184,7 @@ export class Player implements Entity {
    * first free spot. Without it, exit() falls back to the side the player got in from.
    */
   blockedAt: ((p: Vec2, r: number, ignoreId?: string) => boolean) | null = null;
-  private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver']; time: number; v0: Vec2; camCut: boolean; route: EnterRoute | null; walkFrac: number } | null = null;
+  private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver']; time: number; v0: Vec2; camCut: boolean; route: EnterRoute | null; walkFrac: number; side: number } | null = null;
   /**
    * Called when the walk to a car door begins. The integrator must take `body` out of the physics world here:
    * the door is often on the far side of the car, so the glide crosses the car's own box and, left in World2D,
@@ -640,15 +640,18 @@ export class Player implements Entity {
     best.driver = 'player';
     best.setInput({ ...NEUTRAL, brake: true }); // a rolling car brakes while you climb in instead of coasting away from the door
     this.exitQueued = false;
-    this.enteredFar = doorFar(best, this.body.pos);
+    this.enteredFar = doorFar(best, this.body.pos) || this.entrySide(best) > 0;
     this.enteredFrom = { x: this.body.pos.x, z: this.body.pos.z };
-    const walkTo = Math.hypot(best.doorPos().x - this.body.pos.x, best.doorPos().z - this.body.pos.z);
-    const route = this.routeToDoor(best);
+    // CARENTRY: the door is the one on the player's own side (the passenger door from the kerb side, then across the seat), as in GTA: no walk through or round the car
+    const side = this.entrySide(best);
+    const dp = Player.doorOf(best, side);
+    const walkTo = Math.hypot(dp.x - this.body.pos.x, dp.z - this.body.pos.z);
+    const route = this.routeToDoor(best, side);
     this.entering = {
       vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver,
       time: route ? Math.min(ROUTE_TIME_MAX, route.len / ROUTE_SPEED + ROUTE_SEAT) : clamp(walkTo / ENTER_WALK_SPEED, ENTER_TIME, ENTER_TIME_MAX),
-      v0: this.entryVelocity(best),
-      camCut: walkTo <= CAM_CUT_DOOR,
+      v0: this.entryVelocity(best, side),
+      camCut: walkTo <= CAM_CUT_DOOR, side,
       route, walkFrac: route ? Math.max(0.5, 1 - ROUTE_SEAT / Math.min(ROUTE_TIME_MAX, route.len / ROUTE_SPEED + ROUTE_SEAT)) : 1 - SEAT_SHARE,
     };
     this.braceT = 0;
@@ -667,11 +670,11 @@ export class Player implements Entity {
    * nearer end, across the end and back to the door, kept ROUTE_MARGIN clear of the box. Null when the straight line is clear, or when both
    * ends are blocked by something solid (then the old glide is used).
    */
-  private routeToDoor(v: IVehicle): EnterRoute | null {
+  private routeToDoor(v: IVehicle, side: number): EnterRoute | null {
     const f = forwardFromHeading(v.body.heading), r = perpRight(f);
     const p = this.body.pos, cx = v.body.pos.x, cz = v.body.pos.z;
     const sa = (p.x - cx) * f.x + (p.z - cz) * f.z, sc = (p.x - cx) * r.x + (p.z - cz) * r.z;
-    const hl = v.spec.length / 2 + ROUTE_MARGIN, hw = v.spec.width / 2 + ROUTE_MARGIN, dc = -(v.spec.width / 2 + 0.3);
+    const hl = v.spec.length / 2 + ROUTE_MARGIN, hw = v.spec.width / 2 + ROUTE_MARGIN, dc = side * (v.spec.width / 2 + 0.3);
     let crosses = false;
     for (let i = 1; i < 16 && !crosses; i++) { const u = i / 16, a = sa * (1 - u), c = sc + (dc - sc) * u; if (Math.abs(a) < hl && Math.abs(c) < hw) crosses = true; }
     if (!crosses) return null;
@@ -689,9 +692,20 @@ export class Player implements Entity {
     return best;
   }
 
+  /** Which door the player gets in by: +1 the right (passenger) door when they stand on the car's right, else -1, the driver's door. */
+  private entrySide(v: IVehicle): number {
+    const r = perpRight(forwardFromHeading(v.body.heading));
+    return (this.body.pos.x - v.body.pos.x) * r.x + (this.body.pos.z - v.body.pos.z) * r.z > 0.3 ? 1 : -1;
+  }
+  /** World position of a door of `v`, 0.3 m outside the body: side -1 the driver's (left), +1 the passenger's (right). */
+  static doorOf(v: IVehicle, side: number): Vec2 {
+    const r = perpRight(forwardFromHeading(v.body.heading)), off = v.spec.width / 2 + 0.3;
+    return { x: v.body.pos.x + r.x * off * side, z: v.body.pos.z + r.z * off * side };
+  }
+
   /** The part of the player's own velocity that points toward the door, capped: the walk to the door carries on from it. */
-  private entryVelocity(v: IVehicle): Vec2 {
-    const b = this.body, door = v.doorPos();
+  private entryVelocity(v: IVehicle, side: number): Vec2 {
+    const b = this.body, door = Player.doorOf(v, side);
     const dx = door.x - b.pos.x, dz = door.z - b.pos.z, l = Math.hypot(dx, dz);
     if (l < 1e-3) return { x: 0, z: 0 };
     const along = Math.min(4, Math.max(0, (b.vel.x * dx + b.vel.z * dz) / l));
@@ -1020,7 +1034,7 @@ export class Player implements Entity {
     const e = this.entering!;
     const b = this.body;
     e.t = Math.min(1, e.t + dt / e.time);
-    const door = e.vehicle.doorPos(); // tracks the car if it is still rolling
+    const door = Player.doorOf(e.vehicle, e.side); // tracks the car if it is still rolling
     if (!e.camCut && Math.hypot(door.x - b.pos.x, door.z - b.pos.z) <= CAM_CUT_REACH) e.camCut = true; // a long walk: the camera cuts when the door is reached
     let nx: number, nz: number;
     let face: Vec2 | null = null; // where the body turns to (null: toward the car)
