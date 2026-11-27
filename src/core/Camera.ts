@@ -411,18 +411,22 @@ export class ThirdPersonCamera {
     let cutNow = first;
     // The pivot differs between modes (the player's door spot vs the car's centre): carry the jump as an offset that the blend takes out,
     // so getting in or out glides the view instead of popping it by a metre or two.
-    if (modeChanged) {
-      const jx = this.prevX - targetPos.x, jz = this.prevZ - targetPos.z;
-      if (Math.hypot(jx, jz) < PIVOT_JUMP_MAX) { this.offX += jx; this.offZ += jz; } else { this.offX = 0; this.offZ = 0; }
-      // Stepping out: the player turns to face the car, but the view stays where it was (behind the way the car pointed) and
-      // returns behind the player by the usual two-second rule, so "forward" does not swing round under the player's thumb.
-      if (mode === 'foot') { this.idle = 0; this.yawVel = 0; }
+    // CARENTRY (owner, 27 Nov: "the camera cuts"): getting in or out is ONE CUT in both styles, never a blend. The pivot, the rig, the yaw
+    // (behind the car going in, behind the player coming out), the pitch and the wall reach all start at their goals on this frame, so the
+    // lens never flies through the car, the character or a wall between the two views. Look-behind and side looks are dropped.
+    const modeCut = modeChanged && !first;
+    if (modeCut) {
+      this.offX = 0; this.offZ = 0;
+      this.idle = 0; this.yawVel = 0; this.pitchIdle = 0;
+      this.backBlend = 0; this.backVel = 0; this.sideAmt = 0; this.sideVel = 0; this.cineBlend = 0; this.cineYaw = 0;
+      this.yaw = wrapAngle(targetHeading);
+      this.needReturn = false;
     }
     if (styleCut && !first) {
       cutNow = true;
       this.offX = 0; this.offZ = 0; this.blendOn = false; this.blendT = 1;
     } else if (!first && (modeChanged || viewChanged)) {
-      if (cutClass || this.prevCutClass) {
+      if (modeChanged || cutClass || this.prevCutClass) {
         cutNow = true;
         this.offX = 0; this.offZ = 0; this.blendOn = false; this.blendT = 1;
       } else {
@@ -507,10 +511,10 @@ export class ThirdPersonCamera {
       this.idle += dt;
     }
     this.pitchIdle = ldy !== 0 ? 0 : this.pitchIdle + dt;
-    if (cl && (first || styleCut)) {
+    if (cl && (first || styleCut || modeCut)) {
       this.pitch = vehicleMode ? 0 : (vrig.pitch ?? 0);
       if (!vehicleMode) this.yaw = targetHeading; // a new game or a switch starts behind the body
-    }
+    } else if (modeCut) this.pitch = DEFAULT_PITCH;
     this.views.tick(dt, mode);
     const snap = cutNow || this.views.cutThisFrame;
     this.snapped = snap;

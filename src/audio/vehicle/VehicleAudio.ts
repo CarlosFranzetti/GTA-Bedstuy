@@ -12,6 +12,8 @@ import {
 } from './fx';
 import { tyreSqueal, windBed, wetRoadHiss } from './road';
 import { FootStepper, SIGNAL_PERIOD, hourBed, signalGain, type SignalState } from './world';
+import { loopOffset } from '../ambient/noise';
+import { sourceMutes, type AmbientSource } from '../ambient/mutes';
 
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 /** Rare novelty horn chance per press for ordinary cars. */
@@ -183,6 +185,9 @@ export class VehicleAudio {
 
   private noiseSrc(): AudioBufferSourceNode {
     const src = this.ctx!.createBufferSource(); src.buffer = this.noise!; src.loop = true;
+    // every persistent bed enters the shared loop at its own point, so they do not repeat in step (AMBIENT)
+    const start = src.start.bind(src), dur = this.noise!.duration, draw = this.rnd();
+    src.start = (when?: number) => start(when, loopOffset(dur, draw));
     return src;
   }
 
@@ -234,7 +239,7 @@ export class VehicleAudio {
     this.ensureRoad();
     const v = engineVoiceFor(this.type);
     const r = tyreRoll(this.speed, this.surface);
-    const inside = this.inVehicle ? 1 : 0;
+    const inside = this.inVehicle ? sourceMutes.gain('road') : 0;
     const quiet = v.road ?? 1;
     const wob = r.bump ? 0.75 + 0.25 * Math.sin(this.clock * (6 + Math.abs(this.speed) * 1.7)) : 1;
     aim(this.roll!.bp.frequency, r.hz, t, 0.1, 0.0015);
@@ -258,6 +263,7 @@ export class VehicleAudio {
   /** Footsteps from the stride of the walk and run gait; on foot only. */
   private updateFoot(dt: number): void {
     if (!this.ctx) return;
+    if (sourceMutes.muted('steps')) return;
     const sp = this.inVehicle ? 0 : this.footSpeed;
     const step = this.foot.update(dt, sp, this.footRun, this.footGrounded && this.airT <= 0);
     if (this.airT > 0) this.airT -= dt;
@@ -270,7 +276,7 @@ export class VehicleAudio {
   /** Pedestrian-signal ticks for the person near a crossing. */
   private updateCross(dt: number): void {
     const c = this.cross;
-    if (!c || this.inVehicle) return;
+    if (!c || this.inVehicle || sourceMutes.muted('signals')) return;
     const g = signalGain(c.d);
     if (g < 0.02) return;
     if ((this.crossIn -= dt) <= 0) {
@@ -355,7 +361,8 @@ export class VehicleAudio {
   /* ---------- district bed ---------- */
 
   /** One-shots of the city bed go to the ambience bus, not the effects bus. */
-  private bedFx(layers: Layer[], gain: number): void {
+  private bedFx(layers: Layer[], gain: number, source: AmbientSource = 'kids'): void {
+    if (sourceMutes.muted(source)) return;
     if (!this.ctx || !this.noise || !this.amb || this.frozen) return;
     playLayers(this.ctx, this.noise, this.amb, layers, this.ctx.currentTime, gain, 1, this.rnd);
   }
@@ -378,7 +385,7 @@ export class VehicleAudio {
     this.ensureWash();
     if (!this.wash) return;
     const t = ctx.currentTime;
-    aim(this.wash.g.gain, 0.045 * hb.traffic * (0.5 + b.traffic) * (this.inVehicle ? 0.6 : 1), t, 1.5);
+    aim(this.wash.g.gain, 0.045 * hb.traffic * (0.5 + b.traffic) * (this.inVehicle ? 0.6 : 1) * sourceMutes.gain('wash'), t, 1.5);
     aim(this.wash.lp.frequency, this.inVehicle ? 380 : 620 + 300 * hb.traffic, t, 1.5, 0.0015);
     if (this.bed && (this.kidsIn -= dt) <= 0) {
       this.kidsIn = (8 + this.rnd() * 25) / (0.2 + b.kids * (hb.traffic > 0.3 ? 1 : 0.2));
@@ -401,7 +408,7 @@ export class VehicleAudio {
     if (this.hourKnown && hb.birds > 0.05 && (this.birdIn -= dt) <= 0) {
       this.birdIn = (2 + this.rnd() * 7) / hb.birds;
       this.birdKind = Math.floor(this.rnd() * 9);
-      this.bedFx(birdLayers(this.birdKind), 0.03 * (this.inVehicle ? 0.3 : 1));
+      this.bedFx(birdLayers(this.birdKind), 0.03 * (this.inVehicle ? 0.3 : 1), 'birds');
     }
   }
 

@@ -186,7 +186,6 @@ export class Player implements Entity {
   onEnterStart: (() => void) | null = null;
   /** Fires when the player runs into something hard at speed (a wall, a person): strength 0..1. Hook a small camera kick and a grunt here. */
   onBump: ((strength: number) => void) | null = null;
-  /** Id of the vehicle being walked to (null otherwise): the camera should not pull in for the car the player is stepping into. */
   /**
    * The vehicle the camera should show: the one being driven, or the one being entered once the camera has cut to it (at the press when the
    * door is close, else when the walk has reached the door). Null on foot. main.ts passes it as the camera's vehicle, its mode and its target.
@@ -195,6 +194,7 @@ export class Player implements Entity {
     if (this.vehicle) return this.vehicle;
     return this.entering && this.entering.camCut ? this.entering.vehicle : null;
   }
+  /** Id of the vehicle being walked to (null otherwise): the camera should not pull in for the car the player is stepping into. */
   get enteringId(): string | null {
     if (this.entering) return this.entering.vehicle.id;
     // MOVE2: while vaulting a car (and for a moment after) the lens does not shy from it either: the camera follows the ground position and

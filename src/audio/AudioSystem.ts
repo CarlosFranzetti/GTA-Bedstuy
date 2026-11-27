@@ -38,20 +38,14 @@ import { registerShowCast } from './voice/cast';
 
 /** Seconds of audio queued ahead of currentTime by the radio sequencer. */
 const LOOKAHEAD = 0.1;
-const HUM_GAIN = 0.05;
 const RADIO_GAIN = 0.25;
 /** Level of the bus that carries the user's tracks, stings and the talk bed (files are full scale, so louder than the synth bus). */
 const MUSIC_GAIN = 0.7;
 /** Talk bed gain at level 1 (the player ducks it to about a quarter under the host). */
 const TALK_BED_GAIN = 0.05;
-const DAY_BED_GAIN = 0.035;
-const NIGHT_BED_GAIN = 0.05;
-const CRICKET_GAIN = 0.004;
 const SQUEAL_GAIN = 0.07;
 /** Seconds for the pitch dip after a gear change to recover. */
 const SHIFT_RECOVERY = 0.35;
-/** Time constant (s) of the day/night ambience crossfade. */
-const AMBIENCE_TC = 2.5;
 
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 
@@ -282,7 +276,7 @@ export class AudioSystem {
       events.on('enterVehicle', () => { this.inCar = true; this.setRadioOn(true); }),
       events.on('exitVehicle', () => { this.inCar = false; this.setRadioOn(false); }),
       // VOICE14: Leila's pedBark request and every mission / story subtitle line get a voice.
-      bus.on('pedBark', (e) => { const ev = normalizeBark(e); if (ev) this.peds.request(ev); }),
+      bus.on('pedBark', (e) => { if (sourceMutes.muted('peds')) return; const ev = normalizeBark(e); if (ev) this.peds.request(ev); }),
       events.on('mission:subtitle', (e) => { this.peds.speakStory(e.who, e.text, 'mission'); }),
       events.on('radioNext', () => this.nextStation()),
     );
@@ -636,7 +630,7 @@ export class AudioSystem {
     musicBus.gain.value = this.radioOn ? MUSIC_GAIN * this.radioVolume : 0;
     musicBus.connect(master);
 
-    const g: Graph = { ctx, master, sfxBus, voiceBus, hubBus, ambBus, engineBus, saw, sq, engineFilter, engineGain, radioBus, musicBus, city, squealGain, squealFilter, noise, city };
+    const g: Graph = { ctx, master, sfxBus, voiceBus, hubBus, ambBus, engineBus, saw, sq, engineFilter, engineGain, radioBus, musicBus, city, squealGain, squealFilter, noise };
     this.vehicle.setEngineEnabled(this.mixer.get('engine') > 0);
     this.vehicle.attach(ctx, sfxBus, noise, ambBus, engineBus);
     this.applyEngine(g);
@@ -669,7 +663,6 @@ export class AudioSystem {
   }
 
   private applyAmbience(g: Graph): void {
-    const now = g.ctx.currentTime;
     g.city.setNight(this.night);
   }
 
@@ -694,6 +687,7 @@ export class AudioSystem {
   }
 
   private playSiren(g: Graph, t: number): void {
+    if (sourceMutes.muted('sirens')) return;
     const osc = g.ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(600, t);
