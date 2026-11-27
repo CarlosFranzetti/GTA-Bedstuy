@@ -17,6 +17,8 @@ export class Bot {
   vehicle = '';
   /** Fork picks by fork id (the option's flag); a fork not listed takes its first available option. */
   choices: Record<string, string> = {};
+  /** Scene outcomes by scene id (a scene not listed answers with the first outcome its objective declares). */
+  sceneOutcomes: Record<string, string> = {};
   stars = 0;
   speed = 0;
   t = 0;
@@ -117,6 +119,13 @@ export class Bot {
         const open = ob.options.filter((o) => this.m.story.test(o.when));
         const pick = open.find((o) => o.flag === this.choices[ob.id]) ?? open[0];
         this.go(pick.at, mps(this.inCar ? 11 : 5)); this.wait(0.1); this.press(); this.wait(0.1);
+        break;
+      }
+      case 'scene': {
+        // the host's scene UI is not here: walk in, press F, answer the scene with its first outcome (or the one the test asked for)
+        car(ob.presence ?? 'onFoot'); this.go(ob.at, mps(5)); this.wait(0.1); this.press(); this.wait(0.1);
+        const outcome = this.sceneOutcomes[ob.scene] ?? Object.keys(ob.outcomes ?? { done: [] })[0];
+        this.m.notify({ type: 'scene:done', scene: ob.scene, outcome }); this.wait(0.2);
         break;
       }
       case 'chase': this.chase(ob); break;

@@ -62,8 +62,8 @@ describe('hours', () => {
     expect(isOpen('bar-lounge', 17)).toBe(true);
     expect(isOpen('bar-lounge', 1.99)).toBe(true);
     expect(isOpen('bar-lounge', 2)).toBe(false);
-    expect(isOpen('club', 4.5)).toBe(true);
-    expect(isOpen('club', 5)).toBe(false);
+    expect(isOpen('club', 3.5)).toBe(true);
+    expect(isOpen('club', 4)).toBe(false);
     expect(isOpen('afterhours', 5)).toBe(true);
     expect(isOpen('afterhours', 12)).toBe(false);
     expect(isOpen('gym', 24 + 6)).toBe(true);
@@ -156,7 +156,7 @@ describe('map markers and discovery', () => {
   it('lists only the discovered ones, with the venue name', () => {
     const seen = new Set(['gym', 'club']);
     const pl = venuePlaces('grid', (id) => seen.has(id));
-    expect(pl.map((p) => p.label).sort()).toEqual(['Iron Stoop Gym', 'Neon Paloma']);
+    expect(pl.map((p) => p.label).sort()).toEqual(['Mothhouse', 'Second Wind Boxing Club']);
     expect(pl.every((p) => p.kind === 'venue' && p.id.startsWith('venue:'))).toBe(true);
   });
   it('finds a venue the player walks up to, once', () => {

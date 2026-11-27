@@ -14,7 +14,7 @@
  * for these: they stand on existing lots (the 581 kept block numbers are untouched).
  */
 
-export type VenueId = 'bar-dive' | 'bar-lounge' | 'bar-sports' | 'afterhours' | 'club' | 'dispensary' | 'gym';
+export type VenueId = 'bar-dive' | 'bar-lounge' | 'bar-dance' | 'afterhours' | 'club' | 'dispensary' | 'gym';
 export type VenueKind = 'bar' | 'afterhours' | 'club' | 'dispensary' | 'gym';
 export type MapName = 'grid' | 'real';
 
@@ -50,51 +50,51 @@ export interface VenueRow {
 /** the table. Hours are game time. */
 export const VENUES: readonly VenueRow[] = [
   {
-    id: 'bar-dive', name: 'Lucky Nickel', sign: 'LUCKY NICKEL', kind: 'bar',
-    blurb: 'A dive bar with a jukebox that only knows one decade.',
-    hours: { open: 12, close: 4 }, requiresFlag: null, look: { bg: '#2a1a12', fg: '#ffd87a', accent: '#c8481f' },
+    id: 'bar-dive', name: "Glenda's Long Room", sign: "GLENDA'S LONG ROOM", kind: 'bar',
+    blurb: 'Open since 1979: a long bar, a jukebox and a photo wall of regulars.',
+    hours: { open: 14, close: 2 }, requiresFlag: null, look: { bg: '#2a1a12', fg: '#ffd87a', accent: '#c8481f' },
     grid: { lot: 'r3c0-W-2', street: 'Tompkins Ave', x: -238.95, z: 128.9, outX: -1, outZ: 0 },
     real: { bbl: '3017770064', street: 'Dekalb Ave', x: 56.35, z: -93.12, outX: 0, outZ: 1 },
   },
   {
-    id: 'bar-lounge', name: 'The Velvet Pigeon', sign: 'THE VELVET PIGEON', kind: 'bar',
-    blurb: 'Cocktails, candle wax and people pretending not to look at each other.',
+    id: 'bar-lounge', name: 'Tincture & Ledger', sign: 'TINCTURE & LEDGER', kind: 'bar',
+    blurb: 'A former bank with the vault door kept as a feature.',
     hours: { open: 17, close: 2 }, requiresFlag: null, look: { bg: '#2b1030', fg: '#ffb4d6', accent: '#ff4fa0' },
     grid: { lot: 'r3c1-N-28', street: 'Lafayette Ave', x: 31.3, z: 110.55, outX: 0, outZ: -1 },
     real: { bbl: '3017870036', street: 'Kosciuszko St', x: 218, z: 8.9, outX: 0, outZ: -1 },
   },
   {
-    id: 'bar-sports', name: 'Dugout 49', sign: 'DUGOUT 49', kind: 'bar',
-    blurb: 'Three screens, four games, and one argument a night.',
-    hours: { open: 11, close: 2 }, requiresFlag: null, look: { bg: '#10243d', fg: '#f4f1e6', accent: '#e63946' },
+    id: 'bar-dance', name: 'Sabor a Lunes', sign: 'SABOR A LUNES', kind: 'bar',
+    blurb: 'Red walls, a small dance floor and congas played badly.',
+    hours: { open: 18, close: 3 }, requiresFlag: null, look: { bg: '#10243d', fg: '#f4f1e6', accent: '#e63946' },
     grid: { lot: 'r4c1-E-5', street: 'Marcus Garvey Blvd', x: 238.95, z: 252.1, outX: 1, outZ: 0 },
     real: { bbl: '3017770042', street: 'Dekalb Ave', x: 196.51, z: -93.18, outX: 0, outZ: 1 },
   },
   {
-    id: 'afterhours', name: 'Sunrise Annex', sign: 'SUNRISE ANNEX', kind: 'afterhours',
-    blurb: 'A steel gate by day. When the clubs shut, this is where the night goes on.',
+    id: 'afterhours', name: 'The Milk Run', sign: 'THE MILK RUN', kind: 'afterhours',
+    blurb: 'A roll-up door by day. When every other room has shut, this is where the night goes on.',
     hours: { open: 4, close: 11 }, requiresFlag: null, look: { bg: '#1c1c1f', fg: '#ffcf5a', accent: '#ff8a00' },
     grid: { lot: 'r4c0-N-0', street: 'Van Buren St', x: -28.6, z: 208.55, outX: 0, outZ: -1 },
     real: { bbl: '3017920146', street: 'Van Buren St', x: 224.95, z: 155.89, outX: 0, outZ: 1 },
   },
   {
-    id: 'club', name: 'Neon Paloma', sign: 'NEON PALOMA', kind: 'club',
-    blurb: 'Velvet rope, a real booth and a floor that fills after eleven.',
-    hours: { open: 22, close: 5 }, requiresFlag: null, look: { bg: '#10051c', fg: '#6ff3ff', accent: '#ff2d95' },
+    id: 'club', name: 'Mothhouse', sign: 'MOTHHOUSE', kind: 'club',
+    blurb: 'A black box of a club, a rope line and a floor that fills after eleven.',
+    hours: { open: 22, close: 4 }, requiresFlag: null, look: { bg: '#10051c', fg: '#6ff3ff', accent: '#ff2d95' },
     grid: { lot: 'r2c2-W-2', street: 'Marcus Garvey Blvd', x: 261.05, z: 33.6, outX: -1, outZ: 0 },
     real: { bbl: '3017770033', street: 'Marcus Garvey Blvd', x: 231.24, z: -132.54, outX: 1, outZ: 0 },
   },
   {
-    id: 'dispensary', name: 'Fernwell', sign: 'FERNWELL', kind: 'dispensary',
-    blurb: 'A clean white shopfront and a menu on a screen. Licensed, supposedly.',
-    hours: { open: 10, close: 21 }, requiresFlag: null, look: { bg: '#e9efe6', fg: '#2f5d3a', accent: '#5fbf6a' },
+    id: 'dispensary', name: 'Mellowdrama', sign: 'MELLOWDRAMA', kind: 'dispensary',
+    blurb: 'A white licensed shopfront with a guard at the door.',
+    hours: { open: 10, close: 22 }, requiresFlag: null, look: { bg: '#e9efe6', fg: '#2f5d3a', accent: '#5fbf6a' },
     grid: { lot: 'r3c1-N-0', street: 'Lafayette Ave', x: 220.5, z: 110.55, outX: 0, outZ: -1 },
     real: { bbl: '3017750044', street: 'Tompkins Ave', x: -232.7, z: -98.9, outX: -1, outZ: 0 },
   },
   {
-    id: 'gym', name: 'Iron Stoop Gym', sign: 'IRON STOOP GYM', kind: 'gym',
-    blurb: 'Rubber floors, loud plates, one working fan.',
-    hours: { open: 5, close: 23 }, requiresFlag: null, look: { bg: '#161616', fg: '#f2f2f2', accent: '#ffd400' },
+    id: 'gym', name: 'Second Wind Boxing Club', sign: 'SECOND WIND BOXING', kind: 'gym',
+    blurb: 'One ring, eight heavy bags and a wall of handwritten rules.',
+    hours: { open: 6, close: 22 }, requiresFlag: null, look: { bg: '#161616', fg: '#f2f2f2', accent: '#ffd400' },
     grid: { lot: 'r-1c1-N-2', street: 'Myrtle Ave', x: 199.3, z: -289.45, outX: 0, outZ: -1 },
     real: { bbl: '3017680037', street: 'Willoughby Ave', x: -34.29, z: -320.86, outX: 0, outZ: -1 },
   },
@@ -148,7 +148,7 @@ export function hoursText(id: VenueId): string {
 export const VENUE_ROOM: Record<VenueId, { w: number; d: number; h: number; origin: { x: number; z: number } }> = {
   'bar-dive': { w: 10, d: 8, h: 3.0, origin: { x: 3200, z: 3000 } },
   'bar-lounge': { w: 11, d: 8, h: 3.2, origin: { x: 3200, z: 3120 } },
-  'bar-sports': { w: 13, d: 9, h: 3.4, origin: { x: 3200, z: 3240 } },
+  'bar-dance': { w: 13, d: 9, h: 3.4, origin: { x: 3200, z: 3240 } },
   afterhours: { w: 12, d: 9, h: 3.4, origin: { x: 3200, z: 3360 } },
   club: { w: 22, d: 16, h: 4.8, origin: { x: 3400, z: 3000 } },
   dispensary: { w: 9, d: 7, h: 3.0, origin: { x: 3400, z: 3120 } },

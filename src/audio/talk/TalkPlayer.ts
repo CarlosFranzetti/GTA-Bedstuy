@@ -168,6 +168,13 @@ export class TalkPlayer {
     return s.parodyOf ? `${who} (PARODY)` : who;
   }
 
+  /** BOOMBOX: the segment's text while it is spoken (or held as text), and the person a parody segment sends up. */
+  get lineText(): string {
+    if (!this.active || this.segs.length === 0) return '';
+    return this.phase === 'speaking' || this.phase === 'wait' ? this.segs[this.index].text : '';
+  }
+  get lineParodyOf(): string { return this.active && this.segs.length ? this.segs[this.index].parodyOf ?? '' : ''; }
+
   get progress(): TalkProgress {
     const total = this.segs.length;
     const elapsed = total ? this.starts[this.index] + Math.min(this.segs[this.index].seconds, this.segElapsed) : 0;

@@ -58,8 +58,8 @@ describe('rooms', () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toContain('exit');
     expect(ids).toContain(id === 'gym' ? 'lockers' : 'backroom');
-    if (venueById(id).kind === 'bar') expect(ids).toContain('stool');
-    if (id === 'club') expect(ids).toContain('booth');
+    if (venueById(id).kind === 'bar') expect(ids).toContain('bar');
+    if (id === 'club' || id === 'bar-dance') expect(ids).toContain('booth');
     if (id === 'gym') expect(ids).toContain('bench');
     for (const sp of [...r.spots, { id: 'spawn', ...r.spawn }]) {
       expect(Math.abs(sp.x)).toBeLessThan(w / 2 - 0.3); expect(Math.abs(sp.z)).toBeLessThan(d / 2 - 0.3);
@@ -95,10 +95,10 @@ describe.skipIf(!VENUES_ON)('through the door', () => {
 
   it('is shut outside hours with the hours in the prompt, and opens inside them', () => {
     const t = make(8); // 8 AM
-    expect(t.it.prompt(at('bar-lounge'))).toContain('Closed. The Velvet Pigeon opens 5 PM to 2 AM');
+    expect(t.it.prompt(at('bar-lounge'))).toContain('Closed. Tincture & Ledger opens 5 PM to 2 AM');
     expect(t.it.tryEnter(at('bar-lounge'))).toBe(false);
     expect(t.msgs.at(-1)).toContain('shut');
-    expect(t.it.prompt(at('gym'))).toBe('F  Enter Iron Stoop Gym');
+    expect(t.it.prompt(at('gym'))).toBe('F  Enter Second Wind Boxing Club');
     expect(t.it.tryEnter(at('gym'))).toBe(true);
     t.run(FADE_SECONDS * 2 + 0.2);
     expect(t.it.inside).toBe(true);

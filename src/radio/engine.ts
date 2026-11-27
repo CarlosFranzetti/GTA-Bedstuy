@@ -47,7 +47,21 @@ export interface View {
   /** 0..1 through the talk loop for talk stations. */
   talk: { fraction: number; speaker: string; show: string } | null;
   canNextSet: boolean;
+  /** BOOMBOX: the current caption (a line on air, or one that ended less than CAPTION_LINGER_MS ago), null otherwise. `live` is true while it is still being spoken. */
+  caption: (Line & { live: boolean }) | null;
 }
+
+/** BOOMBOX: one spoken line (announcer, live host, talk host) for the caption and the log. */
+export interface Line { who: string; text: string; kind: string; parodyOf: string; stationId: string; station: string }
+export interface LogEntry extends Line { at: number }
+
+const KIND_LABEL: Record<string, string> = {
+  id: 'Station ID', set: 'Set intro', ident: 'Ident', hour: 'Time check', host: 'Host', talk: 'Talk',
+  dj: 'DJ mention', 'dj-intro': 'DJ mention: opening', 'dj-mid': 'DJ mention: mid-set', 'dj-thanks': 'DJ mention: thank-you', 'dj-listening': 'DJ mention: you are listening',
+};
+export const kindLabel = (k: string): string => KIND_LABEL[k] ?? (k || 'Line');
+/** How long a caption stays after its line ends (ms). */
+export const CAPTION_LINGER_MS = 4000;
 
 export interface EngineEnv {
   speech: SpeechLike | null;
@@ -89,8 +103,10 @@ export class RadioPage {
   private readonly now: () => number;
   private readonly listeners = new Set<() => void>();
   /** What the announcers said, with the time it was noticed (newest last). */
-  readonly log: Array<{ at: number; who: string; text: string }> = [];
+  readonly log: LogEntry[] = [];
   private seen = 0;
+  private shown: { line: Line; seenAt: number; live: boolean; hold: number } | null = null;
+  private analyserN: AnalyserNode | null = null;
 
   constructor(private readonly env: EngineEnv) {
     this.now = env.now ?? (() => Date.now());
@@ -131,12 +147,21 @@ export class RadioPage {
     if (!this.ctx && this.env.createContext) {
       try {
         this.ctx = this.env.createContext();
-        if (this.ctx) { this.master = this.ctx.createGain(); this.master.gain.value = this.vol; this.master.connect(this.ctx.destination); }
+        if (this.ctx) {
+          this.master = this.ctx.createGain(); this.master.gain.value = this.vol; this.master.connect(this.ctx.destination);
+          /* BOOMBOX: a tap on the page's own output (the voice pack and the stings), never in series, so playback cannot change. */
+          try { this.analyserN = this.ctx.createAnalyser(); this.analyserN.fftSize = 128; this.analyserN.smoothingTimeConstant = 0.6; this.master.connect(this.analyserN); } catch { this.analyserN = null; }
+        }
       } catch { this.ctx = null; this.master = null; }
     }
     try { void this.ctx?.resume(); } catch { /* blocked */ }
     this.hub.onGesture();
   }
+
+  /** BOOMBOX: analyser on the page's own audio graph (what WBSY Talk's voice pack and the stings play through), or null before the first tap. */
+  get analyser(): AnalyserNode | null { return this.analyserN; }
+  /** The page's audio context when it is already running (the dial static uses it only then). */
+  get runningContext(): AudioContext | null { return this.ctx && this.ctx.state === 'running' ? this.ctx : null; }
 
   private sting(notes: StingNote[]): number {
     const ctx = this.ctx;
@@ -217,15 +242,64 @@ export class RadioPage {
   tick(dt: number): void {
     const d = Math.min(MAX_DT, Math.max(0, dt));
     this.director.update(d);
-    const h = this.director.announcer.history;
+    const d0 = this.director;
+    const h = d0.announcer.history;
     while (this.seen < h.length) {
       const e = h[this.seen++];
-      this.log.push({ at: this.now(), who: this.director.announcer.station?.name ?? e.station, text: e.text });
+      const info = this.stations.find((x) => x.id === e.station);
+      let kind: string = e.kind;
+      if (e.kind === 'dj') { const m = d0.djMentions.spoken.slice().reverse().find((x) => x.text === e.text); if (m) kind = `dj-${m.kind}`; }
+      this.noteLine({ who: d0.announcer.name || info?.host || 'Announcer', text: e.text, kind, parodyOf: '', stationId: e.station, station: info?.name ?? e.station });
     }
     while (this.seen > h.length) this.seen = h.length; // history was trimmed
-    if (this.log.length > 60) this.log.splice(0, this.log.length - 60);
+    this.pollLine();
     this.emit();
   }
+
+  /** What the tuned station is saying right now (live host, talk host, group chat), or null. SoundCloud announcers arrive through `history`. */
+  private sourceLine(): Line | null {
+    if (!this.on) return null;
+    const d = this.director;
+    const c = d.current;
+    const info = this.stations.find((x) => x.id === c.id);
+    const base = { stationId: c.id, station: info?.name ?? c.name };
+    if (c.kind === 'live') { const l = d.liveHost; return l.line ? { ...base, who: l.name || 'Host', text: l.line, kind: 'host', parodyOf: '' } : null; }
+    if (c.kind === 'talk') {
+      if (c.info?.script === 'groupchat') {
+        const t = this.chat.lineText;
+        return t ? { ...base, who: this.chat.progress.speaker || 'The Group Chat', text: t, kind: 'talk', parodyOf: this.chat.lineParodyOf } : null;
+      }
+      const t = this.talk.lineText;
+      return t ? { ...base, who: this.talk.progress.speaker || this.talk.caption, text: t, kind: 'talk', parodyOf: this.talk.lineParodyOf } : null;
+    }
+    if (c.kind === 'sc') { const a = d.announcer; return a.line ? { ...base, who: a.name || info?.host || 'Announcer', text: a.line, kind: a.currentKind ?? 'id', parodyOf: '' } : null; }
+    return null;
+  }
+
+  private pollLine(): void {
+    const src = this.sourceLine();
+    const sh = this.shown;
+    if (src) {
+      if (sh && sh.line.text === src.text && sh.line.stationId === src.stationId) { sh.seenAt = this.now(); sh.live = true; return; }
+      this.noteLine(src);
+    } else if (sh && sh.hold === 0) sh.live = false;
+  }
+
+  /**
+   * BOOMBOX: puts a line on the caption and in the log. The page's own code path for every spoken line (announcers, live hosts, talk
+   * hosts); the screenshot script drives a fake line through it. `holdMs` keeps the caption up longer than the usual linger.
+   */
+  noteLine(line: Line, holdMs = 0): void {
+    const dupe = this.log.length > 0 && this.log[this.log.length - 1].text === line.text && this.log[this.log.length - 1].stationId === line.stationId;
+    if (!dupe) {
+      this.log.push({ ...line, at: this.now() });
+      if (this.log.length > 60) this.log.splice(0, this.log.length - 60);
+    }
+    this.shown = { line, seenAt: this.now(), live: holdMs === 0, hold: holdMs };
+    this.emit();
+  }
+
+  clearLog(): void { this.log.length = 0; this.emit(); }
 
   /** Runs `tick` on the wall clock every 250 ms until `stop`. */
   start(): void {
@@ -292,7 +366,16 @@ export class RadioPage {
       announcerName: c.kind === 'sc' && d.announcer.speaking ? d.announcer.name : '',
       announcerLine: d.announcerLine,
       status: this.status(), marks, link: d.nowLink, toast, talk, canNextSet: c.kind === 'sc',
+      caption: this.captionNow(),
     };
+  }
+
+  private captionNow(): View['caption'] {
+    const sh = this.shown;
+    if (!sh) return null;
+    const age = this.now() - sh.seenAt;
+    if (age > Math.max(CAPTION_LINGER_MS, sh.hold)) return null;
+    return { ...sh.line, live: sh.live && age < 1500 };
   }
 
   /** A plain status for the tuned station: what is happening, and when nothing plays, why. */

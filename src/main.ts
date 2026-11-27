@@ -4,6 +4,7 @@ import { Input } from '@/core/Input';
 import { Rng } from '@/core/Rng';
 import { EventBus } from '@/core/Events';
 import { ThirdPersonCamera } from '@/core/Camera';
+import { loadCameraStyle, onCameraStyleChange } from '@/core/CameraViews';
 import { clamp, type Vec2 } from '@/core/Math2';
 import type { Entity, IVehicle, VehicleType, GraphNode, HudState } from '@/world/types';
 import { loadBedstuyData } from '@/world/Grid';
@@ -480,6 +481,7 @@ const phoneHud = new PhoneHud(overlay, phone, { saves, canSave: () => interiors.
 map.onOpen = () => { if (phoneHud.isOpen) phoneHud.toggle(); };
 const missionHudScratch = {} as MissionHudState;
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
+cam.setStyle(loadCameraStyle()); onCameraStyleChange((st) => cam.setStyle(st));
 cam.attachLetterbox(overlay);
 events.on('mission:started', () => cam.setLetterbox(true, 2.5));
 // camera views and jump (CONTROLS14)

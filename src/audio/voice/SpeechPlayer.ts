@@ -19,7 +19,7 @@ import { pickVoices, type SpeechLike, type UtteranceLike, type VoiceLike } from 
 import type { VoiceRole } from '../talk/script';
 import type { PackLookup } from './pack';
 
-export interface ResolvedLine { who: string; text: string }
+export interface ResolvedLine { who: string; text: string; /** BOOMBOX: the real person a parody line sends up (script data), for the radio page's caption. */ parodyOf?: string }
 
 export interface PlayCallbacks {
   /** First sound of this play (duck the music here). */

@@ -17,7 +17,7 @@ export const THRIFT_CATALOG: Readonly<Record<Slot, readonly string[]>> = {
   shoes: ['sneakerLow', 'sneakerDark', 'sneakerHigh'],
 };
 const SLOTS: readonly Slot[] = ['top', 'layer', 'bottom', 'shoes'];
-const SLOT_WORTH: Record<Slot, number> = { top: 14, layer: 26, bottom: 22, shoes: 30 };
+const SLOT_WORTH: Record<Slot, number> = { top: 26, layer: 48, bottom: 40, shoes: 52 };
 
 export interface Garment {
   id: string; slot: Slot; item: string; /** colourway index for the wardrobe */ way: number; tier: Tier;
@@ -60,7 +60,7 @@ export function labelOf(slot: Slot, item: string, tier: Tier): string {
   return `${tier === 'vintage' ? 'old ' : tier === 'label' ? 'good ' : ''}${names[item] ?? item}`;
 }
 
-export const RACK_PRICE: Record<Tier, [number, number]> = { basic: [3, 8], vintage: [6, 14], label: [8, 18] };
+export const RACK_PRICE: Record<Tier, [number, number]> = { basic: [3, 8], vintage: [6, 13], label: [8, 16] };
 
 export interface RackSave { v: 1; id: string; day: number; sold: string[] }
 

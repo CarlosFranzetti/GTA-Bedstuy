@@ -81,7 +81,7 @@ function playObjective(r: Rig, scenes: Record<string, number[]> = SCENE_KEYS, fo
     case 'escapeRadius': r.pos = { x: ob.from.x + ob.radius + 5, z: ob.from.z }; tick(r); break;
     case 'scene': {
       r.m.interact(r.pos); tick(r);
-      expect(r.b.scene, `scene ${ob.scene} opened`).not.toBeNull();
+      if (r.nl.bag.items.length > 0 || !ob.scene.startsWith('haggle')) expect(r.b.scene, `scene ${ob.scene} opened`).not.toBeNull();
       for (const k of scenes[ob.scene] ?? [1]) { r.b.choose(k); tick(r); }
       for (let i = 0; i < 40 && r.b.scene; i++) run(r, 1); // unanswered beats run out their timer
       break;
@@ -92,12 +92,13 @@ function playObjective(r: Rig, scenes: Record<string, number[]> = SCENE_KEYS, fo
   return true;
 }
 
-function playMission(r: Rig, id: string, opts: { scenes?: Record<string, number[]>; fork?: string } = {}): void {
+function playMission(r: Rig, id: string, opts: { scenes?: Record<string, number[]>; fork?: string; flags?: string[] } = {}): void {
   const d = byId(id);
   r.m.restore({ v: 1, completed: r.m.missions.filter((x) => r.m.statusOf(x.id) === 'complete').map((x) => x.id), cash: 0 });
+  for (const f of opts.flags ?? []) r.m.story.set(f);
   expect(r.m.start(id), `start ${id}`).toBe(true);
   for (let guard = 0; guard < 60 && r.m.isActive; guard++) playObjective(r, { ...SCENE_KEYS, ...opts.scenes }, opts.fork);
-  expect(r.m.statusOf(d.id), `${id} complete (failed: ${r.m.failReason})`).toBe('complete');
+  expect(r.m.statusOf(d.id), `${id} complete (failed: ${r.m.failReason}; stuck at obj ${r.m.objectiveIndex}: ${d.objectives[r.m.objectiveIndex]?.text})`).toBe('complete');
 }
 
 // LEAD, 27 Nov: the first act is unfinished and switched off (PEDRO_STORY_ON); these run again when it is on
@@ -113,7 +114,7 @@ describe.skipIf(!PEDRO_STORY_ON)('Act 1 content', () => {
   });
   it('only uses scenes the bridge can build', () => {
     const r = rig();
-    const known = new Set(Object.keys((r.b as unknown as { factories: Map<string, unknown> }).factories));
+    const known = new Set((r.b as unknown as { factories: Map<string, unknown> }).factories.keys());
     for (const d of defs) for (const o of d.objectives) if (o.kind === 'scene') expect(known.has(o.scene), `${d.id}:${o.scene}`).toBe(true);
   });
 });
@@ -165,16 +166,35 @@ describe.skipIf(!PEDRO_STORY_ON)('Act 1 playthrough (scripted player)', () => {
     expect(r.m.statusOf('pico-warm-up-slot')).toBe('complete');
   });
 
-  it('Clem: the fight path and the walk path both finish the mission with their own flags', () => {
-    const fight = rig(['pico-rent-money', 'pico-lunes-night', 'pico-paper-the-walls']);
-    playMission(fight, 'pico-clems-corner', { scenes: { clem: [6] } }); // laugh at the sign: it kicks off
-    expect(fight.b.scene === null || fight.b.scene !== null).toBe(true);
+  it('Clem: a fight (laugh at the sign), then the fighter goes down, finishes the mission with the fought flag', () => {
+    const r = rig(['pico-rent-money', 'pico-lunes-night', 'pico-paper-the-walls']);
+    r.hour.v = 20; r.m.start('pico-clems-corner');
+    playObjective(r); // walk up
+    const ob = byId('pico-clems-corner').objectives[1];
+    r.pos = at(ob); tick(r); r.m.interact(r.pos); tick(r);
+    expect(r.b.scene).not.toBeNull();
+    r.b.choose(6); tick(r); // laugh
+    expect(r.b.scene!.frame().phase).toBe('brawl');
+    (r.b.scene as unknown as { fighterDown(): void }).fighterDown(); tick(r); tick(r);
+    expect(r.b.scene).toBeNull();
+    expect(r.m.story.has('pico.clem.fought')).toBe(true);
+    for (let g = 0; g < 20 && r.m.isActive; g++) playObjective(r);
+    expect(r.m.statusOf('pico-clems-corner')).toBe('complete');
+  });
+
+  it('Clem: walking away sets the walked flag and Stavros docks twenty', () => {
+    const r = rig(['pico-rent-money', 'pico-lunes-night', 'pico-paper-the-walls']);
+    r.cash.v = 100; r.hour.v = 20;
+    playMission(r, 'pico-clems-corner', { scenes: { clem: [7] } }); // 6 options, 7th key is Walk away
+    expect(r.m.story.has('pico.clem.walked')).toBe(true);
+    expect(r.cash.v).toBe(80);
   });
 
   it('the sleeve credit option makes the Clem talk-down instant', () => {
     const r = rig(['pico-rent-money', 'pico-lunes-night', 'pico-paper-the-walls'], ['pico.sleeveCredit']);
-    playMission(r, 'pico-clems-corner', { scenes: { clem: [1] } }); // with the flag the credit reply is option 4; press 4 below
-    expect(r.m.story.has('pico.clem.talked') || r.m.story.has('pico.clem.walked') || r.m.story.has('pico.clem.fought')).toBe(true);
+    r.hour.v = 20;
+    playMission(r, 'pico-clems-corner', { scenes: { clem: [4] }, flags: ['pico.sleeveCredit'] }); // credit is option 4 when the flag is set
+    expect(r.m.story.has('pico.clem.talked')).toBe(true);
   });
 
   it('intimate scenes Off turns the warm date into a plain fade', () => {

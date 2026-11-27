@@ -32,6 +32,7 @@ import { menuArtSvg } from './menuArt';
 import { MIX_LABELS, MIX_DESC, type MixKey } from '@/audio/Mixer';
 import { isNativeApp, nativeQuit, nativeShell } from '@/native/NativeBridge';
 import { currentMap, mapSwitchUrl, type MapChoice } from '@/world/mapChoice';
+import { loadCameraStyle, setCameraStyle } from '@/core/CameraViews';
 import {
   GraphicsStore, supports, presetFor, SHADOW_MODES, FPS_CAPS, RANGES, gpuLoad, optionLoad, loadLabel,
   type GraphicsKey, type GraphicsSettings, type ShadowMode,
@@ -1048,6 +1049,7 @@ export class Menu {
     });
     S.set('station', { id: 'station', label: 'Tuned to', kind: 'info', desc: `The station playing now. In a vehicle press ${glyphFor('radioNext', { mode: 'keyboard' })} for the next one and ${glyphFor('radioPrev', { mode: 'keyboard' })} for the previous (the d-pad left and right on a pad).`, text: () => this.opts.info?.().station || 'Off' });
     S.set('keys', { id: 'keys', label: 'Keys and buttons', kind: 'action', desc: 'Opens the Controls tab: see and change every key, mouse button and pad button.', press: () => { this.showTab('controls'); } });
+    S.set('camstyle', { id: 'camstyle', label: 'Camera: Classic', kind: 'toggle', def: () => true, desc: 'On: the fixed far chase camera. Off: the modern over-the-shoulder camera.', get: () => loadCameraStyle() === 'classic', set: ((v: boolean) => setCameraStyle(v ? 'classic' : 'modern')) as RowSpec['set'] });
     S.set('invert', { id: 'invert', label: 'Invert Look Y', kind: 'toggle', def: () => false, desc: 'Inverts vertical look for the mouse, the right stick and touch drag.', get: () => this.state.invertY, set: ((v: boolean) => this.setInvertY(v)) as RowSpec['set'] });
     S.set('reset', {
       id: 'reset', label: 'Reset position', kind: 'action',
@@ -1099,7 +1101,7 @@ export class Menu {
     const touchRows: RowSpec[] = TOUCH_ROWS.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}`, text: () => v, visible: () => this.inputMode === 'touch' }));
     const defs: Array<[SettingsGroup, RowSpec[]]> = [
       ['game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, ...(this.opts.gameRows ?? []), S.get('mods')!, S.get('credits')!, S.get('quit')!]],
-      ['controls', [S.get('invert')!, S.get('keys')!, ...touchRows]],
+      ['controls', [S.get('camstyle')!, S.get('invert')!, S.get('keys')!, ...touchRows]],
       ['audio', [S.get('master')!, S.get('radiovol')!, S.get('sfxvol')!, S.get('engineon')!, S.get('enginevol')!, S.get('voicevol')!, S.get('ambvol')!, S.get('hdvoices')!]],
       ['graphics', [S.get('windowmode')!, S.get('quality')!, S.get('autodetect')!, ...g('fpsCap', 'resolution', 'nativeDpr', 'showFps', 'shadows', 'drawDistance', 'treeRange', 'crowd', 'traffic', 'aa', 'textures', 'ao', 'bloom', 'dof', 'vignette', 'grain', 'fov')]],
       ['map', [S.get('map')!, ...MINIMAP_LEGEND.map((item) => ({ id: `l:${item.text}`, label: item.text, kind: 'info' as const, desc: `On the minimap: ${item.text}.`, text: () => '', swatch: { color: item.swatch, shape: item.shape } }))]],

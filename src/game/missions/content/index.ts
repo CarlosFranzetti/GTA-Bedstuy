@@ -11,7 +11,8 @@ import { detectStoryFeatures, storyActs, type StoryFeatures } from './story';
 import { picoAct1 } from './pedro/act1';
 
 /** Off until the first act is finished and verified (see the note in `buildMissions`). */
-export const PEDRO_STORY_ON = false;
+/** Default off. `VITE_PEDRO=1` (or `true`) turns it on for tests and local runs: `VITE_PEDRO=1 npx vitest run tests/unit/game/story`. */
+export const PEDRO_STORY_ON: boolean = ((import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_PEDRO ?? '') === '1' || ((import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_PEDRO ?? '') === 'true';
 
 export {
   bodegaRun, laundromatGetaway, blockParty, alternateSideShuffle, soundclash, senatorTheCat, dollarVanLastRun, movingDay,

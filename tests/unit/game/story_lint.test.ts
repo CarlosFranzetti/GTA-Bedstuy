@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { Rng } from '@/core/Rng';
 import { buildGrid, loadBedstuyData } from '@/world/Grid';
 import { subdivideLots } from '@/world/LotSubdivider';
-import { buildMissions } from '@/game/missions/content';
+import { buildMissions, PEDRO_STORY_ON } from '@/game/missions/content';
 import type { MissionDef, ObjectiveDef } from '@/game/missions/types';
 import { CAST, EXTRA_SPEAKERS, RECURRING, characterByName, isSpeaker } from '@/game/story/cast';
 import { ADS, BULLETINS } from '@/game/story/news';
@@ -59,7 +59,7 @@ const allStrings = story.flatMap(strings);
 
 describe('story content lint', () => {
   it('has strings to lint', () => {
-    expect(story.length).toBe(24);
+    expect(story.length).toBe(PEDRO_STORY_ON ? 32 : 24); // + the eight Pedro Act 1 missions when switched on
     expect(allStrings.length).toBeGreaterThan(300);
   });
 

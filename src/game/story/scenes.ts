@@ -75,7 +75,7 @@ export class FightScene extends Timed implements Scene {
     const options: SceneOption[] = o.map((x, k) => ({ key: k + 1, text: x.text, disabled: x.cost !== undefined && !this.host.canPay(x.cost) }));
     if (this.enc.phase === 'tense') options.push({ key: options.length + 1, text: 'Walk away.' });
     const phase = this.enc.phase === 'brawl' ? 'brawl' : this.enc.ended ? 'ended' : 'talk';
-    return { who: this.enc.script.who, line: this.enc.ended ? this.enc.ended.text : this.line, options: phase === 'talk' ? options.slice(0, 5) : [], secondsLeft: this.left, phase };
+    return { who: this.enc.script.who, line: this.enc.ended ? this.enc.ended.text : this.line, options: phase === 'talk' ? options : [], secondsLeft: this.left, phase };
   }
   choose(key: number): void {
     if (this.enc.phase !== 'tense') return;

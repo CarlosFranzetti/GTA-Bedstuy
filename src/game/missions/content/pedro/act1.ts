@@ -23,10 +23,10 @@ export const PICO_IDS = ['pico-rent-money', 'pico-lunes-night', 'pico-paper-the-
 const v = (id: string): Vec2 => venuePoint(id);
 
 export function picoRentMoney(c: PlaceCtx): MissionDef {
-  const stoop = home ?? poiSpot(c, 'troop-deli');
+  const stoop = home ?? offset(poiSpot(c, 'troop-deli'), 16, 12); // PLACEHOLDER until the host gives the real HOME
   const door = deliDoor();
   return {
-    id: 'pico-rent-money', title: 'Rent Money', act: 1, tag: 'story', stake: 120, availableHours: [9, 20],
+    id: 'pico-rent-money', title: 'Rent Money', act: 1, tag: 'story', stake: 120, availableHours: [9, 20], deadlineHour: 20,
     blurb: 'An envelope that says RENT, a record shop that texts the whole block. Just to look.',
     giverPoi: 'home', giver: stoop, triggerRadius: 5,
     phoneIntro: { from: 'Yesenia', text: 'The envelope says RENT. Do not make me say it twice.' },
@@ -53,7 +53,7 @@ export function picoLunesNight(c: PlaceCtx): MissionDef {
   return {
     id: 'pico-lunes-night', title: 'Lunes Night', act: 1, tag: 'story', requires: ['pico-rent-money'], availableHours: [12, 20], deadlineHour: 23,
     blurb: 'Monday at Sabor a Lunes: bring the crate, wait for nine, play the room.',
-    giverPoi: 'deli', giver: deliDoor(), triggerRadius: 6,
+    giverPoi: 'deli', giver: offset(deliDoor(), 20, 14), triggerRadius: 6,
     phoneIntro: { from: 'Rafa', text: 'Pedro? Odette gave me your number. Bring the records. Monday, nine. The dancers do not forgive.' },
     followUp: { from: 'Stavros', text: 'My friend! Rafa says you made Doña Carmen put her shoes back on. Call me. Beautiful.', delay: 90 },
     failJoke: { timeUp: 'Rafa plays the congas for two hours. Alone. He had a great night.', cargoBroken: 'Rafa: You broke the records before the party. That is a new one.', lowScore: 'The dancers sit down. Doña Carmen takes off her shoes. That is the end.' },
@@ -83,10 +83,11 @@ export function picoPaperTheWalls(c: PlaceCtx): MissionDef {
     giverPoi: 'club', giver: yard, triggerRadius: 6,
     phoneIntro: { from: 'Stavros', text: 'Pedro, my friend. Come to the garage. Paper, paper, paper. Beautiful.' },
     failJoke: { lowScore: 'Twenty flyers, eight people. Stavros calls it "a soft launch".', copsCalled: 'Stavros: Why are there police? Flyers are paper, my friend.' },
+    followUp: { from: 'Stavros', text: 'Photo received. Beautiful. Mothhouse looks like it has a new face. Do not read the side wall.', delay: 20 },
     setFlags: ['pico.signCovered'],
     objectives: [
       { kind: 'talkTo', at: yard, radius: 5, npc: 'Stavros', text: 'Get flyers and posters from Stavros', grant: ['flyers', 'posters'], lines: ['Twenty flyers, six posters. Friday is the night. Your name is on it, very small, at the bottom.', 'Adults only on the flyers, my friend. Kids do not buy tickets. Beautiful. Go.'] },
-      { kind: 'sell', item: 'flyer', count: 12, at: avenue, radius: 45, every: 7, text: 'Hand out flyers to passers-by (F)' },
+      { kind: 'sell', item: 'flyer', count: 12, at: avenue, radius: 45, every: 7, failIfStars: 2, text: 'Hand out flyers to passers-by (F)' },
       { kind: 'spots', points: boards, radius: 5, presence: 'onFoot', prompt: 'Paste poster', item: 'poster', text: 'Paste five posters on the marked boards' },
       { kind: 'spots', points: [wall], radius: 6, presence: 'onFoot', prompt: 'Paste poster', item: 'poster', text: 'Last board: Mothhouse', say: [{ who: 'Pedro', text: 'This one has a cardboard sign on it. Somebody lettered it by hand. It will be fine.' }] },
       { kind: 'interact', at: wall, radius: 8, prompt: 'Text Stavros the photo', text: 'Text Stavros a photo', doneMessage: 'Stavros: Beautiful. Beautiful. Forty now, twenty next time.' },
@@ -103,13 +104,15 @@ export function picoClemsCorner(c: PlaceCtx): MissionDef {
     id: 'pico-clems-corner', title: "Clem's Corner", act: 1, tag: 'story', requires: ['pico-paper-the-walls'], availableHours: [18, 26],
     blurb: 'The posters went over somebody\'s sign. Somebody has your bag.',
     giverPoi: 'club', giver: wall, triggerRadius: 6,
+    phoneIntro: { from: 'Stavros', text: 'Pedro, my friend, a small thing at the side wall. Somebody is upset about a sign. Go say hello. Beautiful.' },
+    failJoke: { timeUp: 'The line outside already has its phones out. Somebody is filming. Of course somebody is filming.' },
     followUps: [
       { from: 'Stavros', text: 'Where are my flyers? Twenty dollars off the pay, my friend. Where are my flyers?', delay: 20, ifFlag: 'pico.clem.walked' },
       { from: 'Clem', text: 'Put the corner on the paper. Spell it right.', delay: 40, ifFlag: 'pico.clem.talked' },
     ],
     objectives: [
       { kind: 'goTo', at: wall, radius: 6, presence: 'onFoot', text: 'Walk up to the wall', beat: { letterbox: 3 }, say: [{ who: 'Clem', text: 'Dolores lettered that sign. Paste your paper on your own wall.' }] },
-      { kind: 'scene', scene: 'clem', at: wall, radius: 14, presence: 'onFoot', prompt: 'Talk to Clem', text: 'Talk to Clem (or walk away)', outcomes: { talked: ['pico.clem.talked'], won: ['pico.clem.fought'], lost: ['pico.clem.fought'], walkedAway: ['pico.clem.walked'] } },
+      { kind: 'scene', scene: 'clem', at: wall, radius: 14, presence: 'onFoot', prompt: 'Talk to Clem', text: 'Talk to Clem (or walk away)', say: [{ who: 'Clem', text: 'Two years on this corner. Nobody asks me anything but to move.' }, { who: 'Pedro', text: 'Easy. Easy, señor. Tell me about the sign.' }], outcomes: { talked: ['pico.clem.talked'], won: ['pico.clem.fought'], lost: ['pico.clem.fought'], walkedAway: ['pico.clem.walked'] } },
       { kind: 'fork', id: 'clem-sign', text: 'Fix the sign', when: { flag: 'pico.clem.talked' }, options: [
         { label: 'Buy him a new sign ($15, Troop Deli)', at: shop, radius: 5, flag: 'pico.clem.newSign', cash: -15, doneMessage: 'Cardboard and two markers. He will want the good one.' },
         { label: 'Put his corner on the flyers', at: wall, radius: 5, flag: 'pico.clem.onFlyer', doneMessage: "CLEM'S CORNER, printed small at the bottom of every flyer." },
@@ -130,8 +133,9 @@ export function picoSizeMedium(c: PlaceCtx): MissionDef {
   const stoopHome = home ?? poiSpot(c, 'troop-deli');
   return {
     id: 'pico-size-medium', title: 'Size Medium, Vintage', act: 1, tag: 'story', requires: ['pico-clems-corner'], availableHours: [9, 17], stake: 40,
+    deadlineHour: 17,
     blurb: 'Rent is Friday. Lana has a rack, a truck-shaped hole and opinions.',
-    giverPoi: 'thrift', giver: thrift, triggerRadius: 8,
+    giverPoi: 'thrift', giver: offset(thrift, 17, 13), triggerRadius: 8,
     phoneIntro: { from: 'Yesenia', text: 'Friday. One hundred ten. Lana says you have an eye. I say you have an envelope.' },
     followUp: { from: 'Lana', text: 'You have a good eye for people and a bad eye for collars. Call me when you have the truck again.', delay: 60 },
     failJoke: { clockUp: 'Lana: The church closes at five. God keeps office hours.', lowScore: 'Lana: You sold a 1994 jacket to the 2019 people. Again.' },
@@ -158,10 +162,13 @@ export function picoSecondWind(c: PlaceCtx): MissionDef {
   return {
     id: 'pico-second-wind', title: 'Second Wind', act: 1, tag: 'story', requires: ['pico-clems-corner'], availableHours: [9, 20],
     blurb: 'Stavros\'s speakers for Akira\'s open house, and two rounds in the ring.',
-    giverPoi: 'club', giver: yard, triggerRadius: 6,
+    giverPoi: 'club', giver: offset(yard, 17, -15), triggerRadius: 6,
+    deadlineHour: 20,
+    phoneIntro: { from: 'Stavros', text: 'My friend, I rented speakers to Akira for his open house and my truck is dead. Carry them? Beautiful.' },
+    failJoke: { clockUp: 'Akira locks the gym at eight. The speakers sleep in the yard. Stavros calls it a soft launch.' },
     followUps: [{ from: 'Akira', text: 'Saw the video. Come in Tuesday. Hands, not feet.', delay: 25, ifFlag: 'pico.clem.fought' }],
     objectives: [
-      { kind: 'pickUp', at: yard, radius: 5, presence: 'any', items: ['speakers'], prompt: 'Load the speakers', text: 'Load the rented speakers' },
+      { kind: 'pickUp', at: yard, radius: 5, presence: 'any', items: ['speakers'], prompt: 'Load the speakers', text: 'Load the rented speakers', say: [{ who: 'Stavros', text: 'Handle with love, my friend. They are rented, and so is my house.' }] },
       { kind: 'deliver', at: gym, radius: 8, presence: 'any', items: ['speakers'], text: 'Carry them to Second Wind Boxing Club' },
       { kind: 'scene', scene: 'spar', at: gym, radius: 10, presence: 'onFoot', prompt: 'Step into the ring', text: 'Spar two rounds with Akira' },
       { kind: 'talkTo', at: gym, radius: 10, presence: 'onFoot', npc: 'Akira', text: 'Talk to Akira', lines: ['The best fight is the one you leave with your hands in your pockets.', 'Tuesdays. Bring your own tape.'] },
@@ -177,9 +184,12 @@ export function picoNotADate(c: PlaceCtx): MissionDef {
     id: 'pico-not-a-date', title: 'Coffee, Not a Date', act: 1, tag: 'story', requires: ['pico-size-medium'], availableHours: [12, 22],
     blurb: 'Two people have your number and a reason to use it. Both are adults. Pick one, or neither.',
     giverPoi: 'bar-dive', giver: margo, triggerRadius: 8,
+    deadlineHour: 22,
+    phoneIntro: { from: 'Margo', text: 'Coffee. Not a date. The park, two o\'clock. Bring the book answer. (Remy: sound check at five, bring cables.)' },
+    failJoke: { clockUp: 'Two people waited. One read a book. One coiled a cable. Both were very gracious about it.' },
     followUps: [{ from: 'Margo', text: 'Tuesday. Come by the bar. Bring the book answer.', delay: 20, ifFlag: 'pico.date.margo' }, { from: 'Remy', text: 'I found a cable that does not hum. Come see.', delay: 20, ifFlag: 'pico.date.remy' }],
     objectives: [
-      { kind: 'fork', id: 'who', text: 'Who do you call?', options: [
+      { kind: 'fork', id: 'who', text: 'Who do you call?', say: [{ who: 'Pedro', text: 'Two numbers in my phone and neither is a date. Coffee is not a date.' }, { who: 'Yesenia', text: 'Say it again, prima. Slower.' }, { who: 'Pedro', text: 'It is coffee. Coffee has no plot.', at: 4 }], options: [
         { label: 'Margo, at Glenda\'s Long Room', at: margo, radius: 6, flag: 'pico.date.margo' },
         { label: 'Remy, at Mothhouse', at: remy, radius: 6, flag: 'pico.date.remy' },
         { label: 'Nobody tonight', at: offset(margo, 14, 6), radius: 4, flag: 'pico.date.none' },
@@ -197,7 +207,7 @@ export function picoWarmUpSlot(c: PlaceCtx): MissionDef {
   return {
     id: 'pico-warm-up-slot', title: 'Warm-Up Slot', act: 1, tag: 'story', requires: ['pico-second-wind', 'pico-not-a-date'], availableHours: [12, 22], deadlineHour: 26,
     blurb: 'Mothhouse, a Friday warm-up, five names and a man in a fleece vest.',
-    giverPoi: 'club', giver: club, triggerRadius: 8,
+    giverPoi: 'club', giver: offset(club, -26, -22), triggerRadius: 8,
     phoneIntro: { from: 'Stavros', text: 'Friday. The booth. You warm up the room, you do not peak it. Beautiful. Bring five names.' },
     followUps: [
       { from: 'Stavros', text: 'A hundred next month, my friend. I forgot. You know how it is.', delay: 30 },

@@ -184,7 +184,7 @@ Voice: pitch 0.95, rate 1.05.
 
 **Clem** (Clement Ashby). 61. Voice: pitch 0.7, rate 0.85.
 
-- Who: born in Bed-Stuy, played electric bass on more records than he can count in the 1980s and 90s: session work,
+- Who: born in Bed-Stuy, four years in the Navy at eighteen (he boxed on the ship, badly), then played electric bass on more records than he can count in the 1980s and 90s: session work,
   wedding bands, a disco label that paid in cash and promises. Never famous. His name is on the back of three sleeves in
   WAX DELI's bins, spelled wrong on one of them.
 - How he lost the apartment: his building was "renovated" around him; a buyout he signed while his wife Dolores was dying,
@@ -407,3 +407,26 @@ name of a famous baseball pitcher: the owner chose it, the story never refers to
 Stavros Yanos, Akira Tonaka (owner's choices), Clement Ashby, Kyle Strand, Whitman Calloway, Margaret Ellison, Remy
 Okonkwo-Hale, Yesenia Ospino, Rafael Ochoa, Glenda Fairweather, Basheer Malik, Hollis Greer, Inés Calderón, Corinne Batts,
 Teodor Vass, Desmond Pratt, Wilfrido (the uncle).
+
+## 9. CAST's placeholders: kept or renamed (27 Nov)
+
+CAST (`src/game/story/cast/cast.ts`, `docs/swarm/tasks/STORY-CAST.md`) built ten people before this bible's cast was
+read. The bible's people win; CAST keeps its looks where they fit. Decisions, one per placeholder:
+
+| CAST id (placeholder) | Becomes | Why | Look notes for CAST |
+|---|---|---|---|
+| `augie` August "Augie" Pruitt | RENAMED `clem`, Clement "Clem" Ashby, 61 | the homeless man is Clem (4.6) | Black, Brooklyn-born elder, lean, grey beard, layered winter coats and a knit cap, clean and kept; folding chair, crate, radio. Keep "stoop-slim". |
+| `dom` Dominic "Dom" Verrill | RENAMED `kyle`, Kyle Strand, 36 | the man at the bar is Kyle (4.7), a parody of money, not a working man (the parody aims up) | White, fit, cold-plunge glow, quarter-zip over a shirt, expensive sneakers, a smart watch he checks. Body "athletic", not "heavy". |
+| `noor` Noor Haddad | RENAMED `margo`, Margaret "Margo" Ellison, 37 | love interest 1 (4.8); "nurse on nights" belongs to Adele | Black, Brooklyn-born, bartender: dark work shirt, sleeves rolled, a paperback in the back pocket. |
+| `julian` Julian Ashby | RENAMED `remy`, Remy Okonkwo-Hale, 33 | love interest 2 (4.8); "Ashby" is Clem's surname; "trainer at the gym" belongs to Akira | Nigerian-British sound engineer: black tee, headphones round the neck, a cable coiled on one shoulder, work boots. |
+| `winston` Winston Pryce | RENAMED `hollis`, Hollis Greer, 66 | the elder neighbour is Hollis (4.10, Clem's old friend); "Pryce" is already the parody CEO in the Air Rights cast | Keep CAST's look: flat cap, tan and brown. He sits at the dominoes table in Thistledown Park, not at a window. |
+
+The five fixed names keep CAST's ids; correct these notes to match section 4:
+- `adele`: an ER nurse on nights at Wexcombe Medical Center, 34, Filipino-American (not a vintage dealer: that is Lana's
+  world). Scrubs under a parka for work; jeans and a good coat off shift. CAST's "noor" note fits her well.
+- `lana`: a stylist and thrift flipper, 29, born in Brighton Beach to parents from Odesa (not a promoter). The tall,
+  platinum-bob look is fine.
+- `stavros`: 52, Greek-American promoter from Astoria; CAST's look (big, moustache, blazer over a polo) is kept.
+- `akira`: 44, Japanese-American former pro boxer who owns Second Wind Boxing Club (not a booking agent or label man):
+  compact and strong, a flattened nose, a gym hoodie, wraps on his hands. Body "athletic" or "wiry", not "ecto".
+- `pedro`: kept as CAST made him (lean, mustard bomber, record bag), age 31.

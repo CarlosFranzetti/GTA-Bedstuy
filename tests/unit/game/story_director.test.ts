@@ -8,7 +8,7 @@ import { Rng } from '@/core/Rng';
 import { buildGrid, loadBedstuyData } from '@/world/Grid';
 import { subdivideLots } from '@/world/LotSubdivider';
 import { MissionSystem } from '@/game/missions/MissionSystem';
-import { buildMissions } from '@/game/missions/content';
+import { buildMissions, PEDRO_STORY_ON } from '@/game/missions/content';
 import { StoryDirector } from '@/game/story/StoryDirector';
 import { AmbientNotices, ambientItems } from '@/game/story/AmbientNotices';
 import { StoryState } from '@/game/story/StoryState';
@@ -138,7 +138,7 @@ describe('StoryDirector: phone, log, radio, subtitles', () => {
     done(r, ['bodega-run', 'notice-of-intent', 'public-comment', 'handle-with-care']);
     r.run('back-rent', { 'back-rent': F.ODETTE_PAID });
     const log = r.dir.log();
-    expect(log).toHaveLength(24); // 14 of the arc + the 10 STORY2 side jobs
+    expect(log).toHaveLength(PEDRO_STORY_ON ? 32 : 24); // 14 of the arc + the 10 STORY2 side jobs
     const row = (id: string) => log.find((l) => l.id === id)!;
     expect(row('back-rent').status).toBe('complete');
     expect(row('back-rent').choice).toContain('own pocket');

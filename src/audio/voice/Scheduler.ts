@@ -98,7 +98,7 @@ export function resolveShow(show: Show, ctx: Partial<VoiceContext>, random: Rand
   for (const l of show.lines) {
     if (!lineAllowed(l, ctx)) continue;
     const text = fillSlots(l.text, slots);
-    if (text) out.push({ who: l.who, text });
+    if (text) out.push(l.parodyOf ? { who: l.who, text, parodyOf: l.parodyOf } : { who: l.who, text });
   }
   return out;
 }

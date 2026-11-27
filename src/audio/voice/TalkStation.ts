@@ -42,6 +42,9 @@ export class TalkStation implements TalkLike {
   private active = false;
   private handle: PlayHandle | null = null;
   private who = '';
+  /** BOOMBOX: the line being spoken and the real person it parodies, for the radio page's caption (read-only). */
+  private text = '';
+  private parody = '';
   private base = 0;
   private lineCount = 0;
   private peeked = false;
@@ -57,6 +60,9 @@ export class TalkStation implements TalkLike {
     if (b?.ad) return 'Ad break';
     return this.who || (b ? castMember(b.show.host)?.name ?? '' : '');
   }
+  /** BOOMBOX: the line on air now ('' between lines or off air) and the person a parody line sends up. */
+  get lineText(): string { return this.active ? this.text : ''; }
+  get lineParodyOf(): string { return this.active ? this.parody : ''; }
   get progress(): TalkProgress {
     const b = this.schedule.current;
     const total = b?.lines.length ?? 0;
@@ -67,7 +73,7 @@ export class TalkStation implements TalkLike {
     if (on === this.active) return;
     this.active = on;
     if (on) { this.env.setBed(BED_OPEN); this.playCurrent(); }
-    else { this.gen++; this.handle?.cancel(); this.handle = null; this.env.hub.player.cancel(); this.env.setBed(0); this.who = ''; }
+    else { this.gen++; this.handle?.cancel(); this.handle = null; this.env.hub.player.cancel(); this.env.setBed(0); this.who = ''; this.text = ''; this.parody = ''; }
   }
 
   setPaused(p: boolean): void { this.env.hub.player.setPaused(p); }
@@ -88,9 +94,11 @@ export class TalkStation implements TalkLike {
     if (lines.length === 0) { this.next(my); return; }
     this.handle = this.env.hub.player.play(lines, {
       onStart: () => this.env.setBed(BED_DUCKED),
-      onLine: (who) => {
+      onLine: (who, text) => {
         if (my !== this.gen) return;
         this.who = who.name;
+        this.text = text;
+        this.parody = block.lines.find((l) => l.text === text)?.parodyOf ?? '';
         this.schedule.setAt(this.base + this.lineCount);
         this.lineCount++;
         // Pre-render the next block while this one plays out.
@@ -107,7 +115,7 @@ export class TalkStation implements TalkLike {
   private next(my: number): void {
     if (my !== this.gen || !this.active) return;
     this.env.setBed(BED_OPEN);
-    this.who = '';
+    this.who = ''; this.text = ''; this.parody = '';
     this.schedule.advance(this.env.context());
     this.playCurrent();
   }

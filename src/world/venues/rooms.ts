@@ -108,12 +108,12 @@ function finish(id: VenueId, g: THREE.Group, kit: Kit, spots: VenueSpot[], peopl
 
 // ------------------------------------------------------------------ bars (three variants)
 
-function buildBar(id: 'bar-dive' | 'bar-lounge' | 'bar-sports', deps: VenueRoomDeps): VenueRoom {
+function buildBar(id: 'bar-dive' | 'bar-lounge' | 'bar-dance', deps: VenueRoomDeps): VenueRoom {
   const { w, d, h, origin } = VENUE_ROOM[id];
   const row = venueById(id);
   const pal = id === 'bar-dive' ? { floor: '#3a2b1e', wall: '#5a3f2a', ceil: '#241a12', trim: '#c8481f', counter: '#6b3f22', top: '#2a1a10' }
     : id === 'bar-lounge' ? { floor: '#1d1220', wall: '#3a1d40', ceil: '#150c18', trim: '#ff4fa0', counter: '#2b1030', top: '#c9a24a' }
-      : { floor: '#2b2f33', wall: '#1d3150', ceil: '#14202f', trim: '#e63946', counter: '#3d3d40', top: '#9a9a9a' };
+      : { floor: '#3a1a1a', wall: '#7a1f24', ceil: '#2a1012', trim: '#ffd23f', counter: '#3d1f1f', top: '#c9a24a' };
   const g = new THREE.Group(); g.name = `interior-${id}`;
   g.add(shell(w, d, h, pal));
   const k = new Kit(deps.world, w, d, id, origin);
@@ -131,22 +131,26 @@ function buildBar(id: 'bar-dive' | 'bar-lounge' | 'bar-sports', deps: VenueRoomD
   for (let i = 0; i < 3; i++) { const x = -w / 2 + 2.2 + i * 2.6, z = 0.9; k.b(0.9, 0.75, 0.9, pal.counter, x, 0.375, z, true); k.b(0.4, 0.45, 0.4, '#222', x - 0.8, 0.22, z); k.b(0.4, 0.45, 0.4, '#222', x + 0.8, 0.22, z); }
   const spots: VenueSpot[] = [
     exitSpot(d, `Leave ${row.name}`),
-    { id: 'stool', kind: 'bar', x: stools[2].x, z: stools[2].z, r: 1.7, label: 'Take a stool and order ($6)' },
+    { id: 'bar', kind: 'bar', x: stools[2].x, z: stools[2].z, r: 1.7, label: 'Take a stool and order ($6)' },
     { id: 'bartender', kind: 'talk', x: -w / 2 + 2.0, z: bz + 0.9, r: 1.4, label: 'Talk to the bartender', say: `Bartender: "First one is on the house if you tell me something I do not know."` },
     { id: 'table', kind: 'couch', x: -w / 2 + 4.8, z: 1.9, r: 1.6, label: 'Sit at a table', say: 'You take a table. The wood is sticky and honest.' },
   ];
   if (id === 'bar-dive') {
     k.b(1.0, 1.8, 0.5, '#2a3a52', w / 2 - 0.5, 0.9, -1.2, true); k.b(0.7, 0.5, 0.05, '#ffcf86', w / 2 - 0.5, 1.4, -0.93, false, true); // jukebox
     k.b(2.6, 0.8, 1.4, '#1f5a3a', w / 2 - 2.2, 0.4, 2.0, true); // pool table
+    k.b(0.12, 1.0, 1.4, '#6b5a4a', -w / 2 + 0.1, 1.6, -1.4); // photo wall
+    spots.push({ id: 'booth-back', kind: 'couch', x: -w / 2 + 1.4, z: -1.4, r: 1.6, label: 'Take the back booth', say: 'The back booth. Forty years of regulars have told it everything.' });
     spots.push({ id: 'jukebox', kind: 'mark', x: w / 2 - 1.6, z: -1.2, r: 1.5, label: 'Play the jukebox', say: 'You feed it a dollar. It plays the same decade it always plays.' });
   } else if (id === 'bar-lounge') {
     for (let i = 0; i < 2; i++) { k.b(0.9, 0.55, 2.2, '#5a1f3a', -w / 2 + 0.7, 0.275, -0.2 + i * 2.6, true); k.b(0.2, 0.5, 2.2, '#4a1830', -w / 2 + 0.3, 0.8, -0.2 + i * 2.6); }
     for (let i = 0; i < 8; i++) k.b(0.06, 0.1, 0.06, '#ffd98a', -w / 2 + 3 + i * 0.9, 0.84, 0.9, false, true); // candles
-    spots.push({ id: 'booth', kind: 'couch', x: -w / 2 + 1.5, z: 1.1, r: 1.7, label: 'Slide into the booth', say: 'The booth is the kind where people lean in to be heard. Or to be close.' });
+    k.b(1.4, 1.0, 0.8, '#2b2b30', w / 2 - 1.2, 0.5, -1.6, true); // DJ corner under a pigeon in a tiny hat
+    spots.push({ id: 'booth', kind: 'dj', x: w / 2 - 1.2, z: -0.4, r: 1.7, label: 'Take the DJ corner' });
   } else {
-    for (let i = 0; i < 3; i++) k.b(2.2, 1.2, 0.08, '#8ad1ff', -3 + i * 3.2, 2.3, -d / 2 + 0.06, false, true); // three screens
-    k.b(0.7, 1.2, 0.5, '#4a4a4f', w / 2 - 0.6, 0.6, 1.5, true); // dart board cabinet
-    spots.push({ id: 'screens', kind: 'mark', x: 0.5, z: -d / 2 + 3.4, r: 2.4, label: 'Watch the game', say: 'Three screens, three different games, and everyone sure their team is winning.' });
+    k.b(1.4, 0.9, 0.8, '#222', w / 2 - 1.2, 0.45, -1.6, true); // booth
+    for (let i = 0; i < 12; i++) k.b(0.5, 0.02, 0.5, i % 2 ? '#ffd23f' : '#3a1a1a', -2 + (i % 4) * 0.55, 0.02, 1.6 + Math.floor(i / 4) * 0.55, false, true); // small dance floor
+    spots.push({ id: 'booth', kind: 'dj', x: w / 2 - 1.2, z: -0.4, r: 1.7, label: 'Take the booth' });
+    spots.push({ id: 'floor', kind: 'mark', x: -1.0, z: 2.1, r: 2.0, label: 'Dance', say: 'Somebody older than your parents shows you the step. You get it wrong. They are kind.' });
   }
   // a back room behind the east wall door
   k.b(1.0, 2.1, 0.12, '#2a1d14', w / 2 - 0.08, 1.05, d / 2 - 2.4);
@@ -174,8 +178,9 @@ function buildAfterhours(deps: VenueRoomDeps): VenueRoom {
   for (let i = 0; i < 3; i++) k.b(2.0, 0.5, 0.9, ['#7a3b3b', '#3b5a7a', '#5a7a3b'][i], -w / 2 + 1.2, 0.25, -1.0 + i * 2.2, true); // mismatched sofas
   k.b(2.2, 2.2, 0.1, '#3a4a3a', -w / 2 + 3.2, 1.1, d / 2 - 1.2); // a tarp over the back room
   const spots: VenueSpot[] = [
-    exitSpot(d, 'Leave Sunrise Annex'),
-    { id: 'bar', kind: 'bar', x: w / 2 - 2.0, z: 0.5, r: 1.9, label: 'Get a drink from the plank ($6)' },
+    exitSpot(d, 'Leave The Milk Run'),
+    { id: 'bar', kind: 'bar', x: w / 2 - 2.0, z: 0.5, r: 1.9, label: 'Pour from the coffee urn ($6)' },
+    { id: 'floor', kind: 'mark', x: 0, z: 0.4, r: 2.4, label: 'Join the floor', say: 'Seven a.m. and nobody here is tired yet.' },
     { id: 'booth', kind: 'dj', x: 0, z: -d / 2 + 2.4, r: 1.8, label: 'Take the decks' },
     { id: 'couch', kind: 'couch', x: -w / 2 + 2.4, z: 0.9, r: 1.8, label: 'Collapse onto a sofa', say: 'The sofa remembers every Sunday. You stay a while.' },
     { id: 'backroom', kind: 'mark', x: -w / 2 + 3.2, z: d / 2 - 2.2, r: 1.6, label: 'Behind the tarp', say: 'Behind the tarp: a crate, a scale, a kettle. Nobody asks.' },
@@ -234,13 +239,14 @@ function buildClub(deps: VenueRoomDeps): VenueRoom {
   const bt = c.add(person(deps, 'club-bar', { variant: 'ba-durag' }), w / 2 - 1.6, 1.0, -Math.PI / 2);
   const bouncer = c.add(person(deps, 'club-bouncer'), 2.0, d / 2 - 2.2, Math.PI);
   const spots: VenueSpot[] = [
-    exitSpot(d, 'Leave Neon Paloma'),
+    exitSpot(d, 'Leave Mothhouse'),
     { id: 'booth', kind: 'dj', x: 0, z: bz + 1.4, r: 1.8, label: 'Take the decks' },
     { id: 'bar', kind: 'bar', x: w / 2 - 2.0, z: 1.0, r: 1.9, label: 'Order a drink ($6)' },
-    { id: 'dancefloor', kind: 'mark', x: 0, z: -0.9, r: 3.2, label: 'Hit the floor', say: 'The floor takes you in. For a minute you are just another body on the beat.' },
+    { id: 'floor', kind: 'mark', x: 0, z: -0.9, r: 3.2, label: 'Hit the floor', say: 'The floor takes you in. For a minute you are just another body on the beat.' },
     { id: 'vip', kind: 'couch', x: -w / 2 + 2.6, z: -0.5, r: 1.9, label: 'Sit in the VIP booth', say: 'Velvet, a candle, and a view of everyone who needs to be seen.' },
     { id: 'backroom', kind: 'mark', x: -w / 2 + 1.5, z: d / 2 - 3.5, r: 1.6, label: 'Back office', say: 'Back office: a desk, a safe, a promoter on the phone with five people at once.' },
-    { id: 'door', kind: 'talk', x: 0, z: d / 2 - 1.6, r: 1.6, label: 'Talk to the door', say: 'Doorman: "Names on the list, or friends of names on the list."' },
+    { id: 'door', kind: 'talk', x: 0, z: d / 2 - 1.6, r: 1.6, label: 'Talk to the door', say: 'Bash: "Names on the list, or friends of names on the list."' },
+    { id: 'sidedoor', kind: 'mark', x: w / 2 - 1.2, z: d / 2 - 3.5, r: 1.6, label: 'Side door to the alley', say: 'The side door lets out onto the alley. Someone has put a chair out there.' },
   ];
   let last = -1;
   return finish(id, g, k, spots, c.models, (t, beat) => {
@@ -273,7 +279,7 @@ function buildDispensary(deps: VenueRoomDeps): VenueRoom {
   k.b(2.0, 0.7, 0.5, '#e8e8e4', w / 2 - 1.2, 0.35, 0.8, true); // a waiting bench
   k.b(0.9, 2.1, 0.12, '#cfd6cc', -w / 2 + 0.08 + 0.1, 1.05, 0.2); // office door
   const spots: VenueSpot[] = [
-    exitSpot(d, 'Leave Fernwell'),
+    exitSpot(d, 'Leave Mellowdrama'),
     { id: 'counter', kind: 'talk', x: 0, z: -d / 2 + 3.2, r: 1.9, label: 'Talk to the budtender', say: 'Budtender: "Flower, edibles, or you just want to look cool in the line?"' },
     { id: 'menu', kind: 'mark', x: 0, z: -d / 2 + 2.9, r: 2.4, label: 'Read the menu', say: 'The menu has more adjectives than a wine list.' },
     { id: 'bench', kind: 'couch', x: w / 2 - 1.6, z: 1.6, r: 1.5, label: 'Wait on the bench', say: 'You wait. The playlist is acoustic and judging you.' },
@@ -302,16 +308,18 @@ function buildGym(deps: VenueRoomDeps): VenueRoom {
   // cardio: three treadmills along the east wall
   for (let i = 0; i < 3; i++) { const z = -2.4 + i * 1.8; k.b(0.9, 0.3, 1.8, '#1f1f22', w / 2 - 1.2, 0.15, z, true); k.b(0.9, 1.0, 0.1, '#2a2a2e', w / 2 - 0.6, 1.1, z); k.b(0.4, 0.2, 0.05, '#5fff8a', w / 2 - 0.6, 1.5, z, false, true); }
   // a heavy bag and a ring corner
+  k.b(3.4, 0.25, 3.4, '#8a1c1c', -w / 2 + 3.4, 0.2, -d / 2 + 3.0); // the ring
   k.b(0.45, 1.3, 0.45, '#8b1e1e', -w / 2 + 2.6, 1.25, d / 2 - 2.4); k.b(0.05, 1.0, 0.05, '#888', -w / 2 + 2.6, 2.4, d / 2 - 2.4);
   // the front desk by the door and lockers
   k.b(2.6, 1.0, 0.7, '#ffd400', w / 2 - 2.2, 0.5, d / 2 - 1.2, true);
   for (let i = 0; i < 6; i++) k.b(0.5, 1.8, 0.5, i % 2 ? '#3b5a7a' : '#2b4056', w / 2 - 0.5, 0.9, 1.8 + i * 0.52 - 3.0 + 3.0, false);
   const spots: VenueSpot[] = [
-    exitSpot(d, 'Leave Iron Stoop Gym'),
+    exitSpot(d, 'Leave Second Wind'),
     { id: 'desk', kind: 'talk', x: w / 2 - 2.2, z: d / 2 - 2.4, r: 1.6, label: 'Talk to the front desk', say: 'Front desk: "Day pass is free if you can lift the stack. Pay if you cannot."' },
     { id: 'bench', kind: 'train', x: 0, z: 0.4, r: 2.4, label: 'Hit the bench press', say: 'You rack it. Your chest has notes.' },
     { id: 'treadmill', kind: 'train', x: w / 2 - 2.4, z: -0.6, r: 1.8, label: 'Run the treadmill', say: 'Ten minutes at a pace you will regret by evening.' },
-    { id: 'bag', kind: 'train', x: -w / 2 + 3.4, z: d / 2 - 2.4, r: 1.6, label: 'Work the heavy bag', say: 'The bag takes it and gives it back.' },
+    { id: 'bags', kind: 'train', x: -w / 2 + 3.4, z: d / 2 - 2.4, r: 1.6, label: 'Work the heavy bag', say: 'The bag takes it and gives it back.' },
+    { id: 'ring', kind: 'train', x: -w / 2 + 3.4, z: -d / 2 + 3.0, r: 2.4, label: 'Spar in the ring', say: 'Akira says: "Hands up. Breathe. Pockets."' },
     { id: 'lockers', kind: 'mark', x: w / 2 - 1.5, z: 2.4, r: 1.6, label: 'Lockers', say: 'A locker with a dent in the shape of an argument.' },
   ];
   const desk = c.add(person(deps, 'gym-desk', { variant: 'la-denim' }), w / 2 - 2.2, d / 2 - 0.4, Math.PI);
@@ -322,7 +330,7 @@ function buildGym(deps: VenueRoomDeps): VenueRoom {
 
 export function buildVenueRoom(id: VenueId, deps: VenueRoomDeps): VenueRoom {
   switch (id) {
-    case 'bar-dive': case 'bar-lounge': case 'bar-sports': return buildBar(id, deps);
+    case 'bar-dive': case 'bar-lounge': case 'bar-dance': return buildBar(id, deps);
     case 'afterhours': return buildAfterhours(deps);
     case 'club': return buildClub(deps);
     case 'dispensary': return buildDispensary(deps);

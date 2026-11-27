@@ -22,6 +22,11 @@ export const F = {
   S_PIVOT: 'side.founderMode', S_CARBON: 'side.carbonCopy', S_BINDER: 'side.binder', S_QUORUM: 'side.gavel',
   S_BIRDS: 'side.pigeons', S_VAN: 'side.vanMan', S_VAN_PRIYA: 'side.vanPriya', S_VAN_RIVKA: 'side.vanRivka',
   S_SLOW: 'side.slowRoll', S_STAMPS: 'side.redTape', S_RETREAT: 'side.silentRetreat',
+  /** PICO Act 1 (docs/story/BIBLE.md section 6): milestone and choice flags the missions, scenes and texts read. */
+  P_RENT_DONE: 'pico.rentMoney.done', P_RAFA: 'pico.rafa.number', P_SLEEVE: 'pico.sleeveCredit', P_SIGN_COVERED: 'pico.signCovered',
+  P_CLEM_TALKED: 'pico.clem.talked', P_CLEM_FOUGHT: 'pico.clem.fought', P_CLEM_WALKED: 'pico.clem.walked', P_CLEM_SIGN: 'pico.clem.newSign', P_CLEM_FLYER: 'pico.clem.onFlyer',
+  P_FLIP_OK: 'pico.flip.ok', P_AKIRA_POCKETS: 'pico.akira.pockets', P_DATE_MARGO: 'pico.date.margo', P_DATE_REMY: 'pico.date.remy', P_DATE_NONE: 'pico.date.none',
+  P_MARGO_WARM: 'pico.margo.warm', P_REMY_WARM: 'pico.remy.warm', P_MORNING_AFTER: 'pico.morningAfter', P_PLUSH_OFFERED: 'pico.plush.offered', P_ACT2: 'story.pico.act2',
 } as const;
 
 /** Which way each choice leans: the epilogue and the news read the totals. */

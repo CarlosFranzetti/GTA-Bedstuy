@@ -34,7 +34,7 @@ In a car
 - Higher and looking slightly down (about 14 degrees at the middle rig); pulls back 1.6 m at 30 m/s; the lens widens from 64 to 70 degrees.
 - Hold C: look behind, reached in about 0.07 s (a spring at 45 per second: close to a cut but not a frame jump). It does NOT flip when reversing:
   the view stays behind the car, the player uses C. Hold `[` or `]` to look left or right.
-- A mouse or stick look in a car is held 1.0 s, then returns behind over 0.6 s (the spring's stiffness ramps).
+- A mouse or stick look in a car is held 1.0 s, then returns behind over 1.0 s (the spring's stiffness ramps).
 - Getting in and out: unchanged from CAMFIX (one 0.6 s blend, cuts to or from the bumper and cinematic views). The style tests rerun all 26
   CAMFIX scenarios at 30, 60 and 144 fps in Classic.
 
@@ -66,11 +66,12 @@ In a car
 | Car: pull-back with speed | 1.6 m at 30 m/s | `speedDistance` | own (modern 0.9) |
 | Car: field of view | 64, widening to 70 at 30 m/s, plus the view's own | `CAM_CLASSIC.vehicle` | own (modern 70 to 82) |
 | Car: yaw spring | omega 5 per second | `carYawOmega` | own |
-| Car: look return | held 1.0 s, ramp 0.6 s | `carReturnDelay`, `carReturnRamp` | own (modern 2.0 and 1.4) |
+| Car: look return | held 1.0 s, ramp 1.0 s | `carReturnDelay`, `carReturnRamp` | own (ramp 1.0 s after tuning; modern 2.0 and 1.4) |
 | Car: pitch limits | -0.05 to 0.5 | `pitchVehicle` | own |
 | Look behind / sideways: spring | omega 45 per second (95 % in 0.07 s) | `lookOmega` | own, "instantly" |
 | Look sideways angle | 90 degrees | | own |
 | Chase to chase blend | 0.25 s; in or out of a car 0.6 s | CAMFIX | unchanged |
+| Cars and people lower than the lens by 0.5 m do not trim the classic view | `LENS_CLEAR_OVER` 0.5 m | `dynamicLimit` | own; stops a ray grazing a car corner from making the lens shuffle (vault scenario, 267 deg/s at 144 fps before) |
 | Character fade | 1 at 2.0 m horizontal from the head, 0 at 0.6 m | `fadeNear`, `fadeFar` | own |
 | Keys: first person, look left, look right | T, `[`, `]` (raw codes, not in the binding table) | `LOOK_*_KEY` | own; the lead may rebind |
 
@@ -79,6 +80,25 @@ In a car
 `tests/unit/core/camera-classic.test.ts` (new) and `tests/unit/entities/camfix-harness.ts` (a `style` option, and the bumper view excluded
 from the inside-car test like the hood). Results are at the end of this file.
 
-## Hand-back
+## Results (27 Nov)
 
-See the report to the lead (exact lines for `src/main.ts` and the Settings row) and the end of this file.
+`npx vitest run tests/unit/core tests/unit/entities/camfix.test.ts tests/unit/entities/camera.test.ts tests/unit/render/camera-views.test.ts
+tests/unit/render/camera-smooth.test.ts tests/unit/sim/h8-driving.test.ts --maxWorkers=1`: 464 passed, 16 files. `npx tsc --noEmit` clean for src/.
+camera-classic.test.ts is 116 tests: all 26 CAMFIX scenarios in Classic at 30, 60 and 144 fps; a 250 ms frame at any phase of enter-drive-off;
+lazy follow settles within 2.5 s of a 90 degree turn (no snap, no overshoot, 150 deg/s at most) and gives the same yaw at 30, 60, 144;
+look-behind in 0.1 s; look left and right; view cycling; wall slide, no shiver (under 3 cm), body fade; Modern unchanged (a camera switched
+to classic and back lands where a fresh Modern one does). The CAMFIX harness got a `style` option and skips the bumper view in the inside-car test.
+Classic uses the blend allowance (0.15 m + 30 m/s x dt) for lens motion in every scenario because its rig is 5 to 6 m back.
+
+## Hand-back (lines for the lead)
+
+src/main.ts (only the lead edits it):
+- import: `import { loadCameraStyle, onCameraStyleChange } from '@/core/CameraViews';`
+- after `const cam = new ThirdPersonCamera(...)` (line 482): `cam.setStyle(loadCameraStyle()); onCameraStyleChange((s) => cam.setStyle(s));`
+- optional, fade the body near a wall: after `cam.update(...)` in `updateCamera` use `cam.bodyFade` (1 = opaque) to set the player's material opacity; Player has no such hook, so this is not wired.
+- keys are raw codes read inside the camera: T (first person on foot), `[` and `]` (look left, right), C as before. They are not in Bindings.
+
+src/ui/Menu.ts, next to the 'invert' row (line 1051), and add it to the 'controls' list at line 1102:
+`S.set('camstyle', { id: 'camstyle', label: 'Camera: Classic', kind: 'toggle', def: () => true, desc: 'On: the fixed far chase camera. Off: the modern over-the-shoulder camera.', get: () => loadCameraStyle() === 'classic', set: ((v: boolean) => setCameraStyle(v ? 'classic' : 'modern')) as RowSpec['set'] });`
+with `import { loadCameraStyle, setCameraStyle } from '@/core/CameraViews';`
+

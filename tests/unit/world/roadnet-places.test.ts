@@ -68,7 +68,7 @@ describe('places on the real map', () => {
   it('every POI and every interior has a real lot, a door position and a facing', () => {
     expect(Object.keys(table.pois).sort()).toEqual(data.pois.map((p) => p.id).sort());
     for (const id of poiIds) expect(table.pois[id], id).toBeTruthy();
-    for (const id of Object.keys(INTERIORS) as InteriorId[]) {
+    for (const id of (Object.keys(INTERIORS) as InteriorId[]).filter((i) => !i.startsWith('venue:'))) {
       const door = places.interiorDoor(id);
       expect(finite(door)).toBe(true);
       expect(Math.hypot(door.outX, door.outZ)).toBeCloseTo(1, 6);
@@ -77,7 +77,7 @@ describe('places on the real map', () => {
     for (const p of data.pois) { expect(finite(places.poiSpot(p.id))).toBe(true); expect(finite(places.poiSpot(p.id, 14))).toBe(true); }
   });
   it('every door is on a sidewalk and faces a street', () => {
-    for (const id of Object.keys(INTERIORS) as InteriorId[]) {
+    for (const id of (Object.keys(INTERIORS) as InteriorId[]).filter((i) => !i.startsWith('venue:'))) {
       const door = places.interiorDoor(id);
       const trig = doorTrigger({ ...INTERIORS[id], door });
       expect(onSidewalk(trig), `${id} trigger`).toBe(true);
@@ -157,7 +157,7 @@ describe('places on the real map', () => {
     const targets: Array<[string, Vec2]> = [];
     for (const [block, side, t] of table.anchors) targets.push([`${block}/${side}/${t}`, places.facePoint(block, side as Side, t)]);
     for (const p of data.pois) targets.push([p.id, places.poiSpot(p.id)]);
-    for (const id of Object.keys(INTERIORS) as InteriorId[]) targets.push([id, doorTrigger({ ...INTERIORS[id], door: places.interiorDoor(id) })]);
+    for (const id of (Object.keys(INTERIORS) as InteriorId[]).filter((i) => !i.startsWith('venue:'))) targets.push([id, doorTrigger({ ...INTERIORS[id], door: places.interiorDoor(id) })]);
     for (const k of cornerPairs) { const [a, b] = k.split('/'); targets.push([`corner ${k}`, places.corner(a, b)]); }
     const lost = targets.filter(([, p]) => !seen.has(nearest(p))).map(([k]) => k);
     expect(lost).toEqual([]);

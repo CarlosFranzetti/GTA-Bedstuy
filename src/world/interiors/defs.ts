@@ -11,7 +11,7 @@ export type InteriorId = 'deli' | 'club' | 'home' | VenueInteriorId; // VENUES: 
  * LEAD, 26 Nov: the venues seat was cut off by the usage limit with the seven places half built (no lots on the real map yet).
  * Until that work is finished and seen in the running game the venue interiors stay OUT of the door list, so the game is as it was.
  */
-export const VENUES_ON = false;
+export const VENUES_ON = import.meta.env.VITE_VENUES === '1'; // default OFF; `VITE_VENUES=1` turns the venues on for local runs and tests
 
 export interface DoorDef {
   /** Door centre on the building face (world x, z). */

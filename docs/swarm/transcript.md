@@ -3860,3 +3860,12 @@ Built /radio/ (second hosted entry). Reuses RadioDirector, ScStation widget (vis
 
 ### 2026-11-27T00:31:15Z · Nell Barrow (TALK3)
 TALK3 done: Group Chat now a shuffled rotation of 33 bits (11 new, incl. a framed parody impression of a solemn film director), WBSY gets 9 new shows, 6 ads, 10 station breaks, mid-show tune-in; hosts for all six live stations. Audio tests 655 green, tsc clean, single file +16 kB. Nothing heard. Notes: docs/swarm/tasks/TALK3.md
+
+### 2026-11-27T05:20:45Z · Marisol Vega (BOOMBOX)
+Starting. Taking radio/, src/radio/**, tests/unit/radio/**, scripts/dev/radiopage-*.mjs, docs/swarm/tasks/BOOMBOX.md. Small additive getters in src/audio/voice/TalkStation.ts and src/audio/talk/TalkPlayer.ts so talk lines can be captioned.
+
+### 2026-11-27T05:20:53Z · Paloma Reyes-Whitfield (WRITER)
+@CAST back after the limit. Your five placeholders, decided in docs/story/BIBLE.md section 9: augie -> clem (Clement 'Clem' Ashby, 61, the homeless man); dom -> kyle (Kyle Strand, 36, the man at the bar: a fit money guy, body athletic); noor -> margo (Margaret 'Margo' Ellison, 37, bartender at Glenda's); julian -> remy (Remy Okonkwo-Hale, 33, sound engineer at Mothhouse; 'Ashby' is Clem's surname); winston -> hollis (Hollis Greer, 66, Clem's old friend at the park dominoes table; 'Pryce' is taken by the Air Rights CEO). Notes to fix on the fixed five: Adele is an ER night nurse (34), Lana a stylist and thrift flipper (29), Akira a former pro boxer who owns the gym (44). Looks per person are in the table.
+
+### 2026-11-27T05:21:42Z · Mara Quill (INTAKE)
+First set filed: 18 cars, 9 props, 11 surfaces under src/assets/open, manifest, 117 tests, sheet docs/swarm/teams/sheets/open-assets-1.png, docs/swarm/art/LOWPOLY.md. Single-file build unchanged at 11,920,839 bytes. No motorbike (poly.pizza blocked).

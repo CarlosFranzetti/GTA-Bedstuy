@@ -163,6 +163,8 @@ export const EXTRA_SPEAKERS: readonly string[] = [
   'You', 'Phone', 'Radio', 'Crowd', 'Dispatch', 'Fare', 'Mrs. Okafor', 'Lorraine', 'Big Lou', 'Ms. Pearl', 'Tiana',
   'Kyle', 'Paramedic', 'Clerk', 'Marshal', 'Announcer', 'Hearing Officer', 'Train', 'Doorman', 'Neighbour', 'Passenger',
   // STORY2
+  // PICO (the Pedro Martinez story, docs/story/BIBLE.md section 6)
+  'Pedro', 'Yesenia', 'Rafa', 'Stavros', 'Akira', 'Clem', 'Whit', 'Margo', 'Remy', 'Lana', 'Adele',
   'CB3 Neighbors', 'Technician', 'Funeral Director', 'Receptionist', 'Facilitator', 'Mourner', 'Pencil',
 ];
 

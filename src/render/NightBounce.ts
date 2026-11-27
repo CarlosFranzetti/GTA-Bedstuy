@@ -149,7 +149,7 @@ export function interiorDoorSources(): BounceSource[] {
   const tint: Record<string, [number, number, number, number]> = {
     club: [0.75, 0.25, 1.0, 0.9], deli: [1.0, 0.75, 0.3, 0.8], home: [0.4, 1.0, 0.55, 0.7],
   };
-  return INTERIOR_IDS.map((id) => {
+  return INTERIOR_IDS.filter((id) => !id.startsWith('venue:')).map((id) => { // VENUES: their lit fronts do not cast bounce light
     const d = INTERIORS[id].door;
     const t = tint[id] ?? [1, 0.8, 0.5, 0.7];
     return { kind: 'door' as const, x: d.x, y: 1.4, z: d.z, nx: d.outX, nz: d.outZ, w: 1.6, r: t[0], g: t[1], b: t[2], s: t[3] };
