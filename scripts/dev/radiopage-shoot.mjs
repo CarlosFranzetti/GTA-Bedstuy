@@ -27,7 +27,7 @@ const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gestur
 const report = { errors: [], blocked: [], stations: [], pageBytes: 0 };
 try {
   for (const mode of ['desktop', 'phone']) {
-    const ctx = await browser.newContext(mode === 'phone' ? { ...devices['iPhone 13'] } : { viewport: { width: 1280, height: 800 } });
+    const ctx = await browser.newContext(mode === 'phone' ? { ...devices['iPhone 13'], viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 } : { viewport: { width: 1280, height: 800 } });
     const page = await ctx.newPage();
     await page.route('**/*', (r) => {
       const h = new URL(r.request().url()).hostname;
@@ -54,7 +54,8 @@ try {
       }
       await page.click('button.preset[data-id="talk"]');
       await page.waitForTimeout(1500);
-      await page.evaluate((l) => window.__radioPage.noteLine(l, 60000), fakeLine('talk', 'Dmitri Vance, bad impressionist', 'And that, folks, is why the stoop is the only honest parliament in Brooklyn. Mostly parody. Entirely a bit.', 'a public figure', 'talk'));
+      await page.evaluate((l) => window.__radioPage.noteLine(l, 60000), fakeLine('talk', 'Pell Marchetti, bad impressionist', 'And that, folks, is why the stoop is the only honest parliament in Brooklyn. Mostly parody. Entirely a bit.', 'a public figure', 'talk'));
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.waitForTimeout(900);
       report.desktopBars = await page.evaluate(() => ({ label: document.querySelector('.vlabel').textContent, src: document.querySelector('.vlabel').dataset.src, caption: document.querySelector('.caption').className }));
       await page.screenshot({ path: resolve(out, `${prefix}-desktop.png`), fullPage: false });

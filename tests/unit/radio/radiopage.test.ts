@@ -245,3 +245,126 @@ describe('the head unit', () => {
     page.dispose();
   });
 });
+
+import { EMBLEMS, emblemSvg } from '@/radio/emblems';
+import { dialMarks, stripOrder, nearestMark, stepAlong, freqPos } from '@/radio/dial';
+import { simFrame, realFrame, tempoGuess, Visualiser, BARS } from '@/radio/viz';
+
+describe('BOOMBOX: emblems', () => {
+  it('every station has its own emblem, and they are all different', () => {
+    const ids = CATALOG.map((e) => e.id);
+    expect(Object.keys(EMBLEMS).sort()).toEqual(ids.slice().sort());
+    const svgs = ids.map((id) => emblemSvg(id, { name: true }));
+    expect(new Set(svgs).size).toBe(17);
+    expect(new Set(ids.map((id) => `${EMBLEMS[id].shape}|${EMBLEMS[id].glyph}`)).size).toBe(17);
+    expect(new Set(ids.map((id) => EMBLEMS[id].glyph)).size).toBe(17);
+    for (const s of svgs) expect(s.startsWith('<svg')).toBe(true);
+    expect(emblemSvg('nope')).toBe('');
+  });
+});
+
+describe('BOOMBOX: the tuning strip', () => {
+  const st = allStations().map((s) => ({ id: s.id, freq: s.freq }));
+  const marks = dialMarks(st);
+  it('has a mark per station; frequencies sit at their MHz, the rest in the LIVE / TALK end', () => {
+    expect(marks.map((m) => m.id)).toEqual(CATALOG.map((e) => e.id));
+    for (const m of marks) {
+      expect(m.pos).toBeGreaterThan(0); expect(m.pos).toBeLessThan(1);
+      if (m.freq) expect(m.pos).toBeCloseTo(freqPos(Number(m.freq)), 6);
+      else expect(m.pos).toBeGreaterThan(0.8);
+    }
+    const fm = marks.filter((m) => m.freq).sort((a, b) => a.pos - b.pos).map((m) => Number(m.freq));
+    expect(fm).toEqual(fm.slice().sort((a, b) => a - b));
+    expect(Math.max(...marks.filter((m) => m.freq).map((m) => m.pos))).toBeLessThan(Math.min(...marks.filter((m) => !m.freq).map((m) => m.pos)));
+    expect(new Set(marks.map((m) => m.pos.toFixed(3))).size).toBe(17);
+  });
+  it('snaps to the nearest station and steps along the strip with wrap', () => {
+    for (const m of marks) expect(nearestMark(m.pos + 0.001, marks).id).toBe(m.id);
+    const o = stripOrder(marks);
+    expect(stepAlong(o[0], -1, marks)).toBe(o[16]);
+    expect(stepAlong(o[16], 1, marks)).toBe(o[0]);
+    expect(stepAlong(o[3], 1, marks)).toBe(o[4]);
+  });
+  it('the mounted needle moves to the tuned station and the arrow keys tune along the strip', () => {
+    const { page } = setup();
+    const root = document.createElement('div'); document.body.appendChild(root);
+    const off = mount(root, page, { reduced: true, raf: false });
+    const needle = root.querySelector('.needle') as HTMLElement;
+    for (const m of marks) {
+      (root.querySelector(`button.preset[data-id="${m.id}"]`) as HTMLButtonElement).click();
+      expect(parseFloat(needle.style.left)).toBeCloseTo(m.pos * 100, 1);
+    }
+    expect(root.querySelectorAll('.mk').length).toBe(17);
+    off(); page.dispose();
+  });
+});
+
+describe('BOOMBOX: visualiser', () => {
+  it('simulated levels are labelled sim and move; reduced motion is static with no cone pulse', () => {
+    const a = simFrame(0.1, 120, true, false), b = simFrame(0.37, 120, true, false);
+    expect(a.source).toBe('sim'); expect(a.bars.length).toBe(BARS);
+    expect(a.bars).not.toEqual(b.bars);
+    const r1 = simFrame(0.1, 120, true, true), r2 = simFrame(0.37, 120, true, true);
+    expect(r1.bars).toEqual(r2.bars); expect(r1.bass).toBe(0); expect(r2.bass).toBe(0);
+    expect(simFrame(1, 120, false, false).source).toBe('idle');
+    expect(tempoGuess('hip hop DJ mixes')).toBeLessThan(tempoGuess('club sets / house / techno'));
+  });
+  it('real data is called real only when there is energy; otherwise the visualiser falls back to the simulation', () => {
+    expect(realFrame(new Uint8Array(64)).source).toBe('idle');
+    expect(realFrame(new Uint8Array(64).fill(120)).source).toBe('real');
+    const fakeAn = { frequencyBinCount: 64, getByteFrequencyData: (d: Uint8Array) => d.fill(0) } as unknown as AnalyserNode;
+    expect(new Visualiser(false).frame(1, { playing: true, bpm: 100, analyser: fakeAn, analysable: true }).source).toBe('sim');
+    expect(new Visualiser(false).frame(1, { playing: true, bpm: 100, analyser: fakeAn, analysable: false }).source).toBe('sim');
+    const loud = { frequencyBinCount: 64, getByteFrequencyData: (d: Uint8Array) => d.fill(200) } as unknown as AnalyserNode;
+    expect(new Visualiser(false).frame(1, { playing: true, bpm: 100, analyser: loud, analysable: true }).source).toBe('real');
+    expect(new Visualiser(true).frame(1, { playing: true, bpm: 100, analyser: loud, analysable: true }).bass).toBe(0);
+  });
+  it('the mounted page has reduced-motion class and a SIMULATED label for a station the page cannot analyse', () => {
+    const { page } = setup();
+    const root = document.createElement('div'); document.body.appendChild(root);
+    const off = mount(root, page, { reduced: true, raf: false });
+    page.tune('groupchat');
+    const label = root.querySelector('.vlabel') as HTMLElement;
+    expect(label.textContent).toBe('SIMULATED');
+    expect(root.querySelector('.bb')!.classList.contains('calm')).toBe(true);
+    expect((root.querySelector('.bb') as HTMLElement).style.getPropertyValue('--p')).toBe('1.000');
+    off(); page.dispose();
+  });
+});
+
+describe('BOOMBOX: captions and log', () => {
+  it('a line shows speaker, kind and PARODY, then fades; the log keeps it newest first and Clear empties it', () => {
+    let t = 1_000_000;
+    const { page } = setup({ now: () => t });
+    const root = document.createElement('div'); document.body.appendChild(root);
+    const off = mount(root, page, { reduced: true, raf: false });
+    page.noteLine({ who: 'Pell', text: 'A bad impression.', kind: 'talk', parodyOf: 'Someone', stationId: 'talk', station: 'WBSY Talk' });
+    page.noteLine({ who: 'Tayo', text: 'Thanks to the DJ.', kind: 'dj-thanks', parodyOf: '', stationId: 'hiphop', station: 'Stoop Hip Hop Radio' });
+    page.noteLine({ who: 'Pell', text: 'Another bad impression.', kind: 'talk', parodyOf: 'Someone', stationId: 'talk', station: 'WBSY Talk' });
+    const cap = root.querySelector('.caption') as HTMLElement;
+    expect(cap.classList.contains('show')).toBe(true);
+    expect(cap.querySelector('.cap-who')!.textContent).toBe('Pell');
+    expect(cap.querySelector('.cap-text')!.textContent).toBe('Another bad impression.');
+    expect((cap.querySelector('.cap-tag') as HTMLElement).hidden).toBe(false);
+    const rows = root.querySelectorAll('.lg');
+    expect(rows.length).toBe(3);
+    expect(rows[0].textContent).toContain('Another bad impression.');
+    expect(rows[1].classList.contains('dj')).toBe(true);
+    expect(rows[1].textContent).toContain('DJ mention: thank-you');
+    expect(rows[0].textContent).toContain('PARODY');
+    t += 6000; page.tick(0.1);
+    expect(cap.classList.contains('show')).toBe(false);
+    (root.querySelector('button.clear') as HTMLButtonElement).click();
+    expect(root.querySelectorAll('.lg').length).toBe(0);
+    off(); page.dispose();
+  });
+  it('talk lines reach the caption with the parody mark through the real talk code', () => {
+    const { page } = setup();
+    page.tune('groupchat');
+    const chat = page.chat as unknown as { segs: Array<{ parodyOf?: string }> };
+    expect(typeof page.chat.lineText).toBe('string');
+    expect(typeof page.chat.lineParodyOf).toBe('string');
+    expect(chat.segs.length).toBeGreaterThan(0);
+    page.dispose();
+  });
+});

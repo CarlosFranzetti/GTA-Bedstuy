@@ -1,6 +1,6 @@
 /** BOOMBOX: the drawing. Static markup (SVG and CSS classes; no image files) for the boombox on the stoop. No data from the network goes through here. */
 import { emblemSvg } from './emblems';
-import { dialTicks, type DialMark } from './dial';
+import { dialTicks, stripOrder, type DialMark } from './dial';
 
 const KEY_ICONS: Record<string, string> = {
   prev: '<path d="M18 5v14l-9-7zM7 5v14" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
@@ -35,7 +35,7 @@ ${[[18, 18], [182, 18], [18, 262], [182, 262]].map(([x, y]) => `<circle cx="${x}
 }
 
 const STICKERS_L = `
-<div class="stk wax" aria-hidden="true"><b>WAX</b><b>DELI</b><i>records + hero</i></div>
+<div class="stk wax" aria-hidden="true"><b>WAX</b><b>DELI</b></div>
 <div class="stk flyer" aria-hidden="true"><u>BLOCK PARTY</u><b>SAT 4PM</b><i>bring a chair<br>grill by the stoop</i></div>`;
 const STICKERS_R = `
 <div class="stk stkn" aria-hidden="true"><b>93.5</b><i>STOOP HIP HOP</i></div>
@@ -43,7 +43,8 @@ const STICKERS_R = `
 
 export function boomboxHtml(marks: DialMark[], names: Record<string, string>): string {
   const ticks = dialTicks().map((t) => `<span class="tk${t.major ? ' mj' : ''}" style="left:${(t.pos * 100).toFixed(2)}%">${t.label ? `<em>${t.label}</em>` : ''}</span>`).join('');
-  const mk = marks.map((m, i) => `<button type="button" class="mk r${i % 2}" tabindex="-1" aria-hidden="true" data-id="${m.id}" title="${names[m.id] ?? m.id}" style="left:${(m.pos * 100).toFixed(2)}%">${emblemSvg(m.id)}</button>`).join('');
+  const order = stripOrder(marks);
+  const mk = marks.map((m) => `<button type="button" class="mk r${order.indexOf(m.id) % 3}" tabindex="-1" aria-hidden="true" data-id="${m.id}" title="${names[m.id] ?? m.id}" style="left:${(m.pos * 100).toFixed(2)}%">${emblemSvg(m.id)}</button>`).join('');
   return `<div class="scene"><div class="lamp" aria-hidden="true"></div>
 <div class="bb" role="group" aria-label="Boombox radio">
 <svg class="handle" viewBox="0 0 600 70" aria-hidden="true" focusable="false"><path d="M30 68V40Q30 10 70 10H530Q570 10 570 40V68" fill="none" stroke="#0b0b0c" stroke-width="22" stroke-linecap="round"/><path d="M30 68V40Q30 10 70 10H530Q570 10 570 40V68" fill="none" stroke="#4c4e55" stroke-width="12" stroke-linecap="round"/><path d="M70 6H530" stroke="#bfc3ca" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/></svg>
@@ -60,7 +61,8 @@ ${speaker('l')}
 <div class="np" data-slot="np"> </div>
 <div class="meta" data-slot="meta"> </div>
 </div>
-<div class="vis" data-slot="vis" aria-hidden="true">${'<i></i>'.repeat(16)}<span class="vlabel" data-slot="vlabel">NO SIGNAL</span></div>
+<div class="vis" data-slot="vis" aria-hidden="true">${'<i></i>'.repeat(16)}</div>
+<span class="vlabel" data-slot="vlabel">NO SIGNAL</span>
 </div>
 <div class="strip" aria-hidden="true"><div class="scale">${ticks}<span class="liveEnd">LIVE / TALK</span>${mk}<div class="needle" data-slot="needle"></div></div></div>
 <div class="knobs">
@@ -71,6 +73,7 @@ ${speaker('l')}
 <div class="keys">${key('prev', 'Previous', 'prev')}${key('play', 'Tune in', 'play', 'wide')}${key('next', 'Next', 'next')}${key('set', 'Next set', 'set')}${key('off', 'Off', 'off')}</div>
 </div>
 ${speaker('r')}
+<section class="caption" aria-label="Announcer caption" aria-live="polite"><p class="cap-idle">The announcer's and the hosts' lines show up here.</p><div class="cap-live"><div class="cap-head"><b class="cap-who"></b><span class="cap-kind"></span><span class="cap-tag" hidden>PARODY</span></div><p class="cap-text"></p></div></section>
 </div>
 <div class="feet" aria-hidden="true"><i></i><i></i></div>
 </div>

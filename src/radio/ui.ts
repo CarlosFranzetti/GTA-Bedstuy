@@ -57,16 +57,9 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
   if (reduced) bb.classList.add('calm');
 
   /* ---- caption, status, log ---- */
-  const cap = h('section', 'caption', '', { 'aria-label': 'Announcer caption', 'aria-live': 'polite' });
-  const capIdle = h('p', 'cap-idle', 'The announcer\'s and the hosts\' lines show up here.');
-  const capLive = h('div', 'cap-live');
-  const capHead = h('div', 'cap-head');
-  const capWho = h('b', 'cap-who'), capKind = h('span', 'cap-kind'), capTag = h('span', 'cap-tag', 'PARODY');
-  capTag.hidden = true;
-  capHead.append(capWho, capKind, capTag);
-  const capText = h('p', 'cap-text');
-  capLive.append(capHead, capText);
-  cap.append(capIdle, capLive);
+  const cap = scene.querySelector('.caption') as HTMLElement;
+  const capWho = cap.querySelector('.cap-who') as HTMLElement, capKind = cap.querySelector('.cap-kind') as HTMLElement;
+  const capTag = cap.querySelector('.cap-tag') as HTMLElement, capText = cap.querySelector('.cap-text') as HTMLElement;
 
   const statusBox = h('div', 'status', '', { role: 'status' });
   const stText = h('b', '', 'Radio off');
@@ -176,7 +169,7 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
   const cols = h('div', 'cols');
   cols.append(logCard, aboutCard);
   const foot = h('p', 'note', 'Nothing here can be recorded or downloaded: the sets and streams play from their own sources. Sets and stream names belong to their makers. The emblems are drawn for this page and are not the stations\' own logos. The bars are labelled live only when they read the page\'s own audio; otherwise they are a simulation.');
-  root.append(scene, cap, ctlRow, listCard, wcard, tcard, cols, allCard, foot);
+  root.append(scene, ctlRow, listCard, wcard, tcard, cols, allCard, foot);
 
   /* ---- tuning: needle, knob, keys ---- */
   let pending: string | null = null;
