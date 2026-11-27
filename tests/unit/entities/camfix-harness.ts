@@ -124,6 +124,7 @@ export class CamRig {
     if (this.input.consume('KeyF')) {
       if (p.inVehicle) p.exit();
       else p.tryEnter(this.vehicles);
+      this.poses.capture(p.body); // CARENTRY (main.ts does the same): the render pose starts at the new spot, not half way from the car's centre
     }
     this.sim.step(FIXED_STEP);
   }
@@ -137,10 +138,13 @@ export class CamRig {
     const p = this.player, v = p.vehicle;
     if (v) { this.poses.blend(v.body, this.alpha, this.blended); p.object3D.position.x = this.blended.x; p.object3D.position.z = this.blended.z; }
     else p.applyInterpolated(this.alpha), this.poses.blend(p.body, this.alpha, this.blended);
+    // CARENTRY: the camera shows the car from the press (door close) while the player still walks the last step
+    const cv = p.camVehicle as Vehicle | null;
+    if (cv && cv !== v) this.poses.blend(cv.body, this.alpha, this.blended);
     this.camTarget.x = this.blended.x; this.camTarget.z = this.blended.z; this.camHeading = this.blended.h;
     this.mouseNow = this.input.mouseDX !== 0 || this.input.mouseDY !== 0;
-    this.ctx.vehicle = v as Vehicle | null; this.ctx.ignoreId = p.enteringId;
-    this.cam.update(dt, this.camTarget, this.camHeading, p.inVehicle ? 'vehicle' : 'foot', this.input as never, this.ctx as never);
+    this.ctx.vehicle = cv; this.ctx.ignoreId = p.cameraIgnoreId;
+    this.cam.update(dt, this.camTarget, this.camHeading, cv ? 'vehicle' : 'foot', this.input as never, this.ctx as never);
     this.input.mouseDX = 0; this.input.mouseDY = 0;
     if (n > 0) this.input.pressedSet.clear();
     this.wall += dt;
@@ -159,7 +163,7 @@ export class CamRig {
     if (!veh && p.isEntering) veh = this.vehicles.find((x) => x.id === p.enteringId) ?? null;
     if (!veh) veh = this.lastCarRef ?? this.vehicles[0] ?? null;
     this.frames.push({
-      t: this.wall, dt, steps, mode: p.inVehicle ? 'vehicle' : 'foot', view: this.cam.viewId, entering: p.isEntering, inVehicle: p.inVehicle,
+      t: this.wall, dt, steps, mode: p.camVehicle ? 'vehicle' : 'foot', view: this.cam.viewId, entering: p.isEntering, inVehicle: p.inVehicle,
       px: c.position.x, py: c.position.y, pz: c.position.z, lx: look.x, ly: look.y, lz: look.z, dx: dir.x, dy: dir.y, dz: dir.z,
       ux: e[4], uy: e[5], uz: e[6], fov: c.fov, yaw: this.cam.yaw, first: this.cam.firstPersonAmount,
       distance: (this.cam as unknown as { distance: number }).distance,

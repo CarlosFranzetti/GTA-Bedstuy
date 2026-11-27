@@ -5,6 +5,8 @@
  */
 import { DOOR_TIME, V_CRUISE, type TrainState } from './ElLine';
 import { underElMix } from '../audio/vehicle/world';
+import { aim } from '../audio/vehicle/nodes';
+import { foldLoop } from '../audio/ambient/noise';
 
 /** Beyond this distance (m) a train is silent; the falloff is smooth so it fades in from the fog. */
 export const HEAR_RANGE = 380;
@@ -95,10 +97,13 @@ export class TrainAudio {
       this.master.connect(this.dry); this.dry.connect(this.dest);
       this.master.connect(conv); conv.connect(this.wet); this.wet.connect(this.dest);
     } else this.master.connect(this.dest);
-    const n = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-    const d = n.getChannelData(0);
+    // AMBIENT: 5 s with a crossfaded loop point (it was 2 s, cut: a click each time the loop came round, under the rumble)
+    const fade = Math.floor(ctx.sampleRate * 0.35), len = Math.floor(ctx.sampleRate * 5);
+    const raw = new Float32Array(len + fade);
     let a = 0, b = 0;
-    for (let i = 0; i < d.length; i++) { const w = Math.sin(i * 12.9898) * 43758.5453; const r = (w - Math.floor(w)) * 2 - 1; a = a * 0.9 + r * 0.1; b = b * 0.6 + r * 0.4; d[i] = a * 3 + b * 0.5; }
+    for (let i = 0; i < raw.length; i++) { const w = Math.sin(i * 12.9898) * 43758.5453; const r = (w - Math.floor(w)) * 2 - 1; a = a * 0.9 + r * 0.1; b = b * 0.6 + r * 0.4; raw[i] = a * 3 + b * 0.5; }
+    const n = ctx.createBuffer(1, len, ctx.sampleRate);
+    n.getChannelData(0).set(foldLoop(raw, fade));
     this.noise = n;
   }
 
@@ -107,7 +112,8 @@ export class TrainAudio {
     if (v) return v;
     this.ensure();
     const ctx = this.ctx;
-    const src = (): AudioBufferSourceNode => { const s = ctx.createBufferSource(); s.buffer = this.noise!; s.loop = true; s.start(); return s; };
+    let at = 0.7 * this.voices.size;
+    const src = (): AudioBufferSourceNode => { const s = ctx.createBufferSource(); s.buffer = this.noise!; s.loop = true; s.start(0, (at += 1.37) % 4.5); return s; };
     // rumble: brown-ish noise through a low-pass + a sub tone
     const rumbleFilter = ctx.createBiquadFilter(); rumbleFilter.type = 'lowpass'; rumbleFilter.frequency.value = 200;
     const rumbleGain = ctx.createGain(); rumbleGain.gain.value = 0;
@@ -139,15 +145,16 @@ export class TrainAudio {
       this.dists.set(id, st.active ? distance : 1e9);
       let near = 1e9; for (const d of this.dists.values()) near = Math.min(near, d);
       const m = underElMix(near);
-      this.wet.gain.setTargetAtTime(m.wet * 0.5, t, 0.3);
-      this.dry.gain.setTargetAtTime(m.dry, t, 0.3);
+      aim(this.wet.gain, m.wet * 0.5, t, 0.3);
+      aim(this.dry.gain, m.dry, t, 0.3);
     }
-    v.rumbleGain.gain.setTargetAtTime(p.rumble, t, 0.15);
-    v.rumbleFilter.frequency.setTargetAtTime(p.rumbleHz, t, 0.2);
-    v.clackLfo.frequency.setTargetAtTime(Math.max(0.2, p.clackHz), t, 0.2);
-    v.clackGain.gain.setTargetAtTime(p.clack * 0.5, t, 0.15);
-    v.squealGain.gain.setTargetAtTime(p.squeal, t, 0.1);
-    v.squealOsc.frequency.setTargetAtTime(p.squealHz, t, 0.2);
+    // a parameter that has not moved is not written (it was eight writes a train a frame)
+    aim(v.rumbleGain.gain, p.rumble, t, 0.15);
+    aim(v.rumbleFilter.frequency, p.rumbleHz, t, 0.2, 0.0015);
+    aim(v.clackLfo.frequency, Math.max(0.2, p.clackHz), t, 0.2, 0.005);
+    aim(v.clackGain.gain, p.clack * 0.5, t, 0.15);
+    aim(v.squealGain.gain, p.squeal, t, 0.1);
+    aim(v.squealOsc.frequency, p.squealHz, t, 0.2, 0.0015);
     if (p.chime) this.chime(v, distanceGain(distance) * 0.5);
     v.prev = st;
   }

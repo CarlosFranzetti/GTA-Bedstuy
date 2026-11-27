@@ -6,6 +6,7 @@
  * Nodes are created when there is something to hear and torn down again after ten quiet seconds.
  */
 import { newWeatherMix, thunderLevel, weatherMix, type WeatherAudioSink, type WeatherAudioState, type WeatherMix } from './mix';
+import { sourceMutes } from '../ambient/mutes';
 import { rainLayer, roofLayer, thunderClap, windLayer, type ThunderKind } from './synth';
 
 /** Weather buffers are made at no more than 24 kHz (rain and thunder have nothing above 12 kHz) and resampled by the engine: halves their memory. */
@@ -18,6 +19,10 @@ export interface WeatherAudioHost { ctx: BaseAudioContext; dest: AudioNode }
 export const RAMP = { level: 0.9, rainLayers: 0.7, wind: 1.1, corner: 0.18 } as const;
 /** Seconds of silence before the nodes are released. */
 export const IDLE_SECONDS = 10;
+/** Seconds between parameter writes of the weather mix. */
+export const WRITE_EVERY = 0.05;
+/** A parameter is written only when its target moved by more than this fraction of its size (or 1e-4 absolute). */
+const EPS = 0.004;
 
 interface Nodes {
   sources: AudioBufferSourceNode[];
@@ -34,6 +39,9 @@ export class WeatherAudio implements WeatherAudioSink {
   private quiet = 0;
   private readonly bufs = new Map<string, AudioBuffer>();
   private clapN = 0;
+  private since = 0;
+  private fresh = true;
+  private readonly last = new Map<AudioParam, number>();
 
   constructor(private readonly host: () => WeatherAudioHost | null) {}
 
@@ -41,6 +49,7 @@ export class WeatherAudio implements WeatherAudioSink {
 
   update(dt: number, s: WeatherAudioState): void {
     const m = weatherMix(s, this.mix);
+    if (sourceMutes.muted('weather')) { m.rainGain = 0; m.windGain = 0; m.thunderGain = 0; }
     const audible = m.rainGain > 0.004 || m.windGain > 0.004 || s.storm > 0.5;
     if (!this.n) {
       if (!audible) return;
@@ -50,12 +59,16 @@ export class WeatherAudio implements WeatherAudioSink {
     }
     if (!this.n) return;
     this.quiet = audible ? 0 : this.quiet + (Number.isFinite(dt) ? dt : 0);
-    this.apply(m);
+    // AMBIENT: the mix used to be written to eleven parameters on every frame (660 events a second at 60 fps); the slowest ramp here
+    // is 0.18 s, so 20 writes a second sound the same, and a parameter that has not moved is not written at all.
+    this.since += Number.isFinite(dt) ? dt : 0;
+    if (this.since >= WRITE_EVERY || this.fresh) { this.since = 0; this.fresh = false; this.apply(m); }
     if (this.quiet > IDLE_SECONDS) this.teardown();
   }
 
   /** A clap reaching the listener now (Weather has already waited out the speed of sound). */
   thunder(distanceM: number, strength: number): void {
+    if (sourceMutes.muted('weather')) return;
     const h = this.host();
     if (!h) return;
     const ctx = h.ctx;
@@ -149,6 +162,7 @@ export class WeatherAudio implements WeatherAudioSink {
     let k = 0;
     for (const s of sources) s.start(t0, (k++ * 1.3) % 3);
     for (const o of oscs) o.start(t0);
+    this.last.clear(); this.fresh = true;
     this.n = { sources, oscs, light, steady, heavy, roof, rainLp, rainGain, windBp, windGust, windGain, gustDepth, thunderLp, thunderBus };
     this.quiet = 0;
   }
@@ -168,7 +182,12 @@ export class WeatherAudio implements WeatherAudioSink {
     const h = this.host();
     if (!n || !h) return;
     const t = h.ctx.currentTime;
-    const aim = (p: AudioParam, v: number, tc: number): void => { p.setTargetAtTime(v, t, tc); };
+    const aim = (p: AudioParam, v: number, tc: number): void => {
+      const old = this.last.get(p);
+      if (old !== undefined && Math.abs(v - old) <= Math.max(1e-4, Math.abs(old) * EPS)) return;
+      this.last.set(p, v);
+      p.setTargetAtTime(v, t, tc);
+    };
     aim(n.light.gain, m.light, RAMP.rainLayers);
     aim(n.steady.gain, m.steady, RAMP.rainLayers);
     aim(n.heavy.gain, m.heavy, RAMP.rainLayers);

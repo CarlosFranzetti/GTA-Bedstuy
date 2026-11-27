@@ -154,7 +154,6 @@ const LETTERBOX_SHARE = 0.12;
 const LETTERBOX_RATE = 5;
 /** Rate (1/s) at which the pivot jump from getting in / out of a car (door -> car centre) is absorbed, and the largest jump absorbed (m). */
 const PIVOT_SETTLE = 5;
-const PIVOT_JUMP_MAX = 8;
 /** Touch look: drag deltas arrive in bursts per pointer event; they are released through a dt-correct low-pass (rate 1/s) so the view glides. */
 const TOUCH_LOOK_RATE = 26;
 /** Rate (1/s) at which the lens is pulled in when a wall is behind it (it used to snap in a single frame). */
@@ -179,6 +178,8 @@ const PIVOT_SNAP = 6;
  */
 const MODE_BLEND = 0.6;
 const VIEW_BLEND = 0.25;
+/** After a mode cut the yaw and the pivot follow the target exactly for this long (s): the render pose of the first frame is half way between the two bodies. */
+const MODE_CUT_HOLD = 0.1;
 /** Car cam: the view swings out of a corner (rad per rad/s of turn rate) and looks into a slide (share of the slip angle), and settles. */
 const SWING_RATE = 0.16;
 const SWING_SLIP = 0.5;
@@ -227,6 +228,7 @@ export class ThirdPersonCamera {
   /** The camera style. Modern (the default of the class) is the over-the-shoulder rig and is unchanged; Settings picks classic through `setStyle`. */
   private styleNow: CameraStyle = 'modern';
   private styleCut = false;
+  private modeCutT = 0;
   private prevLookFirst = false;
   private pitchIdle = 99;
   private needReturn = true;
@@ -421,7 +423,8 @@ export class ThirdPersonCamera {
       this.backBlend = 0; this.backVel = 0; this.sideAmt = 0; this.sideVel = 0; this.cineBlend = 0; this.cineYaw = 0;
       this.yaw = wrapAngle(targetHeading);
       this.needReturn = false;
-    }
+      this.modeCutT = MODE_CUT_HOLD;
+    } else if (this.modeCutT > 0) this.modeCutT = Math.max(0, this.modeCutT - dt);
     if (styleCut && !first) {
       cutNow = true;
       this.offX = 0; this.offZ = 0; this.blendOn = false; this.blendT = 1;
@@ -468,7 +471,7 @@ export class ThirdPersonCamera {
         const ux = (this.slkX - oldKX) / dt, uz = (this.slkZ - oldKZ) / dt;
         this.spX = this.slkX - 2 * ux / om; this.spZ = this.slkZ - 2 * uz / om; this.svX = ux; this.svZ = uz;
       }
-      else if (first || cutNow || Math.hypot(this.spX - this.slkX, this.spZ - this.slkZ) > PIVOT_SNAP) { this.spX = this.slkX; this.spZ = this.slkZ; this.svX = 0; this.svZ = 0; }
+      else if (first || cutNow || this.modeCutT > 0 || Math.hypot(this.spX - this.slkX, this.spZ - this.slkZ) > PIVOT_SNAP) { this.spX = this.slkX; this.spZ = this.slkZ; this.svX = 0; this.svZ = 0; }
       else {
         const om = vehicleMode ? PIVOT_OMEGA_CAR : PIVOT_OMEGA_FOOT;
         // The target moved from oldK to slk during this step: treat it as moving at that constant velocity u. In the frame that
@@ -518,7 +521,7 @@ export class ThirdPersonCamera {
     this.views.tick(dt, mode);
     const snap = cutNow || this.views.cutThisFrame;
     this.snapped = snap;
-    if (snap) this.initReach = false; // the wall reach of the old rig means nothing to the new one
+    if (snap || this.modeCutT > 0) this.initReach = false; // the wall reach of the old rig means nothing to the new one
     const lim = vrig.first ? PITCH_FIRST : cl ? (vehicleMode ? CAM_CLASSIC.pitchVehicle : CAM_CLASSIC.pitchFoot) : vehicleMode ? PITCH_VEH : PITCH_FOOT;
     this.pitch = clamp(this.pitch, lim.min, lim.max);
     if (anyInput || moveSpeed > MOVE_EPS) this.still = 0; else this.still += dt;
@@ -527,6 +530,8 @@ export class ThirdPersonCamera {
     // A view chosen by hand is held for RECENTRE_DELAY, then a critically damped spring takes it back behind the car or the
     // player. The spring's stiffness ramps up from zero, so the return starts slowly and gathers pace; while nobody touches
     // the look controls it stays at full pace and the camera simply follows the body round corners.
+    // just after a mode cut the followed pose is still the half-interpolated one of the frame the player got in or out: keep the cut's yaw exact
+    if (this.modeCutT > 0 && !lookInput) { this.yaw = wrapAngle(targetHeading); this.yawVel = 0; }
     const off = angleDiff(targetHeading, this.yaw); // yaw - heading, short arc
     if (cl) this.classicYaw(dt, targetHeading, off, vehicleMode, moveSpeed, vrig.first, vrig.pitch ?? 0);
     const follow = vehicleMode || moveSpeed <= MOVE_EPS ? 1 : footFollow(off);

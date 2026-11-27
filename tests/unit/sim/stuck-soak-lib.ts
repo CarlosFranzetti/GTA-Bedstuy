@@ -41,6 +41,8 @@ export interface TrialResult {
   x: number; z: number; anchor: string;
   pinned: boolean; hard: boolean; freedBy: string; overlap: boolean; tunnel: boolean;
   maxDepth: number; bodies: string[]; pinX: number; pinZ: number; note: string;
+  /** for hard and overlap cases: the body and the statics within 5 m, for offline drawing */
+  snap?: { body: { x: number; z: number; h: number; hw: number; hl: number; r: number }; near: Array<{ id: string; kind: string; pts?: number[][]; r?: number; x?: number; z?: number }>; vel: number[] };
 }
 
 const ids = new Set<string>();
@@ -149,6 +151,19 @@ function bodiesNear(w: SoakWorld, v: Vec2, r: number): string[] {
   return w.physics.queryCircle(v, r).map((b) => cleanId(b.id));
 }
 
+function snapOf(w: SoakWorld, body: import('@/world/types').Body2D): NonNullable<TrialResult['snap']> {
+  const sh = body.shape;
+  const near: NonNullable<TrialResult['snap']>['near'] = [];
+  for (const c of w.colliders) {
+    const cx = c.shape.kind === 'polygon' ? c.shape.points[0].x : c.pos.x, cz = c.shape.kind === 'polygon' ? c.shape.points[0].z : c.pos.z;
+    if (Math.abs(cx - body.pos.x) > 60 || Math.abs(cz - body.pos.z) > 60) continue;
+    if (c.shape.kind === 'polygon') { if (c.shape.points.some((p) => Math.hypot(p.x - body.pos.x, p.z - body.pos.z) < 7)) near.push({ id: cleanId(c.id ?? ''), kind: 'poly', pts: c.shape.points.map((p) => [p.x, p.z]) }); }
+    else if (c.shape.kind === 'circle') { if (Math.hypot(c.pos.x - body.pos.x, c.pos.z - body.pos.z) < 6) near.push({ id: cleanId(c.id ?? ''), kind: 'circle', r: c.shape.r, x: c.pos.x, z: c.pos.z }); }
+    else near.push({ id: cleanId(c.id ?? ''), kind: 'seg', pts: [[c.shape.a.x, c.shape.a.z], [c.shape.b.x, c.shape.b.z]] });
+  }
+  return { body: { x: body.pos.x, z: body.pos.z, h: body.heading, hw: sh.kind === 'obb' ? sh.halfW : 0, hl: sh.kind === 'obb' ? sh.halfL : 0, r: sh.kind === 'circle' ? sh.r : 0 }, near, vel: [body.vel.x, body.vel.z] };
+}
+
 class OverlapWatch {
   run = 0; max = 0; hit = false; who = new Set<string>();
   constructor(private w: SoakWorld) {}
@@ -242,6 +257,7 @@ export function carTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceM
   }
   res.overlap = watch.hit; if (watch.hit) for (const b of watch.who) if (!res.bodies.includes(b)) res.bodies.push(b);
   res.maxDepth = Math.max(res.maxDepth, watch.max);
+  if (res.hard || res.overlap) res.snap = snapOf(w, car.body);
   res.tunnel = w.physics.overlapsStatic(car.body.pos, 0.05) && w.physics.deepestOverlap(car.body, true).depth > 1.0;
   for (const v of added) w.physics.removeBody(v.body.id);
   return res;
@@ -345,6 +361,7 @@ export function walkerTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, for
   }
   res.overlap = watch.hit; if (watch.hit) for (const b of watch.who) if (!res.bodies.includes(b)) res.bodies.push(b);
   res.maxDepth = Math.max(res.maxDepth, watch.max);
+  if (res.hard || res.overlap) res.snap = snapOf(w, player.body);
   for (const id of added) w.physics.removeBody(id);
   return res;
 }

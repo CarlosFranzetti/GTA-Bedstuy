@@ -28,6 +28,12 @@ export interface TitleMusic {
   readonly playing: boolean;
 }
 
+/**
+ * Seconds of notes the title theme schedules ahead of the audio clock (AMBIENT, 27 Nov 2026). Its sequencer runs on a main-thread timer
+ * and drops a note whose time has passed, so a main-thread stall longer than this makes a hole in the beat. Streaming the world in,
+ * shader compiles and a slow first frame stall the thread for one to two seconds; 2.5 s of lookahead rides that out (tests/unit/audio/ambient-stall.test.ts).
+ */
+export const TITLE_LOOKAHEAD = 2.5;
 const UNLOCK = ['pointerdown', 'keydown', 'touchstart'];
 type Hook = Pick<EventTarget, 'addEventListener' | 'removeEventListener'> | null;
 
@@ -59,7 +65,7 @@ export function createTitleMusic(opts: TitleMusicOptions = {}): TitleMusic {
           if (my !== gen) { if (ctx === c) ctx = null; free(c, 0); return; }
           const t = c.state === 'suspended' ? target() : null;
           if (t) { unlock = () => { void c.resume(); if (c.state !== 'suspended') unhook(); }; for (const e of UNLOCK) t.addEventListener(e, unlock); }
-          theme = (factory as TitleThemeFactory)(c, c.destination, { volume: volume * storedMusicGain(), lookAhead: 0.4 });
+          theme = (factory as TitleThemeFactory)(c, c.destination, { volume: volume * storedMusicGain(), lookAhead: TITLE_LOOKAHEAD });
           theme.start();
         } catch { theme = null; unhook(); free(ctx, 0); ctx = null; } finally { busy = false; }
       })();

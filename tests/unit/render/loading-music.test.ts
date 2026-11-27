@@ -13,7 +13,7 @@ describe('createLoadingMusic', () => {
     const theme = { start: vi.fn(), stop: vi.fn(), setVolume: vi.fn(), playing: true };
     const factory = vi.fn(() => theme);
     const ctx = fakeCtx();
-    const m = createLoadingMusic({ load: async () => ({ createLoadingTheme: factory }), makeContext: () => ctx as unknown as AudioContext, volume: 0.7 });
+    const m = createLoadingMusic({ enabled: true, load: async () => ({ createLoadingTheme: factory }), makeContext: () => ctx as unknown as AudioContext, volume: 0.7 });
     m.start(); m.start();
     await flush();
     expect(factory).toHaveBeenCalledTimes(1);
@@ -28,11 +28,11 @@ describe('createLoadingMusic', () => {
 
   it('does nothing when the theme module is missing or incomplete', async () => {
     const make = vi.fn();
-    const a = createLoadingMusic({ load: async () => ({}), makeContext: make });
+    const a = createLoadingMusic({ enabled: true, load: async () => ({}), makeContext: make });
     a.start(); await flush();
     expect(a.available).toBe(false);
     expect(make).not.toHaveBeenCalled();
-    const b = createLoadingMusic({ load: async () => { throw new Error('missing'); }, makeContext: make });
+    const b = createLoadingMusic({ enabled: true, load: async () => { throw new Error('missing'); }, makeContext: make });
     expect(() => b.start()).not.toThrow();
     await flush();
     expect(b.playing).toBe(false);
@@ -41,7 +41,7 @@ describe('createLoadingMusic', () => {
 
   it('does nothing without Web Audio', async () => {
     const factory = vi.fn();
-    const m = createLoadingMusic({ load: async () => ({ createLoadingTheme: factory }), makeContext: () => null });
+    const m = createLoadingMusic({ enabled: true, load: async () => ({ createLoadingTheme: factory }), makeContext: () => null });
     m.start(); await flush();
     expect(factory).not.toHaveBeenCalled();
   });
@@ -49,7 +49,7 @@ describe('createLoadingMusic', () => {
   it('a stop that arrives before the module has loaded means the tune never starts', async () => {
     const factory = vi.fn();
     const ctx = fakeCtx();
-    const m = createLoadingMusic({ load: async () => ({ createLoadingTheme: factory }), makeContext: () => ctx as unknown as AudioContext });
+    const m = createLoadingMusic({ enabled: true, load: async () => ({ createLoadingTheme: factory }), makeContext: () => ctx as unknown as AudioContext });
     m.start();
     m.stop();
     await flush();
@@ -60,7 +60,7 @@ describe('createLoadingMusic', () => {
 
   it('survives a theme that throws', async () => {
     const ctx = fakeCtx();
-    const m = createLoadingMusic({ load: async () => ({ createLoadingTheme: () => { throw new Error('boom'); } }), makeContext: () => ctx as unknown as AudioContext });
+    const m = createLoadingMusic({ enabled: true, load: async () => ({ createLoadingTheme: () => { throw new Error('boom'); } }), makeContext: () => ctx as unknown as AudioContext });
     expect(() => m.start()).not.toThrow();
     await flush();
     vi.advanceTimersByTime(500);

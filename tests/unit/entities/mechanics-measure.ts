@@ -73,7 +73,7 @@ export class Rig {
     p.control(this.input as never, this.cam.yaw);
     this.sim.step(DT);
     this.pose(1);
-    this.ctx.vehicle = p.vehicle as Vehicle | null; this.ctx.ignoreId = p.enteringId;
+    this.ctx.vehicle = p.vehicle as Vehicle | null; this.ctx.ignoreId = p.cameraIgnoreId;
     this.cam.update(DT, this.camTarget, this.camHeading, p.inVehicle ? 'vehicle' : 'foot', this.input as never, this.ctx as never);
     this.input.mouseDX = 0; this.input.mouseDY = 0;
     if (!record) return;

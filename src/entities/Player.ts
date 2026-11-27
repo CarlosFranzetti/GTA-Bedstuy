@@ -21,6 +21,8 @@ import type { Body2D, Contact, Entity, IMaterialLibrary, IVehicle, VehicleInput 
 export const WALK_SPEED = 3;
 export const RUN_SPEED = 6.5;
 export const ENTER_RANGE = 3;
+/** A walk to a far door round the car: points in the car's own frame (a along its heading, c to its right), the last one the driver's door, and the length (m). */
+interface EnterRoute { pts: Array<{ a: number; c: number }>; len: number }
 
 /**
  * How far `p` is from getting into `v`: the smaller of the distance to the driver's door and the distance to the car's
@@ -82,6 +84,11 @@ const ENTER_WALK_SPEED = 5;
 /** The camera cuts to the car's view on the press when the door is within this many metres; from further it stays on foot until the walk is within CAM_CUT_REACH of the door. */
 const CAM_CUT_DOOR = 1.5;
 const CAM_CUT_REACH = 0.6;
+/** A door on the far side is reached by walking AROUND the car, not through it: clearance (m) kept from the car's box, walking speed (m/s) and the sit-down time (s) of such a walk. */
+const ROUTE_MARGIN = 0.5;
+const ROUTE_SPEED = 5.5;
+const ROUTE_SEAT = 0.3;
+const ROUTE_TIME_MAX = 1.5;
 /** Leaving a moving car: above LEAVE_STEP m/s the player steps out carrying part of its speed, above LEAVE_ROLL they roll out and get up. */
 const LEAVE_STEP = 2.5;
 const LEAVE_ROLL = 9;
@@ -177,7 +184,7 @@ export class Player implements Entity {
    * first free spot. Without it, exit() falls back to the side the player got in from.
    */
   blockedAt: ((p: Vec2, r: number, ignoreId?: string) => boolean) | null = null;
-  private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver']; time: number; v0: Vec2; camCut: boolean } | null = null;
+  private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver']; time: number; v0: Vec2; camCut: boolean; route: EnterRoute | null; walkFrac: number } | null = null;
   /**
    * Called when the walk to a car door begins. The integrator must take `body` out of the physics world here:
    * the door is often on the far side of the car, so the glide crosses the car's own box and, left in World2D,
@@ -194,9 +201,16 @@ export class Player implements Entity {
     if (this.vehicle) return this.vehicle;
     return this.entering && this.entering.camCut ? this.entering.vehicle : null;
   }
-  /** Id of the vehicle being walked to (null otherwise): the camera should not pull in for the car the player is stepping into. */
+  /** Id of the vehicle being walked to (null otherwise). */
   get enteringId(): string | null {
     if (this.entering) return this.entering.vehicle.id;
+    return this.cameraIgnoreId;
+  }
+  /**
+   * The car the lens must not shy from: only the one being vaulted. (The car being entered is NOT ignored any more: on a long walk to a far
+   * door the on-foot lens stays outside it; with the door close the camera has already cut to the car's own view.)
+   */
+  get cameraIgnoreId(): string | null {
     // MOVE2: while vaulting a car (and for a moment after) the lens does not shy from it either: the camera follows the ground position and
     // the body is over the car, so the car would otherwise pull the lens in and lift it over the roof in a frame or two.
     if (this.vault) return this.vault.plan.carId;
@@ -629,11 +643,13 @@ export class Player implements Entity {
     this.enteredFar = doorFar(best, this.body.pos);
     this.enteredFrom = { x: this.body.pos.x, z: this.body.pos.z };
     const walkTo = Math.hypot(best.doorPos().x - this.body.pos.x, best.doorPos().z - this.body.pos.z);
+    const route = this.routeToDoor(best);
     this.entering = {
       vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver,
-      time: clamp(walkTo / ENTER_WALK_SPEED, ENTER_TIME, ENTER_TIME_MAX),
+      time: route ? Math.min(ROUTE_TIME_MAX, route.len / ROUTE_SPEED + ROUTE_SEAT) : clamp(walkTo / ENTER_WALK_SPEED, ENTER_TIME, ENTER_TIME_MAX),
       v0: this.entryVelocity(best),
       camCut: walkTo <= CAM_CUT_DOOR,
+      route, walkFrac: route ? Math.max(0.5, 1 - ROUTE_SEAT / Math.min(ROUTE_TIME_MAX, route.len / ROUTE_SPEED + ROUTE_SEAT)) : 1 - SEAT_SHARE,
     };
     this.braceT = 0;
     this.pinT = 0; this.pinTarget = null;
@@ -643,6 +659,33 @@ export class Player implements Entity {
     this.moveDir = null;
     this.wantRun = false;
     this.desiredVel = { x: 0, z: 0 };
+    return best;
+  }
+
+  /**
+   * The walk to the driver's door when the straight line would cross the car's body (the door is on the far side): along the flank to the
+   * nearer end, across the end and back to the door, kept ROUTE_MARGIN clear of the box. Null when the straight line is clear, or when both
+   * ends are blocked by something solid (then the old glide is used).
+   */
+  private routeToDoor(v: IVehicle): EnterRoute | null {
+    const f = forwardFromHeading(v.body.heading), r = perpRight(f);
+    const p = this.body.pos, cx = v.body.pos.x, cz = v.body.pos.z;
+    const sa = (p.x - cx) * f.x + (p.z - cz) * f.z, sc = (p.x - cx) * r.x + (p.z - cz) * r.z;
+    const hl = v.spec.length / 2 + ROUTE_MARGIN, hw = v.spec.width / 2 + ROUTE_MARGIN, dc = -(v.spec.width / 2 + 0.3);
+    let crosses = false;
+    for (let i = 1; i < 16 && !crosses; i++) { const u = i / 16, a = sa * (1 - u), c = sc + (dc - sc) * u; if (Math.abs(a) < hl && Math.abs(c) < hw) crosses = true; }
+    if (!crosses) return null;
+    let best: EnterRoute | null = null;
+    for (const e of [1, -1]) {
+      if (Math.abs(sa) >= hl && Math.sign(sa) !== e) continue; // already at the other end
+      const pts: Array<{ a: number; c: number }> = [{ a: sa, c: sc }];
+      if (Math.abs(sc) < hw) pts.push({ a: sa, c: sc < 0 ? -hw : hw }); // pressed against the car: step out of its box first
+      if (Math.abs(sa) < hl) pts.push({ a: e * hl, c: Math.abs(sc) < hw ? (sc < 0 ? -hw : hw) : sc });
+      pts.push({ a: e * hl, c: dc }, { a: 0, c: dc });
+      let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].a - pts[i - 1].a, pts[i].c - pts[i - 1].c);
+      if (this.blockedAt && pts.slice(1, -1).some((q) => this.blockedAt!({ x: cx + f.x * q.a + r.x * q.c, z: cz + f.z * q.a + r.z * q.c }, FOOT_RADIUS * 0.7, v.id))) continue;
+      if (!best || len < best.len) best = { pts, len };
+    }
     return best;
   }
 
@@ -979,22 +1022,37 @@ export class Player implements Entity {
     e.t = Math.min(1, e.t + dt / e.time);
     const door = e.vehicle.doorPos(); // tracks the car if it is still rolling
     if (!e.camCut && Math.hypot(door.x - b.pos.x, door.z - b.pos.z) <= CAM_CUT_REACH) e.camCut = true; // a long walk: the camera cuts when the door is reached
-    // a Hermite path from where the player was, leaving at the speed they had (no stop dead at the first frame), arriving at rest at the door
-    const u = e.t, u2 = u * u, u3 = u2 * u;
-    const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2;
-    const nx = h00 * e.from.x + h10 * e.time * e.v0.x + h01 * door.x;
-    const nz = h00 * e.from.z + h10 * e.time * e.v0.z + h01 * door.z;
+    let nx: number, nz: number;
+    let face: Vec2 | null = null; // where the body turns to (null: toward the car)
+    if (e.route) {
+      // round the car: along the polyline (in the car's own frame, so a car still rolling to a stop carries it along), quick off the mark, arriving at rest
+      const v = e.vehicle, f = forwardFromHeading(v.body.heading), r = perpRight(f), pts = e.route.pts;
+      const w = (q: { a: number; c: number }): Vec2 => ({ x: v.body.pos.x + f.x * q.a + r.x * q.c, z: v.body.pos.z + f.z * q.a + r.z * q.c });
+      const u = Math.min(1, e.t / e.walkFrac), want = (1 - (1 - u) * (1 - u)) * e.route.len;
+      let acc = 0, i = 1;
+      for (; i < pts.length - 1; i++) { const l = Math.hypot(pts[i].a - pts[i - 1].a, pts[i].c - pts[i - 1].c); if (acc + l >= want) break; acc += l; }
+      const a0 = w(pts[i - 1]), a1 = w(pts[i]), l = Math.hypot(pts[i].a - pts[i - 1].a, pts[i].c - pts[i - 1].c) || 1, k = clamp((want - acc) / l, 0, 1);
+      nx = a0.x + (a1.x - a0.x) * k; nz = a0.z + (a1.z - a0.z) * k;
+      if (u < 0.97) face = { x: a1.x - a0.x, z: a1.z - a0.z };
+    } else {
+      // a Hermite path from where the player was, leaving at the speed they had (no stop dead at the first frame), arriving at rest at the door
+      const u = e.t, u2 = u * u, u3 = u2 * u;
+      const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2;
+      nx = h00 * e.from.x + h10 * e.time * e.v0.x + h01 * door.x;
+      nz = h00 * e.from.z + h10 * e.time * e.v0.z + h01 * door.z;
+    }
     b.vel.x = (nx - b.pos.x) / dt;
     b.vel.z = (nz - b.pos.z) / dt;
     b.pos.x = nx; b.pos.z = nz;
-    const toCar = { x: e.vehicle.body.pos.x - nx, z: e.vehicle.body.pos.z - nz };
-    if (Math.hypot(toCar.x, toCar.z) > 0.05) {
-      b.heading = wrapAngle(b.heading + angleDiff(b.heading, headingFromVec(toCar)) * (1 - Math.exp(-TURN_SMOOTH * dt)));
+    const toFace = face ?? { x: e.vehicle.body.pos.x - nx, z: e.vehicle.body.pos.z - nz };
+    if (Math.hypot(toFace.x, toFace.z) > 0.05) {
+      b.heading = wrapAngle(b.heading + angleDiff(b.heading, headingFromVec(toFace)) * (1 - Math.exp(-TURN_SMOOTH * dt)));
     }
     // the last part of the walk is the sit-down: the figure slides into this vehicle's driver seat (captured sit-down; needs the street pack)
-    const seating = e.t > 1 - SEAT_SHARE;
+    const sitFrom = e.walkFrac;
+    const seating = e.t > sitFrom;
     this.enterSeat = seating ? this.seatOf(e.vehicle) : null;
-    this.seatK = seating ? (e.t - (1 - SEAT_SHARE)) / SEAT_SHARE : 0;
+    this.seatK = seating ? (e.t - sitFrom) / (1 - sitFrom) : 0;
     this.animateFoot(dt);
     if (seating && this.anim && !this.anim.busy) this.anim.playOnce('sitDown', { from: 0.35, to: 0.75, rate: 2.2, fadeIn: 0.1, fadeOut: 0.0 });
     if (e.t >= 1) this.completeEnter();
