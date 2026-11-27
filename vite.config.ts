@@ -13,7 +13,8 @@ const hosted = process.env.VITE_HOSTED === '1';
 /** Installable web app (Chrome "Install", Safari "Add to Dock"): manifest + meta tags, hosted build only. The single-file artifact page is rebuilt from its title / styles / body by scripts/make-artifact.mjs and cannot carry them. */
 const webAppTags = {
   name: 'gta-bedstuy-webapp-tags',
-  transformIndexHtml: () => [
+  // The /radio/ page (RADIOPAGE) writes its own head: these relative hrefs are right for the root page only.
+  transformIndexHtml: (_html: string, ctx: { path?: string }) => (ctx?.path ?? '').startsWith('/radio/') ? [] : [
     { tag: 'link', attrs: { rel: 'manifest', href: './manifest.webmanifest' }, injectTo: 'head' as const },
     { tag: 'meta', attrs: { name: 'theme-color', content: '#0b0b10' }, injectTo: 'head' as const },
     { tag: 'meta', attrs: { name: 'mobile-web-app-capable', content: 'yes' }, injectTo: 'head' as const },
@@ -56,6 +57,9 @@ export default defineConfig({
         reportCompressedSize: false,
         chunkSizeWarningLimit: 1500,
         rolldownOptions: {
+          // RADIOPAGE: the hosted build has a second page, /radio/ (radio/index.html), that runs the game's radio without the game.
+          // The single-file build below has one input and never reads radio/.
+          input: { main: path.resolve(import.meta.dirname, 'index.html'), radio: path.resolve(import.meta.dirname, 'radio/index.html') },
           output: {
             codeSplitting: { groups: [{ name: 'three', test: /node_modules[\\/]three[\\/]/, priority: 10 }] },
             entryFileNames: 'assets/[name]-[hash].js',
