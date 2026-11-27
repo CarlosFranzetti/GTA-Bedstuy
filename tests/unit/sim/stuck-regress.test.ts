@@ -15,7 +15,10 @@ afterAll(() => { World2D.rescueEnabled = true; });
 const quiet = (): void => undefined;
 
 describe('car wedged in a notch (a pole against an areaway fence, a stoop against a wall) always frees', () => {
-  for (const idx of [955, 1955, 2143, 2150, 2217, 2504, 2734]) {
+  // CARFIT (27 Nov): the soak is a scripted driver, so the feel set (key steer rate 4.5, in between) changes which trials end stuck. The first five are the
+  // trials hard-stuck without the backstops under the shipped feel (147, 778, 793, 1458, 1491; found by scanning trials 1 to 1599), then 205 and 631
+  // (overlapped 1 s or more without them), then STUCK's original seven (stuck under the quick feel, kept as plain cases).
+  for (const idx of [147, 778, 793, 1458, 1491, 205, 631, 955, 1955, 2143, 2150, 2217, 2504, 2734]) {
     it(`soak car trial ${idx}: some input moves it a metre, and it is not left overlapped`, () => {
       const r = replayTrial(w, 'car', 1, idx, quiet)!;
       expect(r.hard).toBe(false);
@@ -25,8 +28,7 @@ describe('car wedged in a notch (a pole against an areaway fence, a stoop agains
   it('the same trial is hard-stuck without the backstops (the test discriminates)', () => {
     World2D.rescueEnabled = false;
     try {
-      const r = replayTrial(w, 'car', 1, 955, quiet)!;
-      expect(r.hard).toBe(true);
+      for (const idx of [147, 778, 793, 1458, 1491]) expect(replayTrial(w, 'car', 1, idx, quiet)!.hard, `trial ${idx}`).toBe(true);
       expect(replayTrial(w, 'car', 1, 26, quiet)!.ovRun).toBeGreaterThan(1);
     } finally { World2D.rescueEnabled = true; }
   }, 60000);
