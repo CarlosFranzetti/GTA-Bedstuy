@@ -11,14 +11,17 @@ alone: `replayTrial(world, 'car' | 'walker', 1, index, trace)` in `tests/unit/si
 
 | map and actor | pinned (held 2 s into something, normal) | HARD stuck before -> after | overlapped 0.75 s or more before -> after | longest overlap before -> after |
 |---|---|---|---|---|
-| grid, cars | 1,586 -> 1,590 | **21 -> 0** | **23 -> 0** | 12.5 s -> 0.6 s |
+| grid, cars | 1,586 -> 1,587 | **21 -> 0** | **23 -> 0** | 12.5 s -> 0.55 s |
 | grid, walkers | 256 -> 261 | 0 -> 0 | **13 -> 0** | 4.9 s -> 0.5 s |
-| real, cars | 1,153 -> 1,183 | **16 -> 1** | **15 -> 1** | 5.5 s -> 7.4 s (one case) |
-| real, walkers | 189 -> 216 | 0 -> 0 | **14 -> 0** | 4.9 s -> 0.5 s |
+| real, cars | 1,153 -> 1,073 | **16 -> 0** | **15 -> 0** | 5.5 s -> 0.63 s |
+| real, walkers | 189 -> 210 | 0 -> 0 | **14 -> 0** | 4.9 s -> 0.5 s |
 
 "Pinned" is not a bug (the soak holds the throttle against walls on purpose); it is the pool the hard cases come from. Kinds before:
 cars hard or overlapped: wall 38 of 44 on the grid, wall 22 / prop 13 / corner 7 on the real map (all of: held lock, forward, weaving,
 reverse). Walkers: every overlap is the `pushed` trial (a traffic car driven at a person standing at a wall): person left inside the car.
+The real map is not deterministic between runs (its building colliders stream in on a timer): an earlier run of the same code left 1 hard-stuck car and 1 overlap (a bus and a sedan against a thin signal pole or a building edge, seen in the snapshots, not diagnosed), so read the real-map "after" as 0 to 2 in 2,000, not as a proof of zero.
+Backstop use in the after run: rescue 27 + 13 (grid cars + walkers), 20 + 17 (real); wedge relief 137 (grid) and 72 (real) of 2,000 cars each.
+
 Picture: `docs/swarm/teams/sheets/stuck-map-before-after.png` (every trial start in grey, hard-stuck red, overlapped orange; the real map
 is drawn only around the 36 streamed sites).
 
@@ -85,3 +88,30 @@ wheel visibly leads the car. Switch it live by setting `FEEL` in `src/entities/h
   and the control numbers above.
 - Soak and reports (off unless an env var is set): `stuck-soak.test.ts` (`STUCK_SOAK=<dir>`), `stuck-controls.test.ts` (`STUCK_CONTROLS=<file>`),
   `stuck-misc.test.ts` (`STUCK_MISC=<dir>`: tunnelling, resting jitter, exit overlaps), `stuck-alt.test.ts`. Chart: `scripts/dev/stuck-chart.py`.
+
+## Other things looked for (200 trials per map each, before = backstops off)
+
+| check | grid before -> after | real before -> after |
+|---|---|---|
+| tunnelling: flat out at 20, 28, 36 m/s into walls at up to 40 degrees (body more than 1 m inside a static) | 0 -> 0 | 0-2 -> 1 (a car that embeds is now freed by the rescue; one still gets deep before it is) |
+| jitter at rest: three parked cars in a row beside a wall, a person leaning on them 4 s (largest movement of any car) | 0.09 mm -> 0.09 mm | 5 mm -> 0.07 mm |
+| exit overlap: get in and out of a parked car 5 to 140 cm off a wall, with neighbours (player left inside something more than 2 cm) | 0 of 200 -> 0 of 200 | 0 of 200 -> 0 of 200 |
+| a car climbing another | not possible: World2D is flat, no height | |
+
+Walker "hard stuck" never occurred (0 of 1,200 in either state): the existing pin glide and the vault already free a held walker. What the
+walkers did hit was being left INSIDE a car: a traffic car driven at a person standing at a wall (13 + 14 of 1,200 before, 0 after).
+A person spawned inside a building is now moved to the nearest free ground after half a second (before: stayed inside).
+
+## Known, not fixed, not verified
+
+- Nobody felt any of this with hands on keys. The soak is a scripted agent; "smooth" is measured as response times and rates only.
+- The rescue moves a body instantly (up to 4 m for a person, 8 m for a car, nearest free spot, no wall crossed unless it is wholly inside one);
+  the wedge relief glides 0.35 s. In the running game a person pressed under a car will pop out on the street side after half a second: look at it.
+- Relief and rescue were tested on the grid and on the real map's building colliders around 36 sites; not on moving AI cars pushing the player
+  car, nor with the traffic simulation running at the same time except through the green sim suites (`tests/unit/sim`).
+- `tests/unit/sim/enter-exit.test.ts` "enter/exit cycles on one spot 20 times" is RED. It is red with the backstops switched off
+  (`STUCK_NORESCUE=1`) too: the player is not in the car after 0.6 s, so it comes from another lane's work on entering (CARENTRY, "instant like
+  GTA"), not from this one. The rest of `tests/unit/sim` (20 files) and `tests/unit/physics` (118) and the entities movement and handling files pass.
+- `tests/unit/entities/vault-pinned.test.ts` now switches the rescue off, because it exists to show Jump as the way out of a pin; with the
+  rescue on the player is moved clear before Jump is needed.
+- Main.ts: no change needed. `World2D.rescues` / `reliefs` are counters a debug overlay could show.
