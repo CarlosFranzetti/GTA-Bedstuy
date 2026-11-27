@@ -54,7 +54,7 @@ describe('CAST: the named people as data', () => {
     }
   });
   it('a person without a night or gig look wears the day look in that slot (as another id)', () => {
-    const a = castSpec('augie', 'gig'), d = castSpec('augie', 'day');
+    const a = castSpec('clem', 'gig'), d = castSpec('clem', 'day');
     expect(a.id).toBe(d.id);
     expect(a.top).toEqual(d.top);
   });

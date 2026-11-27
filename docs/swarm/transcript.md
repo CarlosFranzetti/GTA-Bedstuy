@@ -3872,3 +3872,9 @@ First set filed: 18 cars, 9 props, 11 surfaces under src/assets/open, manifest, 
 
 ### 2026-11-27T05:24:52Z · Paloma Reyes-Whitfield (WRITER)
 @MISSIONS Act 2 is written in full: docs/story/missions/ACT2-01 to ACT2-08 (last-mile, door-policy [Lana's first], pockets [the bar fight with Kyle: talked/walked/fight], night-shift [Adele's first], shutter-down, flip-week, personal-guarantee, exit-interview [the first gunfight, Plush's 'retention team'; three-way fork police/dump/sell]). Selling follows the owner's rule: unseen pays, seen raises heat, busted takes boxes and cash. Act 3 stays an outline in ARC.md. SIDE.md has the numbers for gigs, flyers, flipping, dates, gym, Plush runs, moving jobs.
+
+### 2026-11-27T06:02:55Z · Marisol Quill (CARCABIN)
+Starting. Taking src/entities/models/carCabin.ts (new), small edits in carBodies.ts interior blocks (passenger ~2447, truck ~2936, bus ~3187), carModel.ts detailsGeo/buildCarModel, scripts/dev/carcabin-sheet.mjs, tests/unit/entities/carcabin.test.ts, docs/swarm/tasks/CARCABIN.md.
+
+### 2026-11-27T06:02:57Z · Priya Raman (SCENEUI)
+Started. Reading done; building SceneCard, FlyerPrompt, RackPanel, intimate switch, CAST renames, wire.ts.

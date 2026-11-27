@@ -10,8 +10,14 @@ import { Haggle, MARKETS, settleSale, type Garment, type HaggleState, type Thrif
 
 export const REPLY_SECONDS = 10;
 export interface SceneOption { key: number; text: string; disabled?: boolean }
+/** A bar the card draws (SCENEUI): the calm of a fight, the liking of a date. `value` is clamped to 0..max by the UI. */
+export interface SceneMeter { label: string; value: number; max: number; tone: 'calm' | 'danger' | 'warm' }
 export interface SceneFrame {
   who: string; line: string; options: SceneOption[]; secondsLeft: number;
+  /** Optional bars (calm and anger of a talk-down, liking of a date). */
+  meters?: SceneMeter[];
+  /** A date's warm ending: 'cutaway' (Intimate scenes On) or 'fade' (Off). The card shows a dark cut with the line, never a picture. */
+  cut?: 'cutaway' | 'fade';
   /** 'brawl': the host starts the combat (spawn the fighter, `scene.fighterDown()` / `playerDown()` when it ends). */
   phase: 'talk' | 'brawl' | 'ended';
 }
@@ -75,7 +81,9 @@ export class FightScene extends Timed implements Scene {
     const options: SceneOption[] = o.map((x, k) => ({ key: k + 1, text: x.text, disabled: x.cost !== undefined && !this.host.canPay(x.cost) }));
     if (this.enc.phase === 'tense') options.push({ key: options.length + 1, text: 'Walk away.' });
     const phase = this.enc.phase === 'brawl' ? 'brawl' : this.enc.ended ? 'ended' : 'talk';
-    return { who: this.enc.script.who, line: this.enc.ended ? this.enc.ended.text : this.line, options: phase === 'talk' ? options : [], secondsLeft: this.left, phase };
+    const sc = this.enc.script;
+    const meters: SceneMeter[] = [{ label: 'Calm', value: this.enc.calm, max: sc.calmAt, tone: 'calm' }, { label: 'Tension', value: this.enc.anger, max: sc.angerAt, tone: 'danger' }];
+    return { who: sc.who, line: this.enc.ended ? this.enc.ended.text : this.line, options: phase === 'talk' ? options : [], secondsLeft: this.left, phase, meters };
   }
   choose(key: number): void {
     if (this.enc.phase !== 'tense') return;
@@ -105,8 +113,12 @@ export class DateScene extends Timed implements Scene {
   get outcome(): string | null { return this.result?.ending ?? null; }
   frame(): SceneFrame {
     const b = this.session.beat;
-    if (!b || this.result) return { who: this.session.script.partner, line: this.result?.text ?? this.line, options: [], secondsLeft: 0, phase: 'ended' };
-    return { who: this.session.script.partner, line: this.line || b.line, options: b.choices.map((c, k) => ({ key: k + 1, text: c.text })), secondsLeft: this.left, phase: 'talk' };
+    const meters: SceneMeter[] = [{ label: 'Liking', value: this.session.liking, max: this.session.script.warmAt, tone: 'warm' }];
+    if (!b || this.result) {
+      const cut = this.result && this.result.scene !== 'none' ? this.result.scene : undefined;
+      return { who: this.session.script.partner, line: this.result?.text ?? this.line, options: [], secondsLeft: 0, phase: 'ended', meters, cut };
+    }
+    return { who: this.session.script.partner, line: this.line || b.line, options: b.choices.map((c, k) => ({ key: k + 1, text: c.text })), secondsLeft: this.left, phase: 'talk', meters };
   }
   choose(key: number): void {
     const b = this.session.beat;

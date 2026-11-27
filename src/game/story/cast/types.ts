@@ -10,7 +10,7 @@ import type { FxPreset, KokoroVoice } from '@/audio/voice/types';
 
 export type CastId =
   | 'pedro' | 'lana' | 'adele' | 'stavros' | 'akira'
-  | 'augie' | 'dom' | 'noor' | 'julian' | 'winston';
+  | 'clem' | 'kyle' | 'margo' | 'remy' | 'hollis';
 
 /** day: an ordinary day; night: out after dark; gig: the look for work (a set, a deal, a shift). */
 export type OutfitKey = 'day' | 'night' | 'gig';

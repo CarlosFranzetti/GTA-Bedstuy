@@ -45,12 +45,12 @@ describe('CAST: story people in the world', () => {
   });
   it('is immune by default so a story person is never knocked out; a mission can turn that off', () => {
     const { sp } = rig();
-    const a = sp.place('dom', { at: { x: 1, z: 1, heading: 0 } }); const b = sp.place('augie', { at: { x: 3, z: 3, heading: 0 }, immune: false });
+    const a = sp.place('kyle', { at: { x: 1, z: 1, heading: 0 } }); const b = sp.place('clem', { at: { x: 3, z: 3, heading: 0 }, immune: false });
     expect(a.ok && a.ped.vitals.immune).toBe(true); expect(b.ok && b.ped.vitals.immune).toBe(false);
   });
   it('after a knock-down they stand where they got up, and the station follows them within 4 m', () => {
     const { sp } = rig();
-    const r = sp.place('dom', { at: { x: 10, z: 0, heading: 0 } }); if (!r.ok) throw new Error('place');
+    const r = sp.place('kyle', { at: { x: 10, z: 0, heading: 0 } }); if (!r.ok) throw new Error('place');
     const ped = r.ped as FakePed;
     ped.knock(2); ped.body.pos = { x: 12, z: 1 };
     for (let i = 0; i < 30; i++) sp.update(0.1);
@@ -59,7 +59,7 @@ describe('CAST: story people in the world', () => {
   });
   it('a person who ran far stays where they stopped until the player is 40 m away, then is back at the station', () => {
     const { sp, ctx } = rig();
-    const r = sp.place('dom', { at: { x: 10, z: 0, heading: 0 } }); if (!r.ok) throw new Error('place');
+    const r = sp.place('kyle', { at: { x: 10, z: 0, heading: 0 } }); if (!r.ok) throw new Error('place');
     const ped = r.ped as FakePed;
     ped.knock(1); ped.body.pos = { x: 30, z: 0 };
     for (let i = 0; i < 20; i++) sp.update(0.1);
@@ -101,9 +101,9 @@ describe('CAST: story people in the world', () => {
   });
   it('occupied() lets the car spawner skip a spot; remove() frees the person', () => {
     const { sp } = rig();
-    sp.place('winston', { at: { x: 4, z: 4, heading: 0 } });
+    sp.place('hollis', { at: { x: 4, z: 4, heading: 0 } });
     expect(sp.occupied({ x: 5, z: 4 }, 2)).toBe(true); expect(sp.occupied({ x: 50, z: 4 }, 2)).toBe(false);
-    expect(sp.remove('winston')).toBe(true); expect(sp.isPlaced('winston')).toBe(false); expect(sp.remove('winston')).toBe(false);
+    expect(sp.remove('hollis')).toBe(true); expect(sp.isPlaced('hollis')).toBe(false); expect(sp.remove('hollis')).toBe(false);
   });
   it('inHours handles windows that pass midnight', () => {
     expect(inHours(23, [22, 27])).toBe(true); expect(inHours(2, [22, 27])).toBe(true); expect(inHours(4, [22, 27])).toBe(false); expect(inHours(12, [8, 11])).toBe(false);
