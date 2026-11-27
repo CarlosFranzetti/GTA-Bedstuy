@@ -36,7 +36,7 @@ const walk = (sim: Sim, player: Player, k: Partial<Record<string, number>>, s = 
 describe('exit spot', () => {
   it('skips sides hemmed in by neighbouring cars (0.3 m gaps) and can walk in all four directions after', () => {
     const { sim, player, vs, physics } = scene([], [[0, 0, 0], [2.14, 0, 0], [-2.14, 0, 0]]);
-    player.tryEnter([vs[0]]); sim.run(0.6);
+    player.tryEnter([vs[0]]); sim.run(1.5);
     expect(player.inVehicle).toBe(true);
     player.exit(); sim.run(0.1);
     expect(physics.overlapsSolid(player.body.pos, 0.4)).toBe(false);

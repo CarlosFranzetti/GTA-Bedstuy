@@ -89,7 +89,7 @@ describe('enter and exit at any frame rate', () => {
       const w = world();
       w.runFor(0.2, ms);
       w.press();
-      w.runFor(1.0, ms);
+      w.runFor(1.4, ms); // the move is half a second of simulation; the longest frames are clamped
       expect(w.player.inVehicle).toBe(true);
       w.runFor(0.3, ms); // drive a bit before leaving
       w.press();
@@ -112,7 +112,7 @@ describe('enter and exit at any frame rate', () => {
 
   it('exit leaves the player outside the car footprint', () => {
     const w = world();
-    w.press(); w.runFor(1.0, 100);
+    w.press(); w.runFor(1.4, 100);
     expect(w.player.inVehicle).toBe(true);
     w.press(); w.runFor(0.5, 100);
     const p = w.player.body.pos, c = w.car.body.pos;

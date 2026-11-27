@@ -253,7 +253,7 @@ describe('Player vehicles', () => {
     for (; t < 0.6 && !player.inVehicle; t += 1 / 60) player.update(1 / 60);
     expect(player.inVehicle).toBe(true);
     expect(t).toBeGreaterThan(0.35);
-    expect(t).toBeLessThan(0.5);
+    expect(t).toBeLessThan(0.56); // CARENTRY: half a second at a door
     expect(player.object3D.visible).toBe(false);
     expect(log.map((l) => l.type)).toEqual(['enterVehicle']);
   });

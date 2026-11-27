@@ -74,8 +74,7 @@ describe('ThirdPersonCamera', () => {
     c.update(1 / 60, { x: 100, z: 0 }, 0, 'foot', fake());
     expect(c.camera.position.x).toBeCloseTo(100.35, 2);
     c.update(1 / 60, { x: 100, z: 0 }, 0, 'vehicle', fake());
-    expect(c.camera.position.z).toBeGreaterThan(3.2);
-    expect(c.camera.position.z).toBeLessThan(4.6);
+    expect(c.camera.position.z).toBeCloseTo(4.6, 1); // CARENTRY: a change of mode is a cut, the car rig is there on the first frame
     const v = new ThirdPersonCamera();
     v.pitch = 0;
     for (let t = 0; t < 3; t += 1 / 60) v.update(1 / 60, { x: 0, z: 0 }, 0, 'vehicle', fake());

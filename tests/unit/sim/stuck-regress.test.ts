@@ -1,0 +1,79 @@
+/**
+ * STUCK regression tests (27 Nov 2026). The cases are trials of the soak (stuck-soak-lib.ts) on the grid map's real colliders that, before the
+ * World2D backstops (rescue of a body overlapped for half a second, wedge relief for a driven car), ended hard-stuck (no reverse, forward
+ * or turn moved the car a metre) or overlapped for seconds. Each is reproduced alone from its index (same random numbers as in the soak).
+ */
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { RESCUE_AFTER, World2D } from '@/physics/World2D';
+import { Sim, DT, makeVehicle } from './harness';
+import { footSlide, brakeSteer, analogStep } from './stuck-controls-lib';
+import { gridWorld, replayTrial, type SoakWorld } from './stuck-soak-lib';
+
+let w: SoakWorld;
+beforeAll(() => { World2D.rescueEnabled = true; w = gridWorld(1); }, 120000);
+afterAll(() => { World2D.rescueEnabled = true; });
+const quiet = (): void => undefined;
+
+describe('car wedged in a notch (a pole against an areaway fence, a stoop against a wall) always frees', () => {
+  for (const idx of [955, 1955, 2143, 3445, 3651, 2769]) {
+    it(`soak car trial ${idx}: some input moves it a metre, and it is not left overlapped`, () => {
+      const r = replayTrial(w, 'car', 1, idx, quiet)!;
+      expect(r.hard).toBe(false);
+      expect(r.ovRun).toBeLessThan(0.75);
+    }, 60000);
+  }
+  it('the same trial is hard-stuck without the backstops (the test discriminates)', () => {
+    World2D.rescueEnabled = false;
+    try {
+      const r = replayTrial(w, 'car', 1, 3445, quiet)!;
+      expect(r.hard || r.ovRun >= 0.75).toBe(true);
+    } finally { World2D.rescueEnabled = true; }
+  }, 60000);
+});
+
+describe('car held on a body overlapped for seconds is moved clear', () => {
+  for (const idx of [26, 1848, 1689]) {
+    it(`soak car trial ${idx}: overlap ends inside RESCUE_AFTER + a little`, () => {
+      const r = replayTrial(w, 'car', 1, idx, quiet)!;
+      expect(r.ovRun).toBeLessThan(RESCUE_AFTER + 0.25);
+    }, 60000);
+  }
+});
+
+describe('a person pressed between a driven car and a wall is not left inside the car', () => {
+  for (const idx of [61, 348, 665]) {
+    it(`soak walker trial ${idx}`, () => {
+      const r = replayTrial(w, 'walker', 1, idx, quiet)!;
+      expect(r.ovRun).toBeLessThan(RESCUE_AFTER + 0.25);
+      expect(r.hard).toBe(false);
+    }, 60000);
+  }
+  it('rescue unit: a person overlapped by a parked car in a gap too narrow for him ends on free ground inside 0.7 s', () => {
+    const world = new World2D(12);
+    world.addStatic({ kind: 'polygon', points: [{ x: -10, z: 0 }, { x: 10, z: 0 }, { x: 10, z: 3 }, { x: -10, z: 3 }] }, { x: 0, z: 0 }, 'wall');
+    const sim = new Sim(world);
+    const car = makeVehicle('sedan', 0, -1.2, Math.PI / 2); // a parked car 0.3 m off the wall, long side along it
+    car.driver = null;
+    sim.add(car);
+    const body = { id: 'p', kind: 'player' as const, shape: { kind: 'circle' as const, r: 0.4 }, pos: { x: 0, z: -0.25 }, vel: { x: 0, z: 0 }, heading: 0, mass: 80 };
+    world.addBody(body);
+    for (let i = 0; i < Math.round(0.7 / DT); i++) sim.step(DT);
+    expect(world.rescues).toBeGreaterThanOrEqual(1);
+    expect(world.deepestOverlap(body).depth).toBe(0);
+  });
+});
+
+describe('controls (measured numbers, docs/swarm/tasks/STUCK.md)', () => {
+  it('hard braking with the wheel held bends the line, it does not spin the car', () => {
+    for (const t of ['sedan', 'suv', 'pickup'] as const) for (const st of [0.5, 1]) expect(brakeSteer(t, st).headingDeg).toBeLessThan(52);
+    for (const st of [0.5, 1]) expect(brakeSteer('hothatch', st).headingDeg).toBeLessThan(70);
+  });
+  it('a stick step reaches 90 percent in under a quarter second', () => {
+    expect(analogStep('sedan', 12)).toBeLessThan(0.25);
+    expect(analogStep('bus', 0)).toBeLessThan(0.25);
+  });
+  it('sprinting along a wall at 45 or 70 degrees keeps its speed (no braking for a wall that is only grazed)', () => {
+    expect(footSlide(45, true).share).toBeGreaterThan(0.95);
+    expect(footSlide(70, true).share).toBeGreaterThan(0.95);
+  });
+});

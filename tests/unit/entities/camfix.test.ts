@@ -130,19 +130,14 @@ describe('camfix: cuts are clean, blends are blends', () => {
     const t = f.findIndex((x) => Math.abs(x.distance - d0 * 1.6) < 0.1) / 60;
     expect(t).toBeGreaterThan(0.15); expect(t).toBeLessThan(0.45);
   });
-  it('getting in is one blend of 0.5 to 0.8 s, eased at both ends', () => {
+  it('getting in is one cut, on the press (CARENTRY: the camera cuts, the character does the half-second move)', () => {
     const r = new CamRig({ fps: 60, car: { x: 0, z: 0 }, start: { x: -2, z: 0.2 } }); r.wait(0.2);
     r.press('KeyF'); r.wait(1.0);
-    const i0 = r.frames.findIndex((x) => x.inVehicle);
-    r.wait(2);
-    const f = r.frames.slice(i0 - 1);
-    expect(f.some((x) => x.camCut), 'not a cut').toBe(false);
-    const last = f[f.length - 1].distance;
-    const done = f.findIndex((x) => Math.abs(x.distance - last) < 0.05) / 60;
-    expect(done, 'blend length').toBeGreaterThan(0.45); expect(done, 'blend length').toBeLessThan(0.8);
-    // ease in: the first frames move less than the middle ones
-    const step = (i: number): number => Math.abs(f[i + 1].distance - f[i].distance);
-    expect(step(2)).toBeLessThan(step(15));
+    const iCut = r.frames.findIndex((x) => x.mode === 'vehicle');
+    expect(r.frames[iCut].camCut, 'a cut').toBe(true);
+    expect(r.frames.filter((x) => x.camCut).length, 'exactly one cut').toBe(1);
+    const last = r.frames[r.frames.length - 1].distance;
+    expect(Math.abs(r.frames[iCut].distance - last), 'the rig is at its goal on the cut frame').toBeLessThan(0.05);
   });
 });
 
