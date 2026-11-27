@@ -53,6 +53,13 @@ const GENTLE_DEPTH = 0.3;
 const GENTLE_STEP = 0.05;
 /** A vehicle slower than this (m/s) is immovable for people leaning on it. */
 const PARKED_SPEED2 = 0.6 * 0.6;
+/**
+ * Backstop for anything the solver cannot settle (a person squeezed between a car and a wall, a car wedged in a notch narrower than
+ * itself): a body still overlapped by more than RESCUE_DEPTH (m) after RESCUE_AFTER seconds in a row is moved to the nearest free spot.
+ * Ordinary contact (pushing on a wall, a bump) is resolved to a sliver in the same step and never reaches this.
+ */
+export const RESCUE_DEPTH = 0.04;
+export const RESCUE_AFTER = 0.5;
 /** Dynamic hash is rebuilt once per step; bodies move after that, so queries between steps are padded. */
 const DYN_QUERY_PAD = 2;
 const RAY_LINEAR_FALLBACK_CELLS = 400;
@@ -85,6 +92,8 @@ interface Entry {
   yielded: Entry[] | null;
   /** dynamics sleep: position at the end of the previous step, consecutive calm steps, and whether anything touched it this step */
   sx: number; sz: number; calm: number; touched: boolean;
+  /** seconds in a row this body has stayed overlapped by more than RESCUE_DEPTH after resolution */
+  ovT: number;
 }
 
 class SpatialHash {
@@ -162,7 +171,7 @@ function newEntry(body: Body2D, idx: number, isStatic: boolean): Entry {
     body, idx, isStatic, stamp: 0, r: 0,
     minX: 0, minZ: 0, maxX: 0, maxZ: 0,
     cx0: 0, cz0: 0, cx1: 0, cz1: 0, hashed: false, processed: false, soft: false, low: false, yields: false, yielded: null,
-    sx: NaN, sz: NaN, calm: 0, touched: false,
+    sx: NaN, sz: NaN, calm: 0, touched: false, ovT: 0,
   };
 }
 
@@ -328,10 +337,48 @@ export class World2D implements IWorld2D {
     }
     for (let i = 0; i < dyn.length; i++) {
       const e = dyn[i];
-      if (e.touched) { e.calm = 0; e.touched = false; }
+      if (e.touched) { e.calm = 0; e.touched = false; this.watchOverlap(e, dt); } else e.ovT = 0;
       e.sx = e.body.pos.x; e.sz = e.body.pos.z;
     }
     return this.contacts;
+  }
+
+  /** Bodies moved by the rescue backstop since construction, and a hook that sees each one (soak tests, debug). */
+  rescues = 0;
+  /** The rescue backstop switch (tests compare with and without it). */
+  static rescueEnabled = true;
+  onRescue: ((body: Body2D, fromX: number, fromZ: number) => void) | null = null;
+
+  private watchOverlap(e: Entry, dt: number): void {
+    const b = e.body;
+    if (!World2D.rescueEnabled || b.vehiclePass) { e.ovT = 0; return; }
+    const o = this.deepestOverlap(b);
+    if (o.depth <= RESCUE_DEPTH) { e.ovT = 0; return; }
+    e.ovT += dt;
+    if (e.ovT >= RESCUE_AFTER) { e.ovT = 0; this.rescue(e, o.other); }
+  }
+
+  /** Nearest free spot, rings outward, starting on the side away from what it overlaps. The body keeps its heading and loses its velocity. */
+  private rescue(e: Entry, other: Body2D | null): void {
+    const b = e.body;
+    const x0 = b.pos.x, z0 = b.pos.z;
+    const car = b.kind === 'vehicle' || b.kind === 'cop';
+    const away = other ? Math.atan2(z0 - other.pos.z, x0 - other.pos.x) : 0;
+    const maxR = car ? 8 : 4, step = car ? 0.4 : 0.25, n = 24;
+    for (let r = step; r <= maxR + 1e-6; r += step) {
+      for (let i = 0; i < n; i++) {
+        const a = away + (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * (2 * Math.PI / n);
+        b.pos.x = x0 + Math.cos(a) * r; b.pos.z = z0 + Math.sin(a) * r;
+        if (this.deepestOverlap(b).depth > 0) continue;
+        b.vel.x = 0; b.vel.z = 0;
+        e.calm = 0; e.sx = b.pos.x; e.sz = b.pos.z;
+        this.dynHash.update(e, b.pos.x - e.r, b.pos.z - e.r, b.pos.x + e.r, b.pos.z + e.r);
+        this.rescues++;
+        this.onRescue?.(b, x0, z0);
+        return;
+      }
+    }
+    b.pos.x = x0; b.pos.z = z0;
   }
 
   private processDynamic(e: Entry, dt: number): void {

@@ -19,7 +19,7 @@ const page = await browser.newPage();
 page.on('pageerror', (e) => console.log('PAGEERR', e.message.slice(0, 400)));
 await page.setContent('<html><body></body></html>');
 await page.addScriptTag({ content: js });
-const names = arg('only', '') ? arg('only', '').split(',') : await page.evaluate(() => window.ambient.names);
+const names = a.includes('--cost') && !arg('only', '') ? [] : arg('only', '') ? arg('only', '').split(',') : await page.evaluate(() => window.ambient.names);
 const R = [];
 for (const name of names) {
   for (const [hz, stalls] of [[60, false], [30, false], [15, false], [60, true]]) {
@@ -29,5 +29,6 @@ for (const name of names) {
     console.log(JSON.stringify(r));
   }
 }
+if (a.includes('--cost')) for (const n of ['hum_day', 'wash', 'road', 'weather', 'env_all']) { const r = await page.evaluate(([n, c]) => window.ambient.cost(n, c), [n, 30]); R.push({ cost: r }); console.log(JSON.stringify(r)); }
 writeFileSync(`${out}/ambient_${tag}.json`, JSON.stringify(R, null, 1));
 await browser.close();

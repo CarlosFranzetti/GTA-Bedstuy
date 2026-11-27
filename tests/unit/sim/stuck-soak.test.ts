@@ -3,14 +3,16 @@
  *   STUCK_SOAK=/tmp/x STUCK_TAG=before STUCK_CARS=600 STUCK_WALKERS=600 npx vitest run tests/unit/sim/stuck-soak.test.ts --maxWorkers=1 --testTimeout=900000
  */
 import { describe, expect, it } from 'vitest';
+import { World2D } from '@/physics/World2D';
 import { gridWorld, logTo, realStreetWorld, runSoak, summarize, writeJson } from './stuck-soak-lib';
 
 const out = process.env.STUCK_SOAK;
 const d = out ? describe : describe.skip;
 d('stuck soak', () => {
-  for (const map of ['grid', 'real'] as const) {
+  for (const map of (process.env.STUCK_MAPS ?? 'grid,real').split(',') as Array<'grid' | 'real'>) {
     it(`soak ${map}`, async () => {
       const tag = process.env.STUCK_TAG ?? 'run';
+      World2D.rescueEnabled = process.env.STUCK_NORESCUE !== '1';
       const log = logTo(`${out}/soak-${tag}.log`);
       const w = map === 'grid' ? gridWorld(1) : await realStreetWorld(1, 36, log);
       log(`${map}: ${w.anchors.length} anchors, polygons ${w.polygons} of which concave ${w.concave}`);

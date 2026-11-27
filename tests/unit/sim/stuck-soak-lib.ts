@@ -41,6 +41,8 @@ export interface TrialResult {
   x: number; z: number; anchor: string;
   pinned: boolean; hard: boolean; freedBy: string; overlap: boolean; tunnel: boolean;
   maxDepth: number; bodies: string[]; pinX: number; pinZ: number; note: string;
+  /** reproduce this trial alone with `replayTrial(world, actor, tseed, index)` */
+  tseed: number; index: number; rescues: number;
   /** for hard and overlap cases: the body and the statics within 5 m, for offline drawing */
   snap?: { body: { x: number; z: number; h: number; hw: number; hl: number; r: number }; near: Array<{ id: string; kind: string; pts?: number[][]; r?: number; x?: number; z?: number }>; vel: number[]; spec?: Record<string, unknown> };
 }
@@ -177,7 +179,7 @@ class OverlapWatch {
 }
 
 /** a car thrown at an anchor */
-export function carTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceMode?: string): TrialResult | null {
+export function carTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceMode?: string, trace?: (s: string) => void): TrialResult | null {
   const d = rng.range(5, 16);
   const type = rng.pick(CAR_TYPES);
   const mode = forceMode ?? rng.pick(['fwd', 'fwd', 'rev', 'weave', 'lock']);
@@ -212,8 +214,9 @@ export function carTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceM
   const vdir = forwardFromHeading(heading);
   car.body.vel.x = vdir.x * v0 * (mode === 'rev' ? 0.3 : 1); car.body.vel.z = vdir.z * v0 * (mode === 'rev' ? 0.3 : 1);
 
-  const res: TrialResult = { map: w.name, actor: 'car', kind: `${a.kind}/${mode}`, type, seed, x, z, anchor: cleanId(a.id), pinned: false, hard: false, freedBy: '', overlap: false, tunnel: false, maxDepth: 0, bodies: [], pinX: 0, pinZ: 0, note: `d${d.toFixed(1)} ang${Math.round(ang * 57.3)} v${v0} park${added.length - 1}` };
+  const res: TrialResult = { map: w.name, actor: 'car', kind: `${a.kind}/${mode}`, type, seed, x, z, anchor: cleanId(a.id), pinned: false, hard: false, freedBy: '', overlap: false, tunnel: false, maxDepth: 0, bodies: [], pinX: 0, pinZ: 0, tseed: 0, index: seed, rescues: 0, note: `d${d.toFixed(1)} ang${Math.round(ang * 57.3)} v${v0} park${added.length - 1}` };
   const watch = new OverlapWatch(w);
+  const rescues0 = w.physics.rescues;
   const hist: Array<{ x: number; z: number; thr: number }> = [];
   let weaveSteer = 1, weaveT = 0;
   const drive = (t: number): { thr: number; steer: number } => {
@@ -235,6 +238,7 @@ export function carTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceM
     sim.step(DT);
     t += DT;
     watch.check(car.body, DT);
+    if (trace && Math.round(t / DT) % 15 === 0) trace(`t${t.toFixed(2)} pos ${car.body.pos.x.toFixed(2)},${car.body.pos.z.toFixed(2)} h ${car.body.heading.toFixed(2)} v ${car.body.vel.x.toFixed(2)},${car.body.vel.z.toFixed(2)} thr ${thr} st ${steer} esc ${escape ? ESC[escape.idx][0] : '-'} cs ${sim.contactsLastStep.filter((c) => c.a === car.body || c.b === car.body).map((c) => cleanId((c.a === car.body ? c.b : c.a).id) + ':' + c.depth.toFixed(2)).join('|')}`);
     for (const c of sim.contactsLastStep) { if (c.a === car.body || c.b === car.body) { res.maxDepth = Math.max(res.maxDepth, c.depth); const o = c.a === car.body ? c.b : c.a; if (res.bodies.length < 6 && !res.bodies.includes(cleanId(o.id))) res.bodies.push(cleanId(o.id)); } }
     if (!escape) {
       hist.push({ x: car.body.pos.x, z: car.body.pos.z, thr });
@@ -257,6 +261,7 @@ export function carTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceM
     }
     if (!Number.isFinite(car.body.pos.x)) { res.note += ' NaN'; break; }
   }
+  res.rescues = w.physics.rescues - rescues0;
   res.overlap = watch.hit; if (watch.hit) for (const b of watch.who) if (!res.bodies.includes(b)) res.bodies.push(b);
   res.maxDepth = Math.max(res.maxDepth, watch.max);
   if (res.hard || res.overlap) { res.snap = snapOf(w, car.body); res.snap.spec = { x, z, heading, type, v0, mode, ang, d, parks: added.slice(1).map((v) => ({ x: v.body.pos.x, z: v.body.pos.z, h: v.body.heading, type: v.spec.type })) }; }
@@ -266,7 +271,7 @@ export function carTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceM
 }
 
 /** a walker thrown at an anchor, sometimes with parked cars forming a gap or a car running at it */
-export function walkerTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceMode?: string): TrialResult | null {
+export function walkerTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceMode?: string, trace?: (s: string) => void): TrialResult | null {
   const mode = forceMode ?? rng.pick(['wall', 'wall', 'gap', 'carwall', 'run', 'pushed']);
   const d = rng.range(2, 7);
   const ang = rng.pick([0, 10, 25, 45, 70]) * (rng.chance(0.5) ? 1 : -1) * Math.PI / 180;
@@ -322,8 +327,9 @@ export function walkerTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, for
     dir = { x: 0, z: 0 };
   }
   if (w.physics.deepestOverlap(player.body).depth > 0.02) { for (const id of added) w.physics.removeBody(id); return null; }
-  const res: TrialResult = { map: w.name, actor: 'walker', kind: `${a.kind}/${mode}`, type: 'player', seed, x, z, anchor: cleanId(a.id), pinned: false, hard: false, freedBy: '', overlap: false, tunnel: false, maxDepth: 0, bodies: [], pinX: 0, pinZ: 0, note };
+  const res: TrialResult = { map: w.name, actor: 'walker', kind: `${a.kind}/${mode}`, type: 'player', seed, x, z, anchor: cleanId(a.id), pinned: false, hard: false, freedBy: '', overlap: false, tunnel: false, maxDepth: 0, bodies: [], pinX: 0, pinZ: 0, tseed: 0, index: seed, rescues: 0, note };
   const watch = new OverlapWatch(w);
+  const rescues0 = w.physics.rescues;
   const run = mode === 'run' || rng.chance(0.3);
   const hist: Array<{ x: number; z: number }> = [];
   let escape: { idx: number; t: number; x0: number; z0: number } | null = null;
@@ -341,6 +347,7 @@ export function walkerTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, for
     sim.step(DT);
     t += DT;
     watch.check(player.body, DT);
+    if (trace && Math.round(t / DT) % 15 === 0) trace(`t${t.toFixed(2)} pos ${player.body.pos.x.toFixed(2)},${player.body.pos.z.toFixed(2)} v ${player.body.vel.x.toFixed(2)},${player.body.vel.z.toFixed(2)} esc ${escape ? ESC[escape.idx].name : '-'} cs ${sim.contactsLastStep.filter((c) => c.a === player.body || c.b === player.body).map((c) => cleanId((c.a === player.body ? c.b : c.a).id) + ':' + c.depth.toFixed(2)).join('|')}`);
     for (const c of sim.contactsLastStep) { if (c.a === player.body || c.b === player.body) { res.maxDepth = Math.max(res.maxDepth, c.depth); const o = c.a === player.body ? c.b : c.a; if (res.bodies.length < 6 && !res.bodies.includes(cleanId(o.id))) res.bodies.push(cleanId(o.id)); } }
     if (!escape) {
       hist.push({ x: player.body.pos.x, z: player.body.pos.z });
@@ -361,6 +368,7 @@ export function walkerTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, for
     }
     if (!Number.isFinite(player.body.pos.x)) { res.note += ' NaN'; break; }
   }
+  res.rescues = w.physics.rescues - rescues0;
   res.overlap = watch.hit; if (watch.hit) for (const b of watch.who) if (!res.bodies.includes(b)) res.bodies.push(b);
   res.maxDepth = Math.max(res.maxDepth, watch.max);
   if (res.hard || res.overlap) res.snap = snapOf(w, player.body);
@@ -385,16 +393,27 @@ export function summarize(rs: TrialResult[], map: MapName, actor: string): Summa
   return s;
 }
 
+export function trialRng(seed: number, index: number): { tseed: number; rng: Rng } {
+  const tseed = (Math.imul(seed, 1000003) + Math.imul(index, 7919)) >>> 0;
+  return { tseed, rng: new Rng(tseed) };
+}
+
+/** One trial alone (same random numbers as inside `runSoak`), with a trace line every quarter second. */
+export function replayTrial(w: SoakWorld, actor: 'car' | 'walker', seed: number, index: number, trace: (s: string) => void): TrialResult | null {
+  const { tseed, rng } = trialRng(seed + (actor === 'walker' ? 77 : 0), index);
+  const a = w.anchors[Math.floor(rng.next() * w.anchors.length)];
+  const r = actor === 'car' ? carTrial(w, rng, index, a, undefined, trace) : walkerTrial(w, rng, index, a, undefined, trace);
+  if (r) r.tseed = tseed;
+  return r;
+}
+
 export function runSoak(w: SoakWorld, nCar: number, nWalk: number, seed: number, log: (s: string) => void = () => undefined): TrialResult[] {
-  const rng = new Rng(seed * 7919 + (w.name === 'real' ? 13 : 1));
   const out: TrialResult[] = [];
-  let tries = 0;
-  const pickAnchor = (): Anchor => w.anchors[Math.floor(rng.next() * w.anchors.length)];
-  let car = 0, walk = 0;
+  let tries = 0, car = 0, walk = 0;
   while ((car < nCar || walk < nWalk) && tries < (nCar + nWalk) * 6) {
     tries++;
-    if (car < nCar) { const r = carTrial(w, rng, tries, pickAnchor()); if (r) { out.push(r); car++; } }
-    if (walk < nWalk) { const r = walkerTrial(w, rng, tries, pickAnchor()); if (r) { out.push(r); walk++; } }
+    if (car < nCar) { const r = replayTrial(w, 'car', seed, tries, () => undefined); if (r) { out.push(r); car++; } }
+    if (walk < nWalk) { const r = replayTrial(w, 'walker', seed, tries, () => undefined); if (r) { out.push(r); walk++; } }
     if (tries % 200 === 0) log(`${w.name}: ${car}/${nCar} cars, ${walk}/${nWalk} walkers`);
   }
   return out;

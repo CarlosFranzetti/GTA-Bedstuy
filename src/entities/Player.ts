@@ -651,7 +651,7 @@ export class Player implements Entity {
       vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver,
       time: route ? Math.min(ROUTE_TIME_MAX, route.len / ROUTE_SPEED + ROUTE_SEAT) : clamp(walkTo / ENTER_WALK_SPEED, ENTER_TIME, ENTER_TIME_MAX),
       v0: this.entryVelocity(best, side),
-      camCut: walkTo <= CAM_CUT_DOOR, side,
+      camCut: walkTo <= CAM_CUT_DOOR || route !== null, side, // a walk round the car is filmed from the car's own view: an on-foot lens beside a bus would run along its flank
       route, walkFrac: route ? Math.max(0.5, 1 - ROUTE_SEAT / Math.min(ROUTE_TIME_MAX, route.len / ROUTE_SPEED + ROUTE_SEAT)) : 1 - SEAT_SHARE,
     };
     this.braceT = 0;
@@ -676,14 +676,15 @@ export class Player implements Entity {
     const sa = (p.x - cx) * f.x + (p.z - cz) * f.z, sc = (p.x - cx) * r.x + (p.z - cz) * r.z;
     const hl = v.spec.length / 2 + ROUTE_MARGIN, hw = v.spec.width / 2 + ROUTE_MARGIN, dc = side * (v.spec.width / 2 + 0.3);
     let crosses = false;
-    for (let i = 1; i < 16 && !crosses; i++) { const u = i / 16, a = sa * (1 - u), c = sc + (dc - sc) * u; if (Math.abs(a) < hl && Math.abs(c) < hw) crosses = true; }
+    for (let i = 1; i < 16 && !crosses; i++) { const u = i / 16, a = sa * (1 - u), c = sc + (dc - sc) * u; if (Math.abs(a) < v.spec.length / 2 + 0.05 && Math.abs(c) < v.spec.width / 2 + 0.05) crosses = true; } // the straight line must clear the car's own box (the door stands 0.3 m outside it)
     if (!crosses) return null;
     let best: EnterRoute | null = null;
     for (const e of [1, -1]) {
       if (Math.abs(sa) >= hl && Math.sign(sa) !== e) continue; // already at the other end
       const pts: Array<{ a: number; c: number }> = [{ a: sa, c: sc }];
-      if (Math.abs(sc) < hw) pts.push({ a: sa, c: sc < 0 ? -hw : hw }); // pressed against the car: step out of its box first
-      if (Math.abs(sa) < hl) pts.push({ a: e * hl, c: Math.abs(sc) < hw ? (sc < 0 ? -hw : hw) : sc });
+      const out = Math.abs(sc) < 0.05 ? side * hw : (sc < 0 ? -hw : hw); // the flank to walk along: the player's own, or the door's when dead centre
+      if (Math.abs(sc) < hw) pts.push({ a: sa, c: out }); // too close to the car's box: step out of it first
+      if (Math.abs(sa) < hl) pts.push({ a: e * hl, c: Math.abs(sc) < hw ? out : sc });
       pts.push({ a: e * hl, c: dc }, { a: 0, c: dc });
       let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].a - pts[i - 1].a, pts[i].c - pts[i - 1].c);
       if (this.blockedAt && pts.slice(1, -1).some((q) => this.blockedAt!({ x: cx + f.x * q.a + r.x * q.c, z: cz + f.z * q.a + r.z * q.c }, FOOT_RADIUS * 0.7, v.id))) continue;
