@@ -76,6 +76,18 @@ export const STORY_VOICES: Readonly<Record<string, StoryVoice | null>> = {
   'CB3 Neighbors': null,
   'You': null,
   'Crowd': null,
+  /* the Pedro Martinez story (off until PEDRO_STORY_ON): no baked voice yet, so the fallback voice speaks; cast them with the voiceover work */
+  'Pedro': null,
+  'Yesenia': null,
+  'Rafa': null,
+  'Stavros': null,
+  'Akira': null,
+  'Clem': null,
+  'Whit': null,
+  'Margo': null,
+  'Remy': null,
+  'Lana': null,
+  'Adele': null,
 };
 
 export function storyVoice(name: string): StoryVoice | null | undefined { return STORY_VOICES[name]; }
