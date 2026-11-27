@@ -108,7 +108,7 @@ export class BitRotation {
     const last = this.bits.filter((b) => b.pin === 'last');
     let mid = shuffled(this.bits.filter((b) => !b.pin), this.random);
     // Never open a pass with the bit that closed the previous one.
-    if (first.length === 0 && mid.length > 1 && mid[0].id === this.lastBit) mid = [...mid.slice(1), mid[0]];
+    if (mid.length > 1 && mid[0].id === this.lastBit) mid = [...mid.slice(1), mid[0]];
     const order = [...first, ...mid, ...last];
     this.order = order.map((b) => b.id);
     this.lastBit = (mid[mid.length - 1] ?? order[order.length - 1]).id;

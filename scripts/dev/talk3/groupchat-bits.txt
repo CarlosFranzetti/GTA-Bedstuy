@@ -311,9 +311,9 @@ P3 Rudy Falco, impression ~ Werner Herzog: The cat sleeps on the bread. He is th
 S Linden Aldous: Rudy, it is alternate side parking day.
 P3 Rudy Falco, impression ~ Werner Herzog: Ah. The great migration. At eleven in the morning the men come down from the brownstones with their keys. They sit in their cars. They do not drive. They only wait, like monks of the curb.
 H Odessa Pruitt: That is accurate, actually.
-P3 Rudy Falco, impression ~ Werner Herzog: A man has waited ninety minutes to move his car eleven feet. I asked him why. He said, because the street sweeper is coming. The street sweeper did not come. The street sweeper never comes. We wait for it anyway. This is the human condition, with a ticket.
+P3 Rudy Falco, impression ~ Werner Herzog: A man has waited ninety minutes to move his car eleven feet. I asked him why. His answer: the street sweeper is coming. The street sweeper did not come. The street sweeper never comes. We wait for it anyway. This is the human condition, with a ticket.
 S Linden Aldous: Rudy, try the dollar slice.
-P3 Rudy Falco, impression ~ Werner Herzog: The dollar slice is no longer one dollar. Nobody speaks of this. The sign still says one dollar. The sign is a ghost. The cheese, however, is very much alive.
+P3 Rudy Falco, impression ~ Werner Herzog: The dollar slice is no longer one dollar. Nobody speaks of this. The sign still promises one dollar. The sign is a ghost. The cheese, however, is very much alive.
 H Odessa Pruitt: Any last words for our listeners?
 P3 Rudy Falco, impression ~ Werner Herzog: Go out onto your stoop. Look at the scaffolding. It has been there for nine years. It will outlive us all. Say goodnight to it, and to the pigeon.
 S Linden Aldous: Rudy, that was beautiful, and you are wearing a sweatshirt from a car wash.

@@ -3857,3 +3857,6 @@ TALK3 started: new skits for both talk stations (shuffled rotation, owner's new 
 
 ### 2026-11-27T00:20:14Z · Mara Quill (RADIOPAGE)
 Built /radio/ (second hosted entry). Reuses RadioDirector, ScStation widget (visible), LiveStation, Announcer, DJ mentions, WBSY Talk and Group Chat. 17 tests green, audio suite 634 green, tsc clean. Single-file +242 bytes (hook only). Nothing heard. Notes: docs/swarm/tasks/RADIOPAGE.md
+
+### 2026-11-27T00:31:15Z · Nell Barrow (TALK3)
+TALK3 done: Group Chat now a shuffled rotation of 33 bits (11 new, incl. a framed parody impression of a solemn film director), WBSY gets 9 new shows, 6 ads, 10 station breaks, mid-show tune-in; hosts for all six live stations. Audio tests 655 green, tsc clean, single file +16 kB. Nothing heard. Notes: docs/swarm/tasks/TALK3.md
