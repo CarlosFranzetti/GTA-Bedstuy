@@ -63,15 +63,23 @@ describe('follow camera smoothness', () => {
     expect(Math.hypot(p30.x - p144.x, p30.y - p144.y, p30.z - p144.z)).toBeLessThan(0.05);
   });
 
-  it('getting in or out glides: a 1.4 m pivot jump moves the lens by well under that on the first frame, then settles', () => {
+  it('getting in or out is ONE CUT (CARFIT, owner 27 Nov): the lens lands on its goal on the press frame, then never moves with the pivot still', () => {
     const cam = new ThirdPersonCamera(); const input = fake();
     for (let i = 0; i < 120; i++) cam.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', input);
     const before = cam.camera.position.clone();
     cam.update(1 / 60, { x: 1.4, z: 0 }, 0, 'vehicle', input); // car centre is 1.4 m from the door spot
-    const first = Math.hypot(cam.camera.position.x - before.x, cam.camera.position.z - before.z);
-    console.log(`enter pivot jump 1.4 m: first-frame lens move ${first.toFixed(3)} m`);
-    expect(first).toBeLessThan(0.5);
-    for (let i = 0; i < 180; i++) cam.update(1 / 60, { x: 1.4, z: 0 }, 0, 'vehicle', input);
+    const first = cam.camera.position.clone();
+    const cutStep = Math.hypot(first.x - before.x, first.z - before.z);
+    console.log(`enter cut: first-frame lens move ${cutStep.toFixed(3)} m`);
+    expect(cutStep).toBeGreaterThan(1); // it jumped to the car rig (a cut), it did not glide
+    let worst = 0, prev = first.clone();
+    for (let i = 0; i < 180; i++) {
+      cam.update(1 / 60, { x: 1.4, z: 0 }, 0, 'vehicle', input);
+      worst = Math.max(worst, prev.distanceTo(cam.camera.position)); prev = cam.camera.position.clone();
+    }
+    // no lens jump outside the cut: with the car still, the lens stays within a few cm of where the cut put it
+    expect(worst).toBeLessThan(0.05);
+    expect(first.distanceTo(cam.camera.position)).toBeLessThan(0.15);
     expect(Math.abs(cam.camera.position.x - 1.4)).toBeLessThan(0.05); // yaw 0, no shoulder in a car
   });
 
