@@ -363,7 +363,7 @@ export class World2D implements IWorld2D {
   reliefs = 0;
   /** The rescue backstop switch (tests compare with and without it). */
   static rescueEnabled = typeof process === 'undefined' || process.env.STUCK_NORESCUE !== '1';
-  onRescue: ((body: Body2D, fromX: number, fromZ: number) => void) | null = null;
+  onRescue: ((body: Body2D, fromX: number, fromZ: number, other: Body2D | null) => void) | null = null;
 
   private watchOverlap(e: Entry, dt: number): void {
     const b = e.body;
@@ -469,7 +469,7 @@ export class World2D implements IWorld2D {
           e.calm = 0; e.sx = b.pos.x; e.sz = b.pos.z;
           this.dynHash.update(e, b.pos.x - e.r, b.pos.z - e.r, b.pos.x + e.r, b.pos.z + e.r);
           this.rescues++;
-          this.onRescue?.(b, x0, z0);
+          this.onRescue?.(b, x0, z0, other);
           return;
         }
       }

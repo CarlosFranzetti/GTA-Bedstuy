@@ -62,15 +62,16 @@ export function miscChecks(w: SoakWorld, seed: number, n = 150): MiscReport {
       sim.add(c); cars.push(c);
     }
     if (cars.length === 0) continue;
-    const p = new Player(`jp${i}`, { x: cx - a.nx * 1.4 + side.x, z: cz - a.nz * 1.4 + side.z }, stubMaterials, ev);
+    const p = new Player(`jp${i}`, { x: cx + a.nx * 2.6, z: cz + a.nz * 2.6 }, stubMaterials, ev);
     sim.entities.set(p.body.id, p); w.physics.addBody(p.body);
+    if (w.physics.deepestOverlap(p.body, true).depth > 0) { w.physics.removeBody(p.body.id); for (const c of cars) w.physics.removeBody(c.body.id); continue; }
     const fake = (fwd: number, right: number) => ({ caps: false, axis: (neg: string[]) => (neg[0] === 'KeyS' ? fwd : right), isDown: () => false, consume: () => false }) as never;
     const f0 = forwardFromHeading(0), r0v = perpRight(f0);
     for (let t = 0; t < 1; t += DT) { p.control(fake(0, 0), 0); sim.step(DT); }
     const start = cars.map((c) => ({ x: c.body.pos.x, z: c.body.pos.z, h: c.body.heading }));
     let maxMove = 0;
     // lean on the cars (toward them), 4 s
-    const dx = a.nx, dz = a.nz;
+    const dx = -a.nx, dz = -a.nz;
     const mv = { x: dx, z: dz };
     for (let t = 0; t < 4; t += DT) { p.control(fake(mv.x * f0.x + mv.z * f0.z, mv.x * r0v.x + mv.z * r0v.z), 0); sim.step(DT); }
     cars.forEach((c, k) => { maxMove = Math.max(maxMove, Math.hypot(c.body.pos.x - start[k].x, c.body.pos.z - start[k].z)); });
