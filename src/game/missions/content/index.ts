@@ -10,6 +10,9 @@ import { dollarVanFare, lostCat, stoopSale } from './side';
 import { detectStoryFeatures, storyActs, type StoryFeatures } from './story';
 import { picoAct1 } from './pedro/act1';
 
+/** Off until the first act is finished and verified (see the note in `buildMissions`). */
+export const PEDRO_STORY_ON = false;
+
 export {
   bodegaRun, laundromatGetaway, blockParty, alternateSideShuffle, soundclash, senatorTheCat, dollarVanLastRun, movingDay,
   permitPending, crateDigger, openDecks, thePassword, afterslothResidency, lostCat, dollarVanFare, stoopSale,
@@ -32,6 +35,8 @@ export function buildMissions(grid: GridModel, data: BedstuyData, lots?: readonl
     alternateSideShuffle(ctx), soundclash(ctx), senatorTheCat(ctx), dollarVanLastRun(ctx), movingDay(ctx), permitPending(ctx),
     lostCat(ctx), dollarVanFare(ctx), stoopSale(ctx),
     ...acts.extras,
-    ...picoAct1(ctx), // the Pedro Martinez story, Act 1 (docs/story/ARC.md); needs `setPicoHome` and the StoryBridge from the host
+    // LEAD, 27 Nov: the Pedro Martinez story, Act 1 (docs/story/ARC.md), was cut off by the usage limit part way. It stays out of the shipped
+    // mission list until it is finished, wired (`setPicoHome`, the StoryBridge) and seen in the running game.
+    ...(PEDRO_STORY_ON ? picoAct1(ctx) : []),
   ];
 }

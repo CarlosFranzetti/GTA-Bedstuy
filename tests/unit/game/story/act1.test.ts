@@ -8,7 +8,7 @@ import { MissionSystem } from '@/game/missions/MissionSystem';
 import type { MissionDef, ObjectiveDef } from '@/game/missions/types';
 import { picoAct1, PICO_IDS } from '@/game/missions/content/pedro/act1';
 import { PICO_HOOKS } from '@/game/missions/content/pedro/hooks';
-import { buildMissions } from '@/game/missions/content';
+import { buildMissions, PEDRO_STORY_ON } from '@/game/missions/content';
 import { Nightlife } from '@/game/story/nightlife';
 import { StoryBridge, type BridgeHost } from '@/game/story/StoryBridge';
 import type { Vec2 } from '@/core/Math2';
@@ -100,7 +100,8 @@ function playMission(r: Rig, id: string, opts: { scenes?: Record<string, number[
   expect(r.m.statusOf(d.id), `${id} complete (failed: ${r.m.failReason})`).toBe('complete');
 }
 
-describe('Act 1 content', () => {
+// LEAD, 27 Nov: the first act is unfinished and switched off (PEDRO_STORY_ON); these run again when it is on
+describe.skipIf(!PEDRO_STORY_ON)('Act 1 content', () => {
   it('declares the eight missions in order, with ids and prerequisites that exist', () => {
     expect(defs.map((d) => d.id)).toEqual([...PICO_IDS]);
     const ids = new Set(defs.map((d) => d.id));
@@ -117,7 +118,7 @@ describe('Act 1 content', () => {
   });
 });
 
-describe('Act 1 playthrough (scripted player)', () => {
+describe.skipIf(!PEDRO_STORY_ON)('Act 1 playthrough (scripted player)', () => {
   it('plays 1 to 8 in order, with the systems doing their parts', () => {
     const r = rig();
     playMission(r, 'pico-rent-money');

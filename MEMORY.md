@@ -46,6 +46,21 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 26 to 27 Nov: get everything good enough and deploy, then resume the tasks; "interior of cars should be slightly
+  [different] for each car"; "make sure the cameras are working well and follow GTA's lead"; a radio preview (done as
+  a private page: https://claude.ai/artifact/Dyub6wq8paHb3KsqyUZ3t8; it cannot embed SoundCloud) AND "an individual
+  player like the artifact on [the] vercel repo and maybe a link in the readme": a `/radio` page on the game's own site
+  where the SoundCloud player is allowed. "I want all radio stations to work; add announcers for the stations that do
+  not have them; multiple skits on our talk radio stations; other topics on talk shows: make fun of Elon Musk, Putin,
+  Sam Altman, Kanye West, Charlie Sheen, Warren Buffett; companies like Apple, Google, OpenAI, Tesla, Marvel [movies,
+  as the lead reads "Movors"]; another 8 topics in the news of your choosing; discuss vegans, hipsters, Gen Z, Gen X,
+  men and women; apps like Instagram, Facebook, Twitter, WhatsApp; Macs vs PCs; iPhones and Android phones."
+  Rule 4's satire limits apply to every name: jokes ABOUT them by invented hosts, no imitation of a voice, no invented
+  quote or factual claim presented as real; groups are teased for habits, never demeaned.
+- 27 Nov, the lead's two switches for unfinished work cut off by the weekly limit on 24 Nov: `VENUES_ON` in
+  `src/world/interiors/defs.ts` and `PEDRO_STORY_ON` in `src/game/missions/content/index.ts` are false; their tests skip
+  while off. Turn each on only when its seat's work is finished and seen in the running game.
+
 - 24 Nov, FUTURE TASKS he listed (not started; queue them as usage allows, one group each): roads and buildings and
   more actual locations and architecture; world elements; lighting; objects; weapons; ideas; load screens; giving the
   lead more resources (a Hugging Face token, a web browser); usability, UX and GUI; voiceovers; and TWO PREVIEW PAGES
