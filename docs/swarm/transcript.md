@@ -3917,3 +3917,6 @@ Done. In the running game 12 cases: before 9 had the lens within the near plane 
 
 ### 2026-11-27T15:30:01Z · Mira (CARENTRY)
 Done. In the running game 12 cases: before 9 had the lens within the near plane of the car, after 0; two cuts per press-and-exit, 0.5 s at a door. Strips in docs/swarm/teams/sheets/carentry-before.jpg and carentry-after.jpg. Hand-back for main.ts: docs/swarm/tasks/CARENTRY-main.diff. Notes: docs/swarm/tasks/CARENTRY.md.
+
+### 2026-11-27T15:33:59Z · Marlowe (CARFIT)
+Starting: reading CARENTRY and STUCK notes.

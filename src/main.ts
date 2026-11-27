@@ -610,11 +610,11 @@ function updateCamera(dt = 1 / 60): void {
   if (freeCam) { cam.camera.position.copy(freeCam.pos); cam.camera.lookAt(freeCam.look); }
   else if (world.transit.ride) { const c = world.transit.ride.cam; cam.camera.position.set(c.px, c.py, c.pz); cam.camera.lookAt(c.lx, c.ly, c.lz); }
   else {
-    camCtx.vehicle = player.vehicle;
-    camCtx.ignoreId = player.enteringId; // the lens does not shy from the car being entered
+    camCtx.vehicle = player.camVehicle; // the car being driven, or the one being entered once the camera has cut to it
+    camCtx.ignoreId = player.cameraIgnoreId; // only a car being vaulted: the lens stays outside the car being entered
     cam.holdView = combat.holdView; // aiming: the view stays where the player put it
     cam.aimBias = combat.aimBias; // over the shoulder while the action button is held with something to aim
-    cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input, camCtx);
+    cam.update(dt, camTarget, camHeading, player.camVehicle ? 'vehicle' : 'foot', input, camCtx);
     player.setFirstPerson(!player.inVehicle && cam.firstPersonAmount > 0.85);
     // consumed here: otherwise frames that run no fixed step (display > 60 Hz) would re-apply the same mouse delta
     input.mouseDX = 0; input.mouseDY = 0;
@@ -630,13 +630,14 @@ function placeInterpolated(e: Entity, alpha: number): BlendedPose {
 function interpolateAll(alpha: number, refX: number, refY: number, refZ: number): void {
   const pedRange = gfx.pedDistance;
   const veh = player.vehicle;
+  const camVeh = player.camVehicle;
   carLod.setView(cam.camera);
   carLod.beginFrame();
   proxies.beginFrame();
   blobs.beginFrame();
   for (const v of traffic.vehicles) {
     const b = placeInterpolated(v, alpha);
-    if (v === veh) { carLod.release(v); v.object3D.visible = true; proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h); blobs.addCar(b.x, b.z, b.h, v.spec.length, v.spec.width); continue; }
+    if (v === veh || v === camVeh) { carLod.release(v); v.object3D.visible = true; proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h); blobs.addCar(b.x, b.z, b.h, v.spec.length, v.spec.width); continue; }
     if (culler.applyTo(v.object3D, b.x, b.z, refX, refZ, v.spec.length)) continue;
     const dy = refY - 0.8, dx = b.x - refX, dz = b.z - refZ;
     carLod.place(v, b.x, b.z, b.h, Math.sqrt(dx * dx + dy * dy + dz * dz));
@@ -657,6 +658,8 @@ function interpolateAll(alpha: number, refX: number, refY: number, refZ: number)
     proxies.addPed(b.x, b.z);
     blobs.addPed(b.x, b.z, player.shadowScale);
   }
+  // the camera follows the car being entered from the key press
+  if (camVeh && camVeh !== veh) { const b = poses.blend(camVeh.body, alpha, blended); camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h; }
   proxies.endFrame();
   blobs.endFrame();
 }
@@ -877,9 +880,9 @@ game.add({
         const fpos = player.body.pos;
         if (!player.inVehicle && interiors.interact(fpos)) { /* door / shop / decks / bar handled */ }
         else if (missions.interact(fpos)) { /* mission talk / knock / crank handled */ }
-        else if (player.inVehicle) player.exit();
+        else if (player.inVehicle) { player.exit(); poses.capture(player.body); }
         else if (!away && world.transit.tryBoard(fpos.x, fpos.z)) { const m = world.transit.takeMessage(); if (m) hud.showToast(m); }
-        else if (!away) player.tryEnter(allVehicles());
+        else if (!away) { player.tryEnter(allVehicles()); poses.capture(player.body); }
       }
     }
 
@@ -1030,7 +1033,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
   step(n: number) { for (let i = 0; i < n; i++) { for (const sys of game.systems) sys.update(game.step); input.endFrame(); } },
   settle(n: number) {
     // review scripts call this after teleport/step without a render: align the camera target with the bodies first
-    const veh = player.vehicle;
+    const veh = player.camVehicle;
     camTarget.x = (veh ? veh.body : player.body).pos.x; camTarget.z = (veh ? veh.body : player.body).pos.z;
     camHeading = (veh ? veh.body : player.body).heading;
     for (let i = 0; i < n; i++) updateCamera();
