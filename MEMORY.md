@@ -407,6 +407,16 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   commit through Vercel's create-deployment worked. `master` holds the same audio files PLUS unfinished car work
   (CARENTRY, STUCK, the CARENTRY lines in `src/main.ts`): do not deploy master until CARFIT's joined tree is checked
   and the owner has seen it. Notes: `docs/swarm/tasks/AMBIENT.md`, SOUNDCHECK section 6.
+- FOURTH DEPLOY of 27 Nov (owner: "Deploy the car work now"; the commit after `3c080c4`, from master): car entry with a
+  camera cut on the press and a 0.5 s get-in, the stuck rescue and wedge relief, in-between steering (`FEEL` 4.5 / 9.5 /
+  0.72 in `src/entities/handling.ts`), the sprint wall slide, plus the audio work. Verified by the lead on `3c080c4`:
+  typecheck, both builds (single file 11,953,778 of 12,000,000: 46 kB left), native web check, four clean boots
+  (desktop real 411k triangles, 230 draw calls; desktop grid 435k, 229; phone real 247k, 72; phone grid 187k, 98), every
+  test folder green (entities 1,210, sim 257, audio 679, the rest as before); CARFIT's 12 in-game entry cases (lens never
+  inside a car, two cuts per case; strip `docs/swarm/teams/sheets/carfit-entry.jpg`). NOT checked: hands on keys, medium
+  and high tiers, a real phone, anything heard; the 2,000-trial stuck soak was not re-run under the in-between steering.
+  Known and shown to the owner: no door opens (the character slides from door to seat); with the Modern camera the car's
+  flank fills part of the frame on leaving. Notes: `docs/swarm/tasks/CARFIT.md`.
 - First wave of the new mission (27 Nov; transcript `docs/swarm/transcripts/2026-11-27-car-audio-voices.md`):
   CARENTRY (camera cuts on the press, 0.5 s get-in, nearest door then across: `docs/swarm/tasks/CARENTRY.md`), STUCK
   (rescue and wedge relief in `World2D`, braking yaw cap, sprint wall slide: `STUCK.md`), VOICES (samples in
