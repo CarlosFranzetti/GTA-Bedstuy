@@ -54,6 +54,22 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 27 Nov, afternoon, THE NEW MISSION (his words): "forget interiors for now; make sure enter exit car is smooth and no
+  glitching camera showing in between the models; for the car should be instant like gta; there are collision issues,
+  the car and player get stuck sometimes, and controls aren't as smooth as gta yet; let's do another round of models
+  making them more realistic and using the specs from what you have access to"; the Drive pack again (one file,
+  GTAREF.zip, 15.5 MB, the same pack as 24 Nov): "use the models and textures you can from here and make the existing
+  models follow these models in size, dimensions, use of textures and geometry"; "there are screen artifacts in some
+  graphics modes and lighting and shadow issues"; "the talk radio and some hosts sound very digital: use whatever
+  sources we used that approximate elevenlabs or even the free web elevenlabs if possible"; "the audio stutter glitch is
+  heard on the native versions and sometimes the web one and I believe it's the environment audio"; "don't have the
+  theme song playing while loading cuz the buffering stops it".
+  HOW HE WANTS US TO WORK FROM NOW: "multiple subagents in parallel, delegate to conserve usage, you orchestrate; I want
+  to be CONSULTED BEFORE ANY NEW CHANGES and also while developing, and give me options; don't make any mistakes;
+  optimize usage so we can work longer; give me a transcript and demo images and new voice options as we go."
+  So: no new change starts without his answer to a question with options; the lead does little itself and briefs
+  narrow seats; every wave ends with pictures, a transcript in `docs/swarm/transcripts/` and questions.
+
 - 26 to 27 Nov: get everything good enough and deploy, then resume the tasks; "interior of cars should be slightly
   [different] for each car"; "make sure the cameras are working well and follow GTA's lead"; a radio preview (done as
   a private page: https://claude.ai/artifact/Dyub6wq8paHb3KsqyUZ3t8; it cannot embed SoundCloud) AND "an individual
