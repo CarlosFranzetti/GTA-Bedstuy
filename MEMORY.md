@@ -377,6 +377,24 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   mods 51, assets 117). The lead looked at the camera in the running game (`docs/swarm/teams/sheets/
   camera-classic-vs-modern.jpg`, tool `scripts/dev/camera-shoot.mjs`) and at the boombox pictures. NOT checked: anything
   heard, SoundCloud playback on `/radio`, a real phone, the camera in motion (pictures are still frames), medium and high.
+- SECOND DEPLOY of 27 Nov (the commit after `b88922d`): the phone-first radio page, the engine pitch glide, car cabins.
+  Verified by the lead on snapshot `b88922d`: typecheck, both builds (single file 11,939,942 of 12,000,000: 60 kB left),
+  native web check, four clean boots without frames (desktop real 411k triangles, 230 draw calls; desktop grid 389k, 223;
+  phone real 247k, 72; phone grid 187k, 98), every test folder green (ui 474, radio 34, game 622, entities 1,163, the
+  rest as above), 17 of 17 stations "On air" on the built page in a phone-sized browser with the network open
+  (`scripts/dev/radiopage-live.mjs`; the clock was seen moving for SoundCloud stations only), a car frame from the game.
+  NOT checked: anything heard, a real iPhone (safe areas, the real sound-blocked flow), cabins seen from inside the car.
+- Radio page on phones (RADIOUX, `docs/swarm/tasks/RADIOUX.md`; owner: "has to work on phone", "use UX skills"): first
+  screen holds console, status row, caption and the SoundCloud player; a pinned mini player; sections collapsed; page
+  4,905 to 2,172 px; tap targets under 44 px 134 to 0. Tools: `scripts/dev/radiopage-ux.mjs`, `radiopage-live.mjs`,
+  `radiopage-mock.mjs`. A cross-origin frame does not paint in a full-page screenshot: scroll to it and shoot the viewport.
+- Engine stutter (owner, again on 27 Nov: "work on audio stuttering"): `glide()` in `src/audio/vehicle/nodes.ts`; cause,
+  numbers and what to try next in `docs/swarm/sound/SOUNDCHECK.md` section 5. Not heard: ask him whether it is gone.
+- Car cabins (CARCABIN, `docs/swarm/tasks/CARCABIN.md`): `src/entities/models/carCabin.ts`, a cabin per type seeded per
+  car, no new draw calls; through the glass they read as dark shapes. Sheets `docs/swarm/teams/sheets/carcabin-*.png`.
+- Story scene interface (SCENEUI, `docs/swarm/tasks/SCENEUI.md`): scene card, flyer prompt, thrift rack, `wireStory`;
+  the `src/main.ts` edit is `docs/swarm/tasks/SCENEUI-main.diff`, NOT applied. With `VITE_PEDRO=1` the single-file build
+  is 11,852 bytes OVER its limit: gate the story on the hosted build before turning it on. The brawl is not wired.
 - Camera (CAMERA seat, `docs/swarm/tasks/CAMERA.md`): `Camera: Classic` in Settings, Controls; Classic is the DEFAULT
   (5.4 m back and 3.4 m up on foot, three chase distances then bumper and cinematic in a car, lazy follow after 2 s).
   Modern is the old rig, unchanged. Lead's fix: near a wall the Classic lens comes in along its own line (it used to hang
