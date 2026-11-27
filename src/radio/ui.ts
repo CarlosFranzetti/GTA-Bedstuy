@@ -89,7 +89,7 @@ export function mount(root: HTMLElement, page: RadioPage): () => void {
     const s = h('span'); s.append(h('i', cls), label); legend.appendChild(s);
   }
   const tlNote = h('p', 'note', '');
-  unit.append(glass, statusBox, toast, dial, ctl);
+  unit.append(glass, dial, statusBox, toast, ctl);
 
   /* ---- the SoundCloud player (frames are put here by ScStation) ---- */
   const wcard = h('section', 'card wide');
@@ -171,10 +171,11 @@ export function mount(root: HTMLElement, page: RadioPage): () => void {
   };
   const paint = (): void => {
     const v = page.view();
-    freq.textContent = v.info.freq || '--.-';
-    fm.textContent = v.info.freq ? 'FM' : v.info.badge;
+    freq.textContent = v.info.freq || v.info.badge;
+    fm.textContent = v.info.freq ? 'FM' : '';
     stn.textContent = v.stationName;
     badge.textContent = v.info.badge;
+    badge.hidden = !v.info.freq;
     presets.forEach((b, i) => b.setAttribute('aria-pressed', String(v.on && i === v.index)));
     np.textContent = '';
     if (v.title) { np.append('NOW: ', h('b', '', v.title)); }

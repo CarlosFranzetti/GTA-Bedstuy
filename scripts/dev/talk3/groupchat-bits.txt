@@ -1,0 +1,312 @@
+# TALK3: new Group Chat 99.9 bits. Source for src/audio/talk/script-groupchat-bits.json (scripts/dev/talk3/build.py).
+# "= id | form | title | topics" starts a bit. Line codes: H host voice, S sidekick, A announcer voice (Pat),
+# R1..R3 a host-kind line in a caller voice (experts, reporters), C1..C3 callers, D an ad (speaker is the business),
+# N news, J jingle. No stage directions, no digits or symbols: every word is read aloud.
+
+@ident The Group Chat. Ninety-nine point nine. Everybody is typing.
+@ident You are in The Group Chat. Ninety-nine point nine. Somebody left you on read.
+@ident Ninety-nine point nine, The Group Chat. Three dots, all day.
+@ident The Group Chat. Like the one with your family, but we mute ourselves.
+@ident This is The Group Chat, ninety-nine point nine, coming to you from a stoop with good signal.
+@ident The Group Chat. If you can hear this, you have been added. You cannot leave.
+@ident Ninety-nine point nine. The Group Chat. Reply all at your own risk.
+@ident The Group Chat. The only station with a typing indicator.
+@ident You are listening to The Group Chat. Pat has read your message.
+@ident The Group Chat, ninety-nine point nine. Invented people, real opinions, no refunds.
+@ident The Group Chat. All hosts, callers and businesses are invented. The rent is not.
+@ident Ninety-nine point nine. The Group Chat. Brooklyn's longest unread thread.
+@link Stay right there. The next bit is already typing.
+@link That was a bit. Here comes another one. Nobody here plans ahead.
+@link Before we go on, Pat would like you to know the show is under control. Pat is wrong.
+@link More Group Chat after this. Hydrate. Text your mother back.
+@link Do not touch that dial. It is sticky. We do not know why.
+@link Coming up, more opinions that nobody asked for. That is the format.
+@link If you just tuned in, we are in the middle of something. We always are.
+@link Odessa is getting coffee. Linden is getting opinions. Back in a second.
+@link The Group Chat continues. Your screen time report can wait.
+@link Thank you for staying. The other stations are just music, and music cannot argue.
+
+= gc-rockets | argument | Rockets and Renames | musk, tesla, twitter, ai
+H Odessa Pruitt: Linden, I need to talk about the man with the rockets.
+S Linden Aldous: Odessa, there are several men with rockets now. It is a whole aisle.
+H Odessa Pruitt: Elon Musk, Linden. The man bought Twitter and named it after a letter.
+S Linden Aldous: X. It is a bold choice. It is the letter you put on a map where the treasure is.
+H Odessa Pruitt: It is the letter you put on a form when you cannot write your name.
+S Linden Aldous: I still call it Twitter. Everybody does. It is like calling the bodega by the old owner's name.
+H Odessa Pruitt: That is respect. The bird earned it. The bird did nothing wrong.
+S Linden Aldous: In fairness, the man lands rockets backwards. On a boat. I cannot park a bike.
+H Odessa Pruitt: I will give him the rockets. The rockets are impressive. It is the posting.
+S Linden Aldous: He does post a lot.
+H Odessa Pruitt: Linden, he posts like my uncle at a wedding with the microphone. Nobody handed it to him. He just has it.
+S Linden Aldous: He wants to put a city on Mars.
+H Odessa Pruitt: We cannot put a working elevator in the Marcy houses and we are doing Mars?
+S Linden Aldous: Mars has no rent stabilization, Odessa. That is the selling point.
+H Odessa Pruitt: Mars has no air, Linden. That is the other selling point.
+A Pat, the producer: A note from the booth. The show has no position on Mars. Mars has not called in.
+H Odessa Pruitt: Thank you, Pat. And the Tesla. Tell me about the truck.
+S Linden Aldous: The Cybertruck. It looks like a doorstop that got a lawyer.
+H Odessa Pruitt: It looks like somebody drew a truck with a ruler during a power outage.
+S Linden Aldous: I like it. It is honest. It looks the way a parking ticket feels.
+H Odessa Pruitt: And the self-driving. They have been saying next year since my nephew was in kindergarten. He drives now. Himself.
+S Linden Aldous: Your nephew is the self-driving car, Odessa.
+H Odessa Pruitt: My nephew is the only self-driving car I trust, and he still cannot find Halsey Street.
+S Linden Aldous: Here is my theory. One day he renames the moon. Just X. The moon becomes X.
+H Odessa Pruitt: Then the moon starts charging eight dollars a month for the blue check.
+S Linden Aldous: A verified moon. That is a premium tide.
+H Odessa Pruitt: Linden, that is the dumbest thing you have said this week, and it is only Tuesday.
+S Linden Aldous: It is Thursday.
+A Pat, the producer: It is Wednesday. I checked. I am very good at checking.
+H Odessa Pruitt: Pat, nobody likes that you are good at checking.
+
+= gc-bubbles | call-in | The Bubble War | iphone, android, apple, google, mac, pc, genz, genx, whatsapp
+S Linden Aldous: The phones are open. Today: iPhone or Android. Mac or PC. Pick a side and defend it.
+H Odessa Pruitt: Keep it clean. Nobody's grandmother has to hear about the charger cable again.
+S Linden Aldous: First caller, Kenji from Nostrand. You are in The Group Chat.
+C1 Kenji from Nostrand: Linden, I have had an Android for eleven years and I am tired of being the green bubble.
+H Odessa Pruitt: The green bubble. You are the cousin at the cookout nobody wants to text.
+C1 Kenji from Nostrand: I am not the problem! My phone folds! It folds in half, like a wallet that knows things!
+S Linden Aldous: Why does it need to fold, Kenji?
+C1 Kenji from Nostrand: Because I can, Linden. Because Google let me. That is called freedom.
+H Odessa Pruitt: Google lets you do a lot of things. Then Google cancels them.
+C1 Kenji from Nostrand: That is true. I had a Google thing. I loved it. They held a funeral. I was not invited.
+S Linden Aldous: Thank you, Kenji. Next, Brianna from Greene. Brianna, you are nineteen?
+C2 Brianna from Greene: Yes. And I need everyone to know an Android is not a phone. It is a calculator with feelings.
+H Odessa Pruitt: Gen Z has entered the chat. Brianna, what is wrong with the green bubble?
+C2 Brianna from Greene: It is giving group project. It is giving a free trial.
+S Linden Aldous: And what does your iPhone give, Brianna?
+C2 Brianna from Greene: It gives a new one every September that looks exactly like the old one, and I buy it, and I feel seen.
+H Odessa Pruitt: That is the most honest thing anybody has said on this show.
+C2 Brianna from Greene: Also I do not answer calls. If you call me, I assume somebody died or you are a scam.
+S Linden Aldous: Last caller, Dale from Kosciuszko. Dale, you are a Gen X man. What do you use?
+C3 Dale from Kosciuszko: A PC I built myself in two thousand and nine. It has eleven fans. It sounds like a small airport.
+H Odessa Pruitt: Dale, what about a Mac?
+C3 Dale from Kosciuszko: A Mac is a very expensive way to not be allowed to open your own computer.
+C2 Brianna from Greene: Okay, boomer.
+C3 Dale from Kosciuszko: I am not a boomer! I am Gen X! Nobody ever remembers us! That is our whole thing!
+S Linden Aldous: Dale, how do you text your family?
+C3 Dale from Kosciuszko: The family WhatsApp. My mother sends a voice note every morning. It is six minutes long. It is a prayer and a weather report.
+H Odessa Pruitt: Every family has a WhatsApp group where one uncle forwards the same video of a dog on a skateboard.
+C3 Dale from Kosciuszko: That uncle is me, Odessa. And that dog is a hero.
+S Linden Aldous: So who wins, Odessa? iPhone or Android?
+H Odessa Pruitt: Nobody wins, Linden. We all pay a thousand dollars to look at the same weather app and complain.
+A Pat, the producer: For the record, the booth runs on a computer older than Brianna. It is doing its best.
+
+= gc-professor | expert interview | The Professor of Things That Are Going On | altman, openai, ai, google, apple, stocks
+H Odessa Pruitt: Joining us in the studio, a man with tenure at a university that is mostly a laundromat on Fulton.
+R3 Professor Hollis Wexley: Professor Hollis Wexley. Department of Things That Are Going On. Thank you, Odessa.
+S Linden Aldous: Professor, today we want to understand artificial intelligence.
+R3 Professor Hollis Wexley: Nobody understands it, Linden. That is why it is worth so much money.
+H Odessa Pruitt: Start simple. What is Open A I?
+R3 Professor Hollis Wexley: Open A I is a company called Open, that you cannot open. It is like a door that is also a wall that is also a subscription.
+S Linden Aldous: And Sam Altman runs it.
+R3 Professor Hollis Wexley: Correct. In twenty twenty-three his own board let him go on a Friday and he was back within the week. My cousin got fired from the deli on Lewis and he is still not back.
+H Odessa Pruitt: That is the dream, Professor. Fired on Friday, rehired by brunch.
+R3 Professor Hollis Wexley: The man raises money the way I raise my voice at the dryer. Constantly, and in public.
+S Linden Aldous: What does the money buy?
+R3 Professor Hollis Wexley: Computer chips. Big buildings full of computer chips. The buildings are so hot they need their own rivers.
+H Odessa Pruitt: Our building cannot get heat in January and theirs needs a river.
+R3 Professor Hollis Wexley: Exactly. The future is warm, Odessa. Just not in your apartment.
+S Linden Aldous: And Google? Apple? Are they in the race?
+R3 Professor Hollis Wexley: Everybody is in the race. Google put a robot answer on top of the search, so now you ask how long to boil an egg and it writes you a poem about eggs.
+H Odessa Pruitt: And Apple?
+R3 Professor Hollis Wexley: Apple is in the race the way my uncle is in a marathon. Walking. Confident. Wearing a very nice watch.
+S Linden Aldous: Professor, will A I take our jobs?
+R3 Professor Hollis Wexley: It will take some jobs. But it cannot take yours, Linden. Nobody knows what yours is.
+H Odessa Pruitt: Thank you. I have been saying that for years.
+R3 Professor Hollis Wexley: Also it cannot hold a ladder. Or wait for a delivery between nine and five. Humanity still has the ladder.
+S Linden Aldous: And the stock market?
+R3 Professor Hollis Wexley: The stock market goes up whenever somebody says A I on a phone call. I said it twice this morning. My cousin's coin went up eleven percent.
+H Odessa Pruitt: Professor, is any of this real?
+R3 Professor Hollis Wexley: Odessa, I teach in a laundromat. I am not under oath.
+A Pat, the producer: The booth would like to note that Pat is not artificial intelligence. Pat is just quiet.
+H Odessa Pruitt: Pat, that is exactly what it would say.
+
+= gc-desk | consumer desk | Gloria Fenn, Your Money's Lawyer | streaming, airlines, tickets, tipping, selfcheckout
+S Linden Aldous: It is time for the consumer desk, with Gloria Fenn, who is not a lawyer, but who has been very angry in many lobbies.
+R1 Gloria Fenn: Thank you, Linden. I have been on hold since the last time I was on this show.
+H Odessa Pruitt: Gloria, first question. My streaming went up again.
+R1 Gloria Fenn: Of course it did. Streaming was sold to us as cheaper than cable. Now you have five of them and together they cost more than cable, plus they put the ads back.
+S Linden Aldous: And they stopped password sharing.
+R1 Gloria Fenn: They stopped password sharing. My nephew had my password for nine years. It was the only thing we shared. Now we do not speak.
+H Odessa Pruitt: What do we do?
+R1 Gloria Fenn: Cancel one every month. Rotate them like tires. Let them miss you.
+S Linden Aldous: Next. The airlines.
+R1 Gloria Fenn: Linden, I flew to Atlanta. The seat was cheap. Then the bag was money. Then the seat next to my own child was money. Then the overhead bin was money.
+H Odessa Pruitt: The air is still free?
+R1 Gloria Fenn: For now, Odessa. For now. Do not give them ideas. Somebody in an office is listening.
+S Linden Aldous: Concert tickets.
+R1 Gloria Fenn: The ticket is a hundred dollars. Then there is a service fee for the service of selling you the ticket. Then a facility fee for the facility you have not entered. Then a fee called convenience. There is nothing convenient.
+H Odessa Pruitt: And the resale.
+R1 Gloria Fenn: You wake up at ten in the morning, it sells out at ten oh one, and by ten oh two a man named Brent is selling it back to you for the price of a used car.
+S Linden Aldous: Gloria, the tipping screen.
+R1 Gloria Fenn: Oh, the tipping screen. I bought a bottle of water from a fridge. I took it out of the fridge myself. The screen turned around and asked for twenty five percent.
+H Odessa Pruitt: Twenty five percent of what?
+R1 Gloria Fenn: Of my dignity, Odessa. And there is a button that says custom, and the cashier watches you press it, and you age a year.
+S Linden Aldous: And self-checkout.
+R1 Gloria Fenn: I scanned my own groceries, bagged my own groceries, and the machine said unexpected item in the bagging area. The unexpected item was me. I work there now, apparently, for free.
+H Odessa Pruitt: Gloria, any good news?
+R1 Gloria Fenn: Yes. Read the receipt. Ask for the fee to come off. Say the word supervisor slowly, like a spell.
+S Linden Aldous: Gloria Fenn, everybody. Not a lawyer.
+R1 Gloria Fenn: Not a lawyer. Still on hold. Thank you.
+
+= gc-ads | ad break | Three Ads Nobody Paid For | buffett, stocks, marvel, rent, landlords
+S Linden Aldous: We have to pay the bills. Here are three messages from businesses that may not exist.
+D Patience Brothers Investing: Do you want to invest like the old man in Omaha?
+D Patience Brothers Investing: Step one. Buy a good company. Step two. Live in the same house for sixty years. Step three. Do absolutely nothing.
+D Patience Brothers Investing: Patience Brothers. We are not affiliated with Warren Buffett. He has never heard of us. That is part of the strategy.
+D Patience Brothers Investing: Results not typical, because you are not him, and you checked your phone during this ad.
+J Group Chat Jingle: The Group Chat. Ninety-nine point nine.
+D The Multiverse Pass: Tired of homework before the movies? Get the Multiverse Pass.
+D The Multiverse Pass: Watch all forty superhero films you need to understand the next one, plus three shows, two cartoons, and a scene after the credits that explains a different scene after different credits.
+D The Multiverse Pass: The Multiverse Pass. Marvel did not make this ad. Marvel is busy making phase twelve.
+D The Multiverse Pass: Warning. Side effects include saying, wait, which one is this, in a dark room.
+J Group Chat Jingle: Everybody is typing.
+D Landlord Calm: Are you a landlord who feels misunderstood?
+D Landlord Calm: Try Landlord Calm, a soothing audio track of a tenant saying, no worries, take your time with the heat.
+D Landlord Calm: Landlord Calm also includes the sound of a radiator working, for landlords who have never heard it.
+D Landlord Calm: Landlord Calm. The broker fee is included. The broker is also included. He lives in the closet now.
+A Pat, the producer: All three advertisers are invented. Please do not send them money. They will not know what to do with it.
+H Odessa Pruitt: Pat, the Patience Brothers would know what to do with it. They would do nothing with it, for sixty years.
+
+= gc-mail | listener mail | Letters to the Group Chat | men-women, dating, vegans, hipsters, instagram
+S Linden Aldous: Listener mail. You write, we read it on air, and nobody learns anything.
+H Odessa Pruitt: First letter, from a man on Madison Street. Dear Group Chat. Why do women say they are fine when they are not fine?
+S Linden Aldous: Odessa, I want to take this one.
+H Odessa Pruitt: Linden, you should not take this one.
+S Linden Aldous: When a woman says fine, it means the conversation is over, but the meeting is still scheduled.
+H Odessa Pruitt: And when a man says I will fix it, it means the thing will stay broken until it becomes a family heirloom.
+S Linden Aldous: That is fair. The shelf in my hallway is an heirloom. My grandson will inherit the wobble.
+H Odessa Pruitt: Second letter, from a woman on Monroe. Dear Group Chat, why do men need a podcast?
+S Linden Aldous: Because no one in our lives will listen to us for two hours, so we rent a microphone.
+H Odessa Pruitt: Thank you for admitting that. And women do not need a podcast, because we have each other's voice notes, and they are longer.
+S Linden Aldous: So both sides lose.
+H Odessa Pruitt: Everybody loses, Linden. That is what love is.
+S Linden Aldous: Next letter. Dear Group Chat, I went on a date and he spent the whole dinner taking pictures of the food for Instagram. The food was cold by the time he let me eat it.
+H Odessa Pruitt: That is not a date, that is a photo shoot with a side of you.
+S Linden Aldous: In his defense, the pasta had good lighting.
+H Odessa Pruitt: Next. Dear Group Chat, my roommate went vegan and now every conversation becomes about it. I asked her the time and she told me cows have friends.
+S Linden Aldous: Cows do have friends, Odessa.
+H Odessa Pruitt: I am not against vegans. I am against being told about it before I have had coffee. With milk. From a friend.
+S Linden Aldous: And to the vegans listening, the rest of us are also exhausting. We talk about the barbecue like it is a religion. Fair is fair.
+H Odessa Pruitt: Last one. Dear Group Chat, a man with a mustache and a typewriter opened a store on my block that sells one candle and one plant. Is this a hipster?
+S Linden Aldous: That is not a hipster. That is a whole ecosystem. He also has a podcast about the candle.
+H Odessa Pruitt: Linden, you have a typewriter.
+S Linden Aldous: It is decorative, Odessa. I do not type on it. I just let people see it.
+H Odessa Pruitt: That is the most hipster sentence ever spoken on this station.
+A Pat, the producer: Letters may be edited for length. Pat edited them. Pat would like a raise.
+
+= gc-quiz | quiz | Billionaire or Bodega Cat | musk, buffett, putin, kanye, sheen, altman
+S Linden Aldous: It is quiz time. The game is called Billionaire or Bodega Cat.
+H Odessa Pruitt: I read a habit. You tell me if it belongs to a very rich man, or to Mister Biscuit, the cat at the deli on Lewis.
+S Linden Aldous: Our contestant is Tasha from Lewis, who knows Mister Biscuit personally.
+C2 Tasha from Lewis: I do. He owes me a dollar.
+H Odessa Pruitt: Question one. Renamed something everybody liked, to a single letter, and expected applause.
+C2 Tasha from Lewis: That is the billionaire. That is the Twitter man. Mister Biscuit would never. He respects a brand.
+H Odessa Pruitt: Correct. Elon Musk, one point. Question two. Has lived in the same house since the nineteen fifties and eats breakfast from a drive-through.
+C2 Tasha from Lewis: That sounds like Mister Biscuit. He has never moved. He eats whatever falls.
+S Linden Aldous: Wrong! That is Warren Buffett, one of the richest men alive, in Omaha. Same house. Same breakfast.
+C2 Tasha from Lewis: So the richest man in America lives like my grandfather. Respect.
+H Odessa Pruitt: Question three. Sits at the end of a very, very long table, so nobody can get close.
+C2 Tasha from Lewis: That is Mister Biscuit at the end of the counter. You cannot pet him. He decides.
+S Linden Aldous: Close, but no. That is Vladimir Putin. Famous for the long tables, and the photos on a horse with no shirt, and elections he wins before they are held.
+C2 Tasha from Lewis: Mister Biscuit has no shirt either, but at least he is a cat about it.
+H Odessa Pruitt: Question four. Changed his name to two letters, and the album release date moves like a bus schedule.
+C2 Tasha from Lewis: That is Kanye. Ye. He ran for president once. Mister Biscuit only ran for the door.
+S Linden Aldous: Correct. Question five. Is on television right now, in a rerun, somewhere, guaranteed.
+C2 Tasha from Lewis: Charlie Sheen. That sitcom never stops. I fell asleep in nineteen ninety nine and woke up, and it was still on.
+H Odessa Pruitt: Correct. They paid that man more per episode than this whole block makes in a year, and the reruns still pay the cable company.
+S Linden Aldous: Final question. Was let go on a Friday, came back within the week, and acted like nothing happened.
+C2 Tasha from Lewis: That is Mister Biscuit! They put him out every Friday, and every Monday he is back on the bread.
+H Odessa Pruitt: That is also Sam Altman. We are giving you both. The cat and the computer man.
+S Linden Aldous: Tasha, you win the grand prize. A dollar. From Mister Biscuit.
+C2 Tasha from Lewis: He still owes me the first one.
+
+= gc-field | field report | Bunny Castellano, Live From the Problem | congestion, fare, subway, ebikes, delivery, office, rent
+S Linden Aldous: Let us go out to the street. Our reporter Bunny Castellano is live from the problem. Bunny?
+R2 Bunny Castellano: Linden! I am live at the corner of Fulton and Nostrand, where nobody has moved in four minutes, including me.
+H Odessa Pruitt: Bunny, what is the story?
+R2 Bunny Castellano: Odessa, the story is that it now costs money to drive into Manhattan below a certain street, and everybody in Brooklyn has an opinion, and I have heard all of them, today, from one man.
+S Linden Aldous: What does he think?
+R2 Bunny Castellano: He thinks it is terrible and also he takes the train. He just likes to be against things. He calls it cardio.
+H Odessa Pruitt: And the subway fare?
+R2 Bunny Castellano: The fare went up again. A woman told me the train is late, it smells like soup, and somehow it is still the best deal in the city.
+S Linden Aldous: She is right.
+R2 Bunny Castellano: She is always right. She has been riding the A train since before it had a letter.
+H Odessa Pruitt: Bunny, watch out for the e-bikes.
+R2 Bunny Castellano: Too late, Odessa. Three delivery bikes went by me on the sidewalk, one on the stairs, and one through a laundromat. I think he delivered to a dryer.
+S Linden Aldous: The apps keep promising the food in ten minutes.
+R2 Bunny Castellano: The food does come in ten minutes, Linden. The man brings it at the speed of a motorcycle on a bicycle lane, through a red light, with your soup in a bag held by his teeth. Tip him. He has seen things.
+H Odessa Pruitt: Where are you going next?
+R2 Bunny Castellano: To an office in Midtown, Odessa. My boss says we all have to return to the office.
+S Linden Aldous: What is at the office?
+R2 Bunny Castellano: Nothing, Linden. That is the scandal. There is one plant, a coffee machine that says maintenance, and a man in a quarter zip who keeps saying synergy to nobody.
+H Odessa Pruitt: So why go?
+R2 Bunny Castellano: Because somebody signed a very long lease on that office, Odessa, and now we are the furniture.
+S Linden Aldous: And the rent? Bunny, any news on the rent?
+R2 Bunny Castellano: I saw an apartment on the way. One bedroom, if you count the bed. The broker wanted a fee for opening the door. He did not open the door. It was already open.
+H Odessa Pruitt: Bunny Castellano, everybody, live from the problem.
+R2 Bunny Castellano: The problem is the whole city, Odessa. I love it here. Back to you.
+
+= gc-gens | argument | Generations, Apps and the Family Chat | genz, genx, facebook, instagram, whatsapp, twitter, men-women
+H Odessa Pruitt: Linden, I want to settle something. Which generation is the worst?
+S Linden Aldous: Odessa, that is a trap. Every generation is the worst to the one before it.
+H Odessa Pruitt: I am Gen X. We had no internet, no phones, and we came home when the streetlights came on. We raised ourselves.
+S Linden Aldous: And you still talk about it like you survived a war.
+H Odessa Pruitt: It was a war. It was a war against boredom, and we won it with a skateboard and a cassette.
+S Linden Aldous: Gen Z grew up with phones. They can edit a video before they can tie a shoe.
+H Odessa Pruitt: And they speak in a code. My niece said my outfit was giving. Giving what? She would not finish the sentence.
+S Linden Aldous: Giving is the whole sentence now, Odessa. Grammar has been optimized.
+H Odessa Pruitt: But Gen Z is kind, I will say. They talk about feelings. We did not have feelings. We had a chores list.
+S Linden Aldous: And then there is my generation, the millennials, stuck in the middle, who still own a printer and feel bad about it.
+H Odessa Pruitt: Now the apps. Each generation has its own app, like a church.
+S Linden Aldous: Facebook is for the aunties. Birthday wishes, a picture of a casserole, and a long post about a parking ticket from two thousand and twelve.
+H Odessa Pruitt: Facebook Marketplace, where every message is, is this still available, and then the person disappears forever.
+S Linden Aldous: Instagram is for the cousins. Everybody is on vacation, everybody is at brunch, and nobody's apartment looks like that.
+H Odessa Pruitt: Twitter is for men who want to argue with strangers about a movie at two in the morning.
+S Linden Aldous: It is called X now.
+H Odessa Pruitt: Nobody calls it that, Linden. Not even the men.
+S Linden Aldous: And WhatsApp is for the family. Fifty people, one uncle, and a good morning picture of a sunflower, every day, at five a m.
+H Odessa Pruitt: My mother sends the sunflower. I love the sunflower. Do not touch the sunflower.
+S Linden Aldous: So, men and women. Who uses the phone worse?
+H Odessa Pruitt: Men read one text, answer half of it, and think the conversation went well.
+S Linden Aldous: Women send four texts in a row, then one that says never mind, which is actually the most important one.
+H Odessa Pruitt: Linden, that one is true and I hate it.
+S Linden Aldous: So who is the worst generation?
+H Odessa Pruitt: The worst generation is whoever is holding the phone at the table. Put it down. Eat.
+A Pat, the producer: Pat is not on any of these apps. Pat is in the group chat. Pat is the group chat.
+
+= gc-tiny | news desk | Tiny News, Big Men | putin, kanye, sheen, trump, mamdani, weather, stocks, crypto
+J Group Chat Jingle: Tiny News. All the news that fits in a text.
+N Tiny News: Tiny News, read by Pat, who does not have opinions.
+N Tiny News: Abroad. Vladimir Putin was photographed again, at the far end of a long table. Experts say the table is now long enough to have its own weather.
+N Tiny News: In music. Ye, the artist formerly known as Kanye West, has a new album release date. Our sources say the date is a mood, not a day.
+N Tiny News: In television. A Charlie Sheen sitcom rerun is playing right now on at least one channel, as it has every hour since the early two thousands. The cable company thanks him.
+N Tiny News: In politics. The president's name was mentioned in a group chat on Halsey Street. Nine people left the chat. One stayed, to argue.
+N Tiny News: The mayor still wants free buses. A caller on Macon says this is why eggs cost money. A caller on Lewis says the mayor fixed her knee. Neither is true. Both called twice.
+N Tiny News: Markets. The stock market went up because a man on television said A I. Then it went down because a different man said it louder.
+N Tiny News: Crypto. Linden's cousin's coin is worth one sandwich today. Yesterday it was worth two sandwiches. Tomorrow, a napkin.
+N Tiny News: Weather. Marisol Gale says it is cold, and that she is taking it personally.
+H Odessa Pruitt: Pat, that was tiny and it was news. Thank you.
+A Pat, the producer: Thank you, Odessa. That is the news. I will log a request for more.
+
+# Parody impression (owner, 27 Nov): performed by the invented station impressionist Rudy Falco. "P3 Label ~ Real Name: text"
+# is a line in caller3 voice spoken by the performer, tagged parodyOf. The host frames it at the start and at the end.
+= gc-director | interview (impression) | The Solemn Director Visits Bed-Stuy | herzog-impression, pigeons, parking, pizza
+H Odessa Pruitt: Now, a Group Chat tradition. Our own station impressionist, Rudy Falco, does his impression of Werner Herzog. Not the real one, obviously. Rudy just does a voice.
+S Linden Aldous: Rudy has never met him. Rudy has seen one documentary, on a bus.
+H Odessa Pruitt: Rudy, as the solemn director, welcome to Bed-Stuy. What do you see?
+P3 Rudy Falco, impression ~ Werner Herzog: I see a pigeon. He stands on the edge of the bodega awning. He has no plan. He has only the awning, and the awning has only him.
+S Linden Aldous: That is a normal pigeon, Rudy.
+P3 Rudy Falco, impression ~ Werner Herzog: There are no normal pigeons. There is only the pigeon, and the bagel he has stolen, and the long silence of the man who wanted that bagel.
+H Odessa Pruitt: Tell us about the bodega cat.
+P3 Rudy Falco, impression ~ Werner Herzog: The cat sleeps on the bread. He is the true owner of this store. The humans only work here. They ring up the lottery tickets, and the cat watches, and judges, and forgives nothing.
+S Linden Aldous: Rudy, it is alternate side parking day.
+P3 Rudy Falco, impression ~ Werner Herzog: Ah. The great migration. At eleven in the morning the men come down from the brownstones with their keys. They sit in their cars. They do not drive. They only wait, like monks of the curb.
+H Odessa Pruitt: That is accurate, actually.
+P3 Rudy Falco, impression ~ Werner Herzog: A man has waited ninety minutes to move his car eleven feet. I asked him why. He said, because the street sweeper is coming. The street sweeper did not come. The street sweeper never comes. We wait for it anyway. This is the human condition, with a ticket.
+S Linden Aldous: Rudy, try the dollar slice.
+P3 Rudy Falco, impression ~ Werner Herzog: The dollar slice is no longer one dollar. Nobody speaks of this. The sign still says one dollar. The sign is a ghost. The cheese, however, is very much alive.
+H Odessa Pruitt: Any last words for our listeners?
+P3 Rudy Falco, impression ~ Werner Herzog: Go out onto your stoop. Look at the scaffolding. It has been there for nine years. It will outlive us all. Say goodnight to it, and to the pigeon.
+S Linden Aldous: Rudy, that was beautiful, and you are wearing a sweatshirt from a car wash.
+H Odessa Pruitt: That was Rudy Falco doing his impression of Werner Herzog. Not the real one, obviously. The real one has never heard of us.

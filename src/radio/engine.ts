@@ -288,7 +288,7 @@ export class RadioPage {
       : [];
     const toast = this.toastText && this.now() - this.toastAt < TOAST_KEEP_MS ? this.toastText : '';
     return {
-      on: this.on, index: d.index, info, stationName: d.stationName, title, dj, source, pos, length,
+      on: this.on, index: d.index, info, stationName: c.kind === 'sc' ? info.name : d.stationName, title, dj, source, pos, length,
       announcerName: c.kind === 'sc' && d.announcer.speaking ? d.announcer.name : '',
       announcerLine: d.announcerLine,
       status: this.status(), marks, link: d.nowLink, toast, talk, canNextSet: c.kind === 'sc',
