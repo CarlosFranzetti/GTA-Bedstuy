@@ -400,6 +400,23 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   rest as above), 17 of 17 stations "On air" on the built page in a phone-sized browser with the network open
   (`scripts/dev/radiopage-live.mjs`; the clock was seen moving for SoundCloud stations only), a car frame from the game.
   NOT checked: anything heard, a real iPhone (safe areas, the real sound-blocked flow), cabins seen from inside the car.
+- THIRD DEPLOY of 27 Nov, AUDIO ONLY (owner's choice): branch `audio-only`, commit `623b53e` = the second deploy's tree
+  plus AMBIENT's files (silent loading, title theme 2.5 s lookahead, 5 to 8 s crossfaded environment loops, `?debug=audio`
+  panel, `?mute=`). Verified by the lead on that tree: typecheck, both builds (single file 11,947,330), native web check,
+  four boots, every test folder. Not heard. HOW: promoting a preview was refused (422); a production build of the branch
+  commit through Vercel's create-deployment worked. `master` holds the same audio files PLUS unfinished car work
+  (CARENTRY, STUCK, the CARENTRY lines in `src/main.ts`): do not deploy master until CARFIT's joined tree is checked
+  and the owner has seen it. Notes: `docs/swarm/tasks/AMBIENT.md`, SOUNDCHECK section 6.
+- First wave of the new mission (27 Nov; transcript `docs/swarm/transcripts/2026-11-27-car-audio-voices.md`):
+  CARENTRY (camera cuts on the press, 0.5 s get-in, nearest door then across: `docs/swarm/tasks/CARENTRY.md`), STUCK
+  (rescue and wedge relief in `World2D`, braking yaw cap, sprint wall slide: `STUCK.md`), VOICES (samples in
+  `docs/swarm/voice-samples/2026-11-27/`: the talk stations speak through the browser's own speech voice, which is the
+  main cause of "digital"), REF34 (`docs/reference/gta3-4-conventions.md`), PACKMEASURE
+  (`docs/reference/pack-measurements.md`: the Drive folder holds two car models and textures only; the zip is over the
+  connector's 10 MB limit). OWNER'S CHOICES: measure the pack and rebuild, ship nothing from it; camera cuts with a short
+  animation; free open voices first; steering IN BETWEEN quick and weighty; nearest door then slide across; exit camera
+  behind the car's direction; loading silent. OPEN WITH HIM: which voice; pack scale or real-world scale for cars; which
+  graphics setting shows the screen artifacts.
 - Radio page on phones (RADIOUX, `docs/swarm/tasks/RADIOUX.md`; owner: "has to work on phone", "use UX skills"): first
   screen holds console, status row, caption and the SoundCloud player; a pinned mini player; sections collapsed; page
   4,905 to 2,172 px; tap targets under 44 px 134 to 0. Tools: `scripts/dev/radiopage-ux.mjs`, `radiopage-live.mjs`,
