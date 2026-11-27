@@ -17,6 +17,8 @@ export interface TalkSegment {
   text: string;
   /** Planned length in seconds (script value, or estimated from the word count). */
   seconds: number;
+  /** TALK3: the real person a parody impression sends up (the speaker is the invented performer). The HUD marks the line PARODY. */
+  parodyOf?: string;
 }
 
 const KINDS: TalkKind[] = ['host', 'caller', 'ad', 'jingle', 'news', 'sting'];
@@ -51,6 +53,7 @@ export function parseScript(raw: unknown): TalkSegment[] {
       voice: voice || kind,
       text,
       seconds: sec,
+      ...(typeof o.parodyOf === 'string' && o.parodyOf ? { parodyOf: o.parodyOf } : {}),
     });
   }
   return out;

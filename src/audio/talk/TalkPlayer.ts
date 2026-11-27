@@ -131,6 +131,7 @@ export class TalkPlayer {
   private segElapsed = 0;
   private voices: Record<VoiceRole, VoiceLike | null> | null = null;
   private voiceCount = -1;
+  private nextLoop: (() => TalkSegment[]) | null = null;
 
   constructor(private readonly env: TalkEnv, script: TalkSegment[], private readonly opts: TalkOptions = {}) {
     this.segs = script;
@@ -147,7 +148,12 @@ export class TalkPlayer {
   get segmentCount(): number { return this.segs.length; }
   get loopSeconds(): number { return this.loop; }
 
-  setScript(script: TalkSegment[]): void {
+  /**
+   * TALK3: `nextLoop` (optional) builds a fresh loop each time this one ends (the Group Chat's shuffled pass of bits), so the
+   * order changes every pass; without it the script loops as written.
+   */
+  setScript(script: TalkSegment[], nextLoop?: () => TalkSegment[]): void {
+    if (nextLoop !== undefined) this.nextLoop = nextLoop;
     this.segs = script;
     this.reindex();
     this.midShowDone = false;
@@ -159,7 +165,7 @@ export class TalkPlayer {
     if (!this.active || this.segs.length === 0) return '';
     const s = this.segs[this.index];
     const who = s.kind === 'ad' ? 'Ad break' : s.kind === 'jingle' || s.kind === 'sting' ? 'WBSY' : s.speaker || s.kind;
-    return who;
+    return s.parodyOf ? `${who} (PARODY)` : who;
   }
 
   get progress(): TalkProgress {
@@ -202,6 +208,12 @@ export class TalkPlayer {
     if (!(dt > 0) || this.paused || this.loop <= 0) return;
     // The clock always runs; while on air it never runs past the end of the current segment.
     this.clock += dt;
+    // Off air, a finished pass is replaced by the next shuffled one (the virtual clock runs on into it).
+    while (!this.active && this.nextLoop && this.loop > 0 && this.clock >= this.loop) {
+      const rest = this.clock - this.loop;
+      if (!this.reshuffle()) break;
+      this.clock = Math.min(rest, Math.max(0, this.loop - 0.001));
+    }
     if (!this.active) return;
     this.segElapsed += dt;
     const seg = this.segs[this.index];
@@ -346,7 +358,17 @@ export class TalkPlayer {
     const next = (this.index + 1) % Math.max(1, this.segs.length);
     const base = Math.floor(this.clock / this.loop) * this.loop;
     const wrapped = next === 0;
+    if (wrapped && this.nextLoop && this.reshuffle()) { this.clock = 0; this.begin(0); return; }
     this.clock = base + (wrapped ? this.loop : this.starts[next]);
     this.begin(next);
+  }
+
+  /** TALK3: swaps in the next pass from `nextLoop`; false (and nothing changes) when it gives nothing. */
+  private reshuffle(): boolean {
+    const s = this.nextLoop?.() ?? [];
+    if (s.length === 0) return false;
+    this.segs = s;
+    this.reindex();
+    return this.loop > 0;
   }
 }
