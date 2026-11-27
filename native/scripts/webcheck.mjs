@@ -21,7 +21,7 @@ export function checkWeb(dir) {
   for (const f of MUST_EXIST) if (!existsSync(join(dir, f))) bad.push(`missing ${f}`);
   const assets = join(dir, 'assets');
   const files = existsSync(assets) ? readdirSync(assets) : [];
-  if (!files.some((f) => /^index-.*\.js$/.test(f))) bad.push('missing assets/index-*.js (is this the single-file artifact build? build with VITE_HOSTED=1)');
+  if (!files.some((f) => /^main-.*\.js$/.test(f))) bad.push('missing assets/main-*.js (is this the single-file artifact build? build with VITE_HOSTED=1)');
   if (!files.some((f) => /^three-.*\.js$/.test(f))) bad.push('missing assets/three-*.js chunk');
   if (!files.some((f) => /^realWorld-.*\.js$/.test(f))) bad.push('missing the lazy real-map chunk assets/realWorld-*.js');
   const banks = join(dir, 'voice', 'banks');
