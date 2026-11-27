@@ -425,7 +425,10 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   (`docs/reference/pack-measurements.md`: the Drive folder holds two car models and textures only; the zip is over the
   connector's 10 MB limit). OWNER'S CHOICES: measure the pack and rebuild, ship nothing from it; camera cuts with a short
   animation; free open voices first; steering IN BETWEEN quick and weighty; nearest door then slide across; exit camera
-  behind the car's direction; loading silent. OPEN WITH HIM: which voice; pack scale or real-world scale for cars; which
+  behind the car's direction; loading silent. VOICES HE PICKED (27 Nov, from the clips page
+  https://claude.ai/artifact/GuQHQhZroZqrxW6d4Ayhx8): Buck Mercer = Chatterbox; Mr. Abernathy = Blend (mixed Kokoro
+  presets); Candace Prowse = Current. CAR SCALE: he leans to the pack's scale ("a bit bigger and wider, like the old
+  games") and wants side-by-side pictures of pack scale and real scale before he decides. OPEN WITH HIM: which voice; pack scale or real-world scale for cars; which
   graphics setting shows the screen artifacts.
 - Radio page on phones (RADIOUX, `docs/swarm/tasks/RADIOUX.md`; owner: "has to work on phone", "use UX skills"): first
   screen holds console, status row, caption and the SoundCloud player; a pinned mini player; sections collapsed; page
