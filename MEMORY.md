@@ -38,6 +38,10 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
    serious." The lead's reading: a few invented parody characters or a self-declared bad impressionist, framed on air as
    a parody every time, manner written into the lines and a pitch and rate setting only (no cloned or sampled voice);
    still no line presented as something the real person said or did, and nothing about health, family or private life.
+   CLARIFIED the same day: "impersonated characters based on real people with similar voices but nothing too serious;
+   parody only. Werner Herzog also, in an interview." So parody impressions of real people are in, each performed by an
+   invented in-world impressionist and framed as a parody on air at the start and end of the segment (`parodyOf` in the
+   script data, "PARODY" shown beside the line); every line is written here, nothing quoted from the person's own work.
 5. Tone (CHANGED by the owner on 22 Nov: "i do want blood and weapons in the game, its a parody but its still GTA"; "should
    be able to hit anyone"). Blood and weapons are in; anyone on the street can be hit. The lead's reading until he says
    more: blood yes (hits, marks that fade), people go down hurt or knocked out; no dismemberment and no gore beyond blood.
