@@ -23,11 +23,26 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '', a
   return e;
 }
 function link(text: string, href: string): HTMLAnchorElement { return h('a', '', text, { href, target: '_blank', rel: 'noopener noreferrer' }); }
+function mixList(s: StationInfo): HTMLOListElement {
+  const ol = h('ol', 'mixes');
+  for (const m of s.mixes) {
+    const li = h('li');
+    li.append(link(m.title || m.url, m.url), h('span', 'dim', ` — ${m.dj}${m.minutes ? `, ${m.minutes} min` : ''}`));
+    ol.appendChild(li);
+  }
+  return ol;
+}
+const MINI_ICONS = {
+  prev: '<path d="M18 5v14l-9-7zM7 5v14" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  play: '<path d="M7 4v16l13-8z" fill="currentColor"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>',
+  next: '<path d="M6 5v14l9-7zM17 5v14" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+};
 const MARK_LABEL: Record<Mark['kind'], string> = { intro: 'Opening line', listening: 'You are listening', mid: 'Mid-set mention', thanks: 'Thank-you' };
 const SOURCE_NOTE = (s: StationInfo): string => `${s.kindLabel}${s.host ? `; announcer ${s.host}` : ''}`;
 const clamp01 = (n: number): number => Math.min(1, Math.max(0, n));
 
-export interface MountOptions { reduced?: boolean; raf?: boolean }
+export interface MountOptions { reduced?: boolean; raf?: boolean; /** Force the phone layout (tests); by default it follows the media query. */ phone?: boolean }
 const STATIC_KEY = 'gta-bedstuy.radiopage.static.v1';
 const readStatic = (): boolean => { try { return localStorage.getItem(STATIC_KEY) !== 'off'; } catch { return true; } };
 const writeStatic = (on: boolean): void => { try { localStorage.setItem(STATIC_KEY, on ? 'on' : 'off'); } catch { /* private mode */ } };
@@ -65,20 +80,16 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
   const stText = h('b', '', 'Radio off');
   const stReason = h('span', 'reason', 'Pick a station to tune in. Sound starts only after a tap.');
   const stBtns = h('span', 'stbtns');
-  const bStart = h('button', 'go', 'Start sound', { type: 'button' });
-  const bRetry = h('button', '', 'Retry', { type: 'button' });
+  const bStart = h('button', 'go big', 'Tap to start sound', { type: 'button' });
+  const bRetry = h('button', 'big', 'Retry', { type: 'button' });
   stBtns.append(bStart, bRetry);
   statusBox.append(stText, stReason, stBtns);
   const toast = h('div', 'toast', '');
-  const settings = h('label', 'setting');
-  const staticBox = h('input', '', '', { type: 'checkbox' });
-  staticBox.checked = staticOn;
-  settings.append(staticBox, ' Dial static between stations (only once sound is on)');
   const ctlRow = h('div', 'ctlrow');
-  ctlRow.append(statusBox, toast, settings);
+  ctlRow.append(statusBox, toast);
 
   /* ---- station list (emblems) ---- */
-  const listCard = h('section', 'card wide');
+  const listCard = h('section', 'card wide stations');
   listCard.append(h('h2', '', 'Stations'));
   const dial = h('div', 'dial', '', { role: 'group', 'aria-label': 'Stations' });
   const presets: HTMLButtonElement[] = stations.map((s) => {
@@ -87,18 +98,38 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
     const tx = h('span', 'pt');
     tx.append(h('span', 'f num', s.freq || s.badge), h('span', 'n', s.name), h('span', 'k', s.freq ? s.badge : s.kind === 'live-stream' ? 'stream' : ''));
     b.append(em, tx);
-    b.addEventListener('click', () => { pending = null; page.tune(s.id); });
+    /* the tap tunes AND plays, synchronously inside the handler (phones only allow sound from the tap), then brings the boombox back into view */
+    b.addEventListener('click', () => { pending = null; page.tune(s.id); showBoombox(); });
     dial.appendChild(b);
     return b;
   });
   listCard.appendChild(dial);
 
-  /* ---- the SoundCloud player (frames are put here by ScStation) ---- */
-  const wcard = h('section', 'card wide');
+  /* ---- the SoundCloud player (frames are put here by ScStation). Shown for SoundCloud stations only. ---- */
+  const wcard = h('section', 'card wide sccard');
   wcard.append(h('h2', '', 'SoundCloud player'));
-  wcard.append(h('p', 'note', 'The sets of the SoundCloud stations play in SoundCloud\'s own player, shown here as its terms ask. If sound does not start, press play in it.'));
   wcard.append(h('div', 'widget', '', { id: 'widget' }));
+  wcard.append(h('p', 'note', 'Plays in SoundCloud\'s own player. If sound stays silent, press play in it.'));
   const widget = wcard.querySelector('.widget') as HTMLElement;
+  const scLink = h('div', 'linkrow');
+  wcard.append(scLink);
+  /* stream and talk stations have no SoundCloud player: one short line says what is playing instead */
+  const noSc = h('section', 'scline', '', { 'aria-label': 'What is playing' });
+  const noScText = h('span', 'scline-t');
+  const noScLink = h('span', 'linkrow');
+  noSc.append(noScText, noScLink);
+
+  /* ---- collapsible sections ---- */
+  let sectionTouched = false;
+  const section = (title: string, cls: string, open = false): { d: HTMLDetailsElement; body: HTMLElement } => {
+    const d = h('details', `sec ${cls}`);
+    d.open = open;
+    const sm = h('summary', '', title);
+    sm.addEventListener('click', () => { sectionTouched = true; });
+    const body = h('div', 'secbody');
+    d.append(sm, body);
+    return { d, body };
+  };
 
   const tl = h('div', 'tl', '', { 'aria-label': 'Set timeline with the DJ-name moments' });
   const tlFill = h('div', 'fill');
@@ -110,23 +141,21 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
     const s = h('span'); s.append(h('i', cls), label); legend.appendChild(s);
   }
   const tlNote = h('p', 'note', '');
-  const tcard = h('section', 'card wide');
-  tcard.append(h('h2', '', 'Set timeline'), tl, clockEl, legend, tlNote);
+  const tSec = section('Set timeline', 'sec-tl');
+  tSec.body.append(tl, clockEl, legend, tlNote);
 
-  const logCard = h('section', 'card');
-  const logHead = h('div', 'loghead');
   const clearBtn = h('button', 'clear', 'Clear', { type: 'button' });
-  logHead.append(h('h2', '', 'What was said'), clearBtn);
   const logEl = h('div', 'log', '', { role: 'log' });
-  logCard.append(logHead, logEl);
-  const aboutCard = h('section', 'card');
-  const aboutH = h('h2', '', 'This station');
+  const lSec = section('What was said', 'sec-log');
+  lSec.body.append(h('div', 'loghead', '', {}), logEl);
+  lSec.body.firstElementChild!.append(h('span', 'dim', 'Newest first'), clearBtn);
+  const aboutH = h('h3', '', 'This station');
   const aboutEl = h('div', 'about');
-  aboutCard.append(aboutH, aboutEl);
+  const aSec = section('About this station and its mixes', 'sec-about');
+  aSec.body.append(aboutH, aboutEl);
 
-  const allCard = h('section', 'card wide');
-  allCard.append(h('h2', '', 'What is on each station'));
   const details = new Map<string, HTMLDetailsElement>();
+  const allSec = section('What is on each station', 'sec-all');
   for (const s of stations) {
     const d = h('details', 'st');
     const sum = h('summary', '', '');
@@ -137,13 +166,7 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
     if (s.site) { const p = h('p', 'note'); p.append('Site: ', link(s.site, s.site)); d.appendChild(p); }
     if (s.mixes.length) {
       d.appendChild(h('h3', '', `${s.mixes.length} DJ mixes (each opens on its own SoundCloud page)`));
-      const ol = h('ol');
-      for (const m of s.mixes) {
-        const li = h('li');
-        li.append(link(m.title || m.url, m.url), ` — ${m.dj}${m.minutes ? `, ${m.minutes} min` : ''}`);
-        ol.appendChild(li);
-      }
-      d.appendChild(ol);
+      d.appendChild(mixList(s));
     }
     if (s.scUrls.length && s.kind !== 'live-stream') {
       const p = h('p', 'note');
@@ -164,12 +187,62 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
     if (s.djLines) d.appendChild(h('p', 'note', `Announcer lines naming the DJ: ${s.djLines.intro} opening, ${s.djLines.mid} mid-set, ${s.djLines.thanks} thank-you.`));
     if (s.kind === 'scripted') d.appendChild(h('p', 'note', s.id === 'groupchat' ? 'The station plays its own script on a loop, spoken by on-device voices.' : 'Seven invented shows and ad breaks in rotation, spoken by the game\'s cast of voices.'));
     details.set(s.id, d);
-    allCard.appendChild(d);
+    allSec.body.appendChild(d);
   }
-  const cols = h('div', 'cols');
-  cols.append(logCard, aboutCard);
+
+  const setSec = section('Settings', 'sec-set');
+  const settings = h('label', 'setting');
+  const staticBox = h('input', '', '', { type: 'checkbox' });
+  staticBox.checked = staticOn;
+  settings.append(staticBox, h('span', 'box', ''), h('span', '', 'Dial static between stations (only once sound is on)'));
+  const volRow = h('label', 'setting vrow');
+  const volRange = h('input', 'vrange', '', { type: 'range', min: '0', max: '100', step: '1', 'aria-label': 'Volume' });
+  volRow.append(h('span', '', 'Volume'), volRange);
   const foot = h('p', 'note', 'Nothing here can be recorded or downloaded: the sets and streams play from their own sources. Sets and stream names belong to their makers. The emblems are drawn for this page and are not the stations\' own logos. The bars are labelled live only when they read the page\'s own audio; otherwise they are a simulation.');
-  root.append(scene, ctlRow, listCard, wcard, tcard, cols, allCard, foot);
+  setSec.body.append(settings, volRow, foot);
+
+  const cols = h('div', 'cols');
+  cols.append(lSec.d, aSec.d);
+  const mini = buildMini();
+  root.append(scene, ctlRow, wcard, noSc, listCard, tSec.d, cols, allSec.d, setSec.d, mini.el);
+  scene.classList.add('c-scene'); ctlRow.classList.add('c-ctl'); wcard.classList.add('c-sc'); noSc.classList.add('c-nosc'); listCard.classList.add('c-st');
+
+  /* ---- phone layout: the caption sits under the status row instead of inside the boombox ---- */
+  const phoneMq = typeof matchMedia === 'function' ? matchMedia('(max-width: 700px)') : null;
+  let phone = opts.phone ?? !!phoneMq?.matches;
+  const capHome = cap.parentElement as HTMLElement;
+  const layout = (): void => {
+    if (phone) { if (cap.parentElement !== root) root.insertBefore(cap, wcard); }
+    else if (cap.parentElement !== capHome) capHome.appendChild(cap);
+    root.classList.toggle('phone', phone);
+    scene.classList.toggle('phone', phone);
+  };
+  const onMq = (): void => { if (opts.phone === undefined) { phone = !!phoneMq?.matches; layout(); paint(); } };
+  try { phoneMq?.addEventListener('change', onMq); } catch { /* old Safari */ }
+  const showBoombox = (): void => {
+    const r = scene.getBoundingClientRect?.();
+    if (!r || typeof scene.scrollIntoView !== 'function') return;
+    if (r.top < 0 || r.bottom > (innerHeight || 0) + 1) { try { scene.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' }); } catch { /* old browsers */ } }
+  };
+
+  /* ---- the sticky mini player (phones): the same actions as the boombox keys ---- */
+  function buildMini(): { el: HTMLElement; em: HTMLElement; st: HTMLElement; sub: HTMLElement; prev: HTMLButtonElement; play: HTMLButtonElement; next: HTMLButtonElement } {
+    const el = h('div', 'mini', '', { role: 'group', 'aria-label': 'Mini player' });
+    const em = h('span', 'mini-em', '', { 'aria-hidden': 'true' });
+    const tx = h('span', 'mini-tx');
+    const st = h('b', 'mini-st', 'Bed-Stuy Radio');
+    const sub = h('span', 'mini-sub', ' ');
+    tx.append(st, sub);
+    const mb = (k: string, label: string, icon: string): HTMLButtonElement => {
+      const b = h('button', 'mb', '', { type: 'button', 'data-mini': k, 'aria-label': label });
+      b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${icon}</svg>`;
+      return b;
+    };
+    const prev = mb('prev', 'Previous station', MINI_ICONS.prev), play = mb('play', 'Play', MINI_ICONS.play), next = mb('next', 'Next station', MINI_ICONS.next);
+    play.classList.add('mb-play');
+    el.append(em, tx, prev, play, next);
+    return { el, em, st, sub, prev, play, next };
+  }
 
   /* ---- tuning: needle, knob, keys ---- */
   let pending: string | null = null;
@@ -195,6 +268,31 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
   keyBtn('prev').addEventListener('click', () => stepTo(-1, true));
   keyBtn('next').addEventListener('click', () => stepTo(1, true));
   kPlay.addEventListener('click', () => { if (page.isOn) page.off(); else page.tune(pending ?? page.currentId); });
+  /* the mini player: the same actions as the keys. When a phone has blocked sound, its play button starts the sound instead of stopping the radio. */
+  mini.prev.addEventListener('click', () => stepTo(-1, true));
+  mini.next.addEventListener('click', () => stepTo(1, true));
+  mini.play.addEventListener('click', () => { if (page.isOn && lastView.status.level === 'tap') page.tapStart(); else kPlay.click(); });
+  volRange.addEventListener('input', () => page.setVolume(Number(volRange.value) / 100));
+  /* the strip: marks are decoration. Desktop: a click on a mark tunes. Swipes (touch or pen) step one station per 36 px. */
+  const stripEl = scene.querySelector('.strip') as HTMLElement;
+  scene.querySelector('.scale')!.addEventListener('click', (e) => {
+    if (phone) return;
+    const m = (e.target as HTMLElement).closest?.('.mk') as HTMLElement | null;
+    if (m?.dataset.id) { pending = null; page.tune(m.dataset.id); }
+  });
+  let swipe: { x: number; y: number; id: number; stepped: number; locked: boolean } | null = null;
+  stripEl.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') swipe = { x: e.clientX, y: e.clientY, id: e.pointerId, stepped: 0, locked: false }; });
+  stripEl.addEventListener('pointermove', (e) => {
+    if (!swipe || e.pointerId !== swipe.id) return;
+    const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+    if (!swipe.locked && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) swipe.locked = true;
+    if (!swipe.locked) return;
+    const want = Math.trunc(-dx / 36);
+    while (swipe.stepped < want) { swipe.stepped++; stepTo(1); }
+    while (swipe.stepped > want) { swipe.stepped--; stepTo(-1); }
+  });
+  const endSwipe = (): void => { swipe = null; };
+  stripEl.addEventListener('pointerup', endSwipe); stripEl.addEventListener('pointercancel', endSwipe);
   kSet.addEventListener('click', () => page.nextSet());
   kOff.addEventListener('click', () => page.off());
   bStart.addEventListener('click', () => page.tapStart());
@@ -279,7 +377,7 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
   if (useRaf) raf = requestAnimationFrame(loop);
 
   /* ---- repaint ---- */
-  let markSig = '', logSig = '', detailsFor = '', emblemFor = '';
+  let markSig = '', logSig = '', detailsFor = '', emblemFor = '', miniFor = '';
   const paintWidget = (v: View): void => {
     for (const f of Array.from(widget.querySelectorAll('iframe'))) {
       const mine = f.dataset.station === v.info.id && v.info.kind !== 'live-stream' && v.info.kind !== 'scripted';
@@ -311,7 +409,21 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
       if (v.talk) bits.push(v.talk.show ? `${v.talk.show} — ${v.talk.speaker}` : v.talk.speaker);
     }
     metaEl.textContent = bits.join('   ') || ' ';
-    if (v.link && !preview) { metaEl.append('   '); metaEl.appendChild(link(v.link.label, v.link.url)); }
+    if (v.link && !preview && !phone) { metaEl.append('   '); metaEl.appendChild(link(v.link.label, v.link.url)); }
+    /* the SoundCloud card is for SoundCloud stations only; the others get one line about what is playing */
+    const isSc = v.info.kind !== 'live-stream' && v.info.kind !== 'scripted';
+    wcard.hidden = !isSc; noSc.hidden = isSc;
+    noScText.textContent = v.info.kind === 'live-stream' ? `${v.stationName} is a live stream: it plays straight from the station's own server, so there is no player to press.` : `${v.stationName} is spoken on this page by on-device voices: nothing else to start.`;
+    for (const row of [scLink, noScLink]) { row.textContent = ''; if (v.link && !preview) row.appendChild(link(v.link.label, v.link.url)); }
+    /* the mini player */
+    if (miniFor !== sid) { miniFor = sid; mini.em.innerHTML = emblemSvg(sid); }
+    mini.st.textContent = `${si.freq ? `${si.freq} ` : ''}${preview ? si.name : v.stationName}`;
+    mini.sub.textContent = preview ? 'Tuning...' : v.status.level === 'tap' ? 'Sound is blocked: tap play' : v.status.level === 'ok' && v.title ? v.title : v.status.text;
+    const tapNeeded = v.on && v.status.level === 'tap';
+    mini.play.setAttribute('aria-label', tapNeeded ? 'Start sound' : v.on ? 'Stop' : 'Play');
+    mini.play.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${v.on && !tapNeeded ? MINI_ICONS.stop : MINI_ICONS.play}</svg>`;
+    mini.play.classList.toggle('attn', tapNeeded);
+    if (document.activeElement !== volRange) volRange.value = String(Math.round(page.volume * 100));
 
     /* needle, knobs, lights */
     const np = needlePos();
@@ -328,7 +440,7 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
     lit('talk', v.on && v.info.kind === 'scripted');
     lit('air', v.on && v.status.level === 'ok');
     bb.classList.toggle('on', v.on);
-    kPlay.querySelector('span')!.textContent = v.on ? 'Stop' : 'Tune in';
+    kPlay.querySelector('span')!.textContent = v.on ? 'Stop' : 'Play';
     kPlay.querySelector('svg')!.innerHTML = v.on ? '<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>' : '<path d="M7 4v16l13-8z" fill="currentColor"/>';
 
     /* caption */
@@ -382,6 +494,7 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
     if (lsig !== logSig) {
       logSig = lsig;
       logEl.textContent = '';
+      if (page.log.length && !sectionTouched) lSec.d.open = true;
       if (!page.log.length) logEl.appendChild(h('div', 'empty', 'Nothing yet. Announcers and hosts speak a moment after you tune in.'));
       for (const e of page.log.slice().reverse()) {
         const row = h('div', `lg${e.kind.startsWith('dj') ? ' dj' : ''}`);
@@ -403,15 +516,25 @@ export function mount(root: HTMLElement, page: RadioPage, opts: MountOptions = {
       aboutH.textContent = v.stationName;
       aboutEl.textContent = '';
       aboutEl.append(h('p', 'note', v.info.about), h('p', 'note', `${v.info.kindLabel}${v.info.host ? `. Announcer: ${v.info.host}` : ''}.`));
+      if (v.info.mixes.length) aboutEl.append(h('h3', '', `${v.info.mixes.length} DJ mixes (each opens on its own SoundCloud page)`), mixList(v.info));
       details.forEach((d, id) => { d.open = id === v.info.id; });
     }
     if (!useRaf) paintViz(frameNow(0), 0);
   }
   const un = page.onChange(paint);
+  layout();
   paint();
+  /* the mini player tucks away while the boombox's own keys are on screen (no duplicate controls on the first screen) */
+  let io: IntersectionObserver | null = null;
+  if (typeof IntersectionObserver === 'function') {
+    io = new IntersectionObserver((es) => { for (const e of es) mini.el.classList.toggle('tucked', e.isIntersecting); }, { threshold: 0.9 });
+    io.observe(kPlay);
+  }
   return () => {
     un();
     document.removeEventListener('keydown', onKey);
+    io?.disconnect();
+    try { phoneMq?.removeEventListener('change', onMq); } catch { /* */ }
     if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
     if (pendTimer) clearTimeout(pendTimer);
   };

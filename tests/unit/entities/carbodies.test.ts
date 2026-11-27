@@ -224,7 +224,7 @@ describe.each(CASES)('merged near $style', (c) => {
     const kind = trim.geometry.getAttribute('carKind');
     const kinds = new Set<number>();
     for (let i = 0; i < kind.count; i++) kinds.add(kind.getX(i));
-    expect([...kinds].sort()).toEqual(BARRED(c) ? [0, 1, 2, 3, 4] : [0, 1, 2]);
+    expect([...kinds].sort()).toEqual(BARRED(c) ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 5]); // 5: the CARCABIN interior
     const hm = m.headlights[0].material as THREE.MeshStandardMaterial;
     hm.emissiveIntensity = 2;
     const mat = trim.material as THREE.Material & { onBeforeCompile: (s: { uniforms: Record<string, { value: THREE.Color }>; vertexShader: string; fragmentShader: string }) => void };

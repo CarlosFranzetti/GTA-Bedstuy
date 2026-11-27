@@ -1,4 +1,4 @@
-import './story.css';
+import { ensureStoryStyle } from './storyStyle';
 import { setStoryPanelClass } from './panelClass';
 import type { PanelManager } from '../PanelManager';
 import type { SceneFrame, SceneMeter } from '@/game/story/scenes';
@@ -55,6 +55,7 @@ export class SceneCard {
 
   constructor(parent: HTMLElement, private readonly src: SceneSource, private readonly o: SceneCardOptions = {}) {
     this.doc = parent.ownerDocument;
+    ensureStoryStyle(this.doc);
     const d = this.doc;
     this.endingSeconds = o.endingSeconds ?? 4.5;
     this.replySeconds = o.replySeconds ?? 10;

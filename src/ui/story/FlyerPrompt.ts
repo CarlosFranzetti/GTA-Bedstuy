@@ -1,4 +1,4 @@
-import './story.css';
+import { ensureStoryStyle } from './storyStyle';
 import type { FlyerResult, PromoPed, PromoTemper } from '@/game/story/promo';
 
 /**
@@ -41,6 +41,7 @@ export class FlyerPrompt {
 
   constructor(parent: HTMLElement, private readonly sink: FlyerSink, private readonly nightView: (id: string) => FlyerNightView | null) {
     this.doc = parent.ownerDocument;
+    ensureStoryStyle(this.doc);
     this.el = this.doc.createElement('div');
     this.el.className = 'flyer-prompt'; this.el.hidden = true; this.el.setAttribute('role', 'status');
     parent.appendChild(this.el);

@@ -543,7 +543,7 @@ function detailsGeo(parts: CarParts, lv: CarLevel = 'full', look?: CarLook, styl
   if (kit && parts.cabin) {
     // CARCABIN: dash, wheel, seats and props of this car (matte, vertex-coloured); the lite model keeps the largest pieces
     const cab = buildCabin(parts.cabin, kit, lv === 'full');
-    if (cab) prep(cab, KIND_CABIN, undefined, undefined, LITE_CABIN_TRIS);
+    if (cab) prep(cab, KIND_CABIN, undefined, undefined, kit.family === 'bus' ? 150 : LITE_CABIN_TRIS); // the bus is already near the lite ceiling
   }
   prep(parts.lampHead, KIND_HEAD, 0xaab4be); // lens glass: grey-clear when dark, lit by the emissive mask at night
   prep(parts.lampTail, KIND_TAIL, 0x7a1010);

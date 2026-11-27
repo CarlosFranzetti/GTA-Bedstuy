@@ -31,3 +31,11 @@ describe('Intimate scenes setting', () => {
     off(); (row.set as (v: boolean) => void)(true); expect(seen).toEqual([false]);
   });
 });
+
+import { ensureStoryStyle } from '@/ui/story/storyStyle';
+describe('story stylesheet', () => {
+  it('is put in the page once, as a style tag (not a CSS import, so it leaves the single-file build with the story switch off)', () => {
+    ensureStoryStyle(document); ensureStoryStyle(document);
+    expect(document.querySelectorAll('style#story-ui-style').length).toBe(1);
+  });
+});

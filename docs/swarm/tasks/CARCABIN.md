@@ -22,3 +22,10 @@ Owner's words: "interior of cars should be slightly different for each car."
 
 ## Look and numbers
 See the end of this file (filled in after measuring).
+
+## Numbers (27 Nov)
+- Cabin triangles per car, near (full) tier: 284 to 716, mean about 455 (old one-colour interior about 200). Lite (phone, low): capped at 300 (bus 150), smallest pieces first. Draw calls added: 0 on every tier (same details mesh). Textures added: 0.
+- Single-file build index.html, same base commit with and without this change: 11,923,551 -> 11,939,144 bytes (+15,593; 60.8 kB left of 12,000,000).
+- Tests: tests/unit/entities/carcabin.test.ts (7). carbodies.test.ts now allows vertex kind 5. carlook and car-lod-tris pass (bus lite cap lowered to stay under 4.5k).
+- Sheets: docs/swarm/teams/sheets/carcabin-1.png (vans, trucks, buses, wagon, convertible, beater), carcabin-2.png (sedan, sports, taxi, police, SUV). Columns: driver's seat, behind and above, in front above the windscreen, x-ray (body and glass hidden).
+- Not seen: in the running game, on a phone, with real night lighting.

@@ -388,7 +388,7 @@ export function buildCabin(s: CabinSpec, kit: CabinKit, near: boolean): THREE.Bu
     // ---- bus: seats along the walls, driver's seat, fare box
     const b = s.bus!;
     const bc = kit.seatCol, ba = kit.seatAlt;
-    for (const u of b.rows) for (const q of [-1, 1]) {
+    for (const u of near ? b.rows : b.rows.filter((_, i) => i % 2 === 0)) for (const q of [-1, 1]) { // the lite bus keeps every other row
       box(bc, 0.8, 0.14, 0.45, q * b.wallX, b.y, u);
       box(ba, 0.8, 0.5, 0.1, q * b.wallX, b.y + 0.35, u + 0.2);
     }

@@ -9,7 +9,7 @@ const a = process.argv.slice(2), url = a[0], phone = a.includes('--phone');
 const arg = (k, d) => { const i = a.indexOf('--' + k); return i >= 0 ? a[i + 1] : d; };
 const secs = Number(arg('secs', 12)), only = arg('only', '').split(',').filter(Boolean);
 const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
-const browser = await chromium.launch({ proxy: proxy ? { server: proxy } : undefined, args: ['--mute-audio'] });
+const browser = await chromium.launch({ proxy: proxy ? { server: proxy, bypass: 'localhost,127.0.0.1' } : undefined, args: ['--mute-audio'] });
 const ctx = await browser.newContext({ ...(phone ? devices['iPhone 13'] : { viewport: { width: 1280, height: 800 } }), ignoreHTTPSErrors: true });
 const page = await ctx.newPage();
 const errs = [], failed = [];

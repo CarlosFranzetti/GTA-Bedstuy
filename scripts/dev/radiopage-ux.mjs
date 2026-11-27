@@ -8,7 +8,7 @@ const a = process.argv.slice(2), url = a[0], out = a[1]; mkdirSync(out, { recurs
 const arg = (k, d) => { const i = a.indexOf('--' + k); return i >= 0 ? a[i + 1] : d; };
 const w = Number(arg('w', 390)), h = Number(arg('h', 844)), station = arg('station', 'bkhouse'), tag = arg('tag', `${w}`);
 const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
-const browser = await chromium.launch({ proxy: proxy ? { server: proxy } : undefined, args: ['--mute-audio'] });
+const browser = await chromium.launch({ proxy: proxy ? { server: proxy, bypass: 'localhost,127.0.0.1' } : undefined, args: ['--mute-audio'] });
 const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: w < 700, hasTouch: w < 700, ignoreHTTPSErrors: true });
 const page = await ctx.newPage();
 await page.goto(url, { waitUntil: 'load', timeout: 120000 });

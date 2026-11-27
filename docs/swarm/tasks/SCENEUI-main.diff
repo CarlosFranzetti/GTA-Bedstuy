@@ -1,0 +1,129 @@
+--- a/src/main.ts
++++ b/src/main.ts
+@@ -83,7 +83,9 @@
+ import { StoryDirector } from '@/game/story/StoryDirector';
+ import { AmbientNotices } from '@/game/story/AmbientNotices';
+ import { createPointerRouter } from '@/game/missions/PointerRoute';
+-import { buildMissions } from '@/game/missions/content';
++import { buildMissions, PEDRO_STORY_ON } from '@/game/missions/content';
++import { intimateRows } from '@/ui/story/storySettings';
++import type { StoryWire } from '@/game/story/wire';
+ import { MissionMarkerView } from '@/game/missions/MissionMarkerView';
+ import { saveMissionData, loadMissionData, clearMissionData } from '@/game/missions/MissionStore';
+ import { MissionHud } from '@/ui/MissionHud';
+@@ -300,6 +302,13 @@
+ const bootPose = saved ? poseOnMap(saved.pose, mapName, HOME, BOUNDS) : null;
+ // player look: restored from the save, else a fresh random one (new game)
+ { const l = saved?.playerLook as unknown as Partial<RosterLook> | null | undefined; if (l && typeof l.group === 'string' && typeof l.variant === 'number') setPlayerLook(l as RosterLook); }
++let castPlayer: typeof import('@/game/story/cast/player') | null = null; // the Pedro story's cast (PEDRO_STORY_ON)
++if (PEDRO_STORY_ON) {
++  castPlayer = await import('@/game/story/cast/player');
++  const cl = castPlayer.castBootLook(saved?.playerLook, !!saved); // Pedro on a new game; an old save keeps its look; a cast look in the save wins
++  if (cl) setPlayerLook(cl);
++  castPlayer.installCastLook(cl ?? (saved?.playerLook as { cast?: string; outfit?: string } | undefined));
++}
+ const bootLook = getPlayerLook();
+ const spawn = bootPose ? { x: bootPose.x, z: bootPose.z } : { x: HOME.x, z: HOME.z };
+ const player = new Player('player', spawn, materials, events);
+@@ -349,7 +358,9 @@
+ let dj: DjGame | null = null, shopUi: ShopUi | null = null, djUi: DjUi | null = null;
+ const fade = new FadeOverlay(document.body);
+ const ambient = new WebAmbient(() => audio.ambienceHost, () => recSource); // interior beds, birds, rain: on the Ambience slider
+-const uiOpen = (): boolean => !!(shopUi?.isOpen || djUi?.isOpen);
++let storyWire: StoryWire | null = null; // the Pedro story (PEDRO_STORY_ON)
++let storyPeople: import('@/game/story/cast/placement').StoryPeople | null = null;
++const uiOpen = (): boolean => !!(shopUi?.isOpen || djUi?.isOpen || storyWire?.anyOpen);
+ 
+ events.on('enterVehicle', () => { physics.removeBody(player.body.id); if (player.vehicle) nightLights.attachHeadlights(player.vehicle.object3D, player.vehicle.spec.length); });
+ events.on('exitVehicle', () => { physics.addBody(player.body); nightLights.attachHeadlights(null); });
+@@ -430,7 +441,7 @@
+ events.on('interior:entered', (e) => missions.notify({ type: 'interior:entered', id: e.id }));
+ events.on('interior:exited', (e) => missions.notify({ type: 'interior:exited', id: e.id }));
+ events.on('shop:bought', (e) => missions.notify({ type: 'shop:bought', recordId: e.recordId, shop: e.shop, price: e.price }));
+-events.on('dj:setFinished', (e) => missions.notify({ type: 'dj:setFinished', venue: e.venue, score: e.score, minutes: e.minutes }));
++events.on('dj:setFinished', (e) => { missions.notify({ type: 'dj:setFinished', venue: e.venue, score: e.score, minutes: e.minutes }); storyWire?.onSetFinished({ venue: e.venue, score: e.score, minutes: e.minutes, crowd: (e as { crowd?: number }).crowd }); });
+ events.on('mission:twist', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(true); });
+ events.on('mission:objective', (e) => { if (e.id === 'aftersloth-residency' && e.index >= 5) interiors.setBlackout(false); });
+ events.on('mission:completed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
+@@ -491,6 +502,27 @@
+ // story ("Air Rights"): phone follow-ups, radio bulletins and ads, letterbox beats, flag-driven street notices, cargo damage
+ const story = new StoryDirector(missions, phone, { onBeat: (sec) => cam.setLetterbox(true, sec), onBroadcast: (b) => audio.setBroadcast(b) });
+ const storyNotices = new AmbientNotices(grid, realGame?.frontage); scene.add(storyNotices.group);
++if (PEDRO_STORY_ON) {
++  const { wireStory } = await import('@/game/story/wire');
++  storyWire = wireStory({
++    missions, parent: overlay, panels,
++    pay: (n) => { if (n >= 0) inventory.add(n); else inventory.spend(-n); }, canPay: (n) => inventory.cash >= n, cash: () => inventory.cash,
++    toast: (m) => hud.showToast(m), text: (f, t, o) => { phone.text(f, t, o); }, hasFlag: (f) => missions.story.has(f),
++    hour: () => dayNight.timeOfDay,
++    advanceToMorning: (h) => { if (dayNight.timeOfDay >= h) { gameDay++; applyClutterState(world.group, quality, gameDay); } dayNight.timeOfDay = h; prevHour = h; dayNight.update(0); },
++    playerPos: () => player.body.pos, pedestrians: () => traffic.peds,
++    packHost: { pay: (n) => { inventory.add(n); }, onHeat: (pos, seen) => { police.reportCrime('assault', pos, seen); } },
++    onPersist: () => saveMissionData(missions.serialize()),
++  });
++  const { StoryPeople } = await import('@/game/story/cast/placement');
++  const { makePlacementHost } = await import('@/game/story/cast/host');
++  const { castSwitcher } = await import('@/game/story/cast/switch');
++  storyPeople = new StoryPeople(makePlacementHost({
++    scene, world: physics, playerPos: () => player.body.pos, activeCast: () => castSwitcher.active,
++    makePed: (id, at, variantId) => new Pedestrian(id, grid.nearestSidewalkNode(at), grid.sidewalks, physics, materials, events, rng.fork(id), crosswalkNodes, undefined, variantId),
++  }));
++  storyPeople.autoSchedule(true);
++}
+ // talk radio news reacts to finished missions
+ let missionsDone = 0;
+ events.on('mission:completed', (e) => { missionsDone++; audio.setBroadcast({ lastMission: e.title, missionsDone }); });
+@@ -796,7 +828,7 @@
+   onRadioVolume: (v) => audio.setRadioVolume(v),
+   onRadioLibrary: () => radioUi.open(),
+   onInvertLookY: (b) => { input.invertLookY = b; },
+-  onReset: () => { clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = HOME.x; b.pos.z = HOME.z; b.vel.x = 0; b.vel.z = 0; },
++  onReset: () => { clearMissionData(); missions.story.reset(); storyWire?.reload(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = HOME.x; b.pos.z = HOME.z; b.vel.x = 0; b.vel.z = 0; },
+ }, {
+   touch: isTouch, openOnPointerUnlock: false, initialQuality: quality, ignoreSavedQuality: params.has('q'), saves, canSave: () => interiors.state === 'outside',
+   mixer: audio.mixer, graphics: graphicsStore, getQuality: () => quality, auto: !params.has('q') && params.get('perf') !== '0', map,
+@@ -805,7 +837,7 @@
+     ['Records owned', String(inventory.records.length)], ['Wanted level', String(wanted.stars)]] }),
+   missionLog: () => missionLogOf(missions),
+   hdVoices: { get: () => audio.hdVoices, set: (v) => audio.setHdVoices(v), label: () => audio.hdLabel },
+-  gameRows: [...tutorialRows(tutorial, () => menu.close()), { id: 'blood', label: 'Blood', kind: 'toggle', def: () => true, desc: 'Blood on or off: a few dark drops on a hard hit, a pool under someone knocked out, marks on the pavement that fade. Off removes all of it.', get: () => bloodOn(), set: ((v: boolean) => setBlood(v)) as RowSpec['set'] }],
++  gameRows: [...tutorialRows(tutorial, () => menu.close()), ...(PEDRO_STORY_ON ? intimateRows() : []), { id: 'blood', label: 'Blood', kind: 'toggle', def: () => true, desc: 'Blood on or off: a few dark drops on a hard hit, a pool under someone knocked out, marks on the pavement that fade. Off removes all of it.', get: () => bloodOn(), set: ((v: boolean) => setBlood(v)) as RowSpec['set'] }],
+ });
+ panels.register({ id: 'menu', isOpen: () => menu.isOpen, close: () => menu.close(), back: () => menu.back(), keepsEscape: () => menu.keepsEscape });
+ panels.register({ id: 'map', isOpen: () => map.isOpen, close: () => map.close(), insideOf: 'menu' });
+@@ -829,14 +861,14 @@
+   hands: combat,
+ }, {
+   newGame: () => {
+-    clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++;
++    clearMissionData(); missions.story.reset(); storyWire?.reload(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++;
+     if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit();
+     const b = player.body; b.pos.x = HOME.x; b.pos.z = HOME.z; b.vel.x = 0; b.vel.z = 0;
+     dayNight.timeOfDay = 8; prevHour = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0; police.setBusts(0); police.heat.reset(); tutorial.newGame(); vitals.reset(); blood.clear();
+-    pendingLook = randomPlayerLook(`${Math.random()}:${Date.now()}`);
++    pendingLook = castPlayer ? { ...castPlayer.PEDRO_LOOK } : randomPlayerLook(`${Math.random()}:${Date.now()}`);
+   },
+   // the player model is built once at boot, so a different look (new game, or a save with another look) is applied by autosaving and reloading
+-  afterApply: (kind) => { if (kind === 'load') tutorial.cancel(); input.endFrame(); story.resync(); if (pendingLook) { saves.autosave(Date.now(), true, true); location.reload(); } },
++  afterApply: (kind) => { if (kind === 'load') tutorial.cancel(); input.endFrame(); story.resync(); storyWire?.reload(); if (pendingLook) { saves.autosave(Date.now(), true, true); location.reload(); } },
+ });
+ if (canSaveHere) saves.applyCarryOver(); // first visit to the real map with only grid saves: cash, records and look come along, everything else starts fresh
+ window.addEventListener('pagehide', () => { if (canSaveHere) saves.autosave(Date.now(), interiors.state === 'outside', true); });
+@@ -877,6 +909,8 @@
+         const fpos = player.body.pos;
+         if (!player.inVehicle && interiors.interact(fpos)) { /* door / shop / decks / bar handled */ }
+         else if (missions.interact(fpos)) { /* mission talk / knock / crank handled */ }
++        else if (storyWire?.interact()) { /* a flyer handed out */ }
++        else if (storyPeople?.talk(fpos)) { /* a named person answered */ }
+         else if (player.inVehicle) player.exit();
+         else if (!away && world.transit.tryBoard(fpos.x, fpos.z)) { const m = world.transit.takeMessage(); if (m) hud.showToast(m); }
+         else if (!away) player.tryEnter(allVehicles());
+@@ -893,6 +927,8 @@
+       const pv = player.vehicle; const mb = (pv ?? player).body;
+       missions.update(uiOpen() ? 0 : dt, mb.pos, player.inVehicle, wanted.stars, pv ? Math.abs(pv.speed) : Math.hypot(mb.vel.x, mb.vel.z), dayNight.timeOfDay, pv?.spec.type ?? '');
+       storyNotices.sync(missions.story);
++      storyWire?.update(dt, blocked);
++      if (storyPeople) { storyPeople.setClock(dayNight.timeOfDay, gameDay % 7); storyPeople.update(dt); }
+       if (input.consume('KeyR')) missions.retry(dayNight.timeOfDay);
+       if (input.consume('KeyX')) missions.abandon();
+     }

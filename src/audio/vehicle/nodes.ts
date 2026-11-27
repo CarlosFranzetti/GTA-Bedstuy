@@ -20,6 +20,34 @@ export function aim(p: AudioParam, v: number, t: number, tc: number, rel = 0.01)
   aimed.set(p, v);
   p.setTargetAtTime(v, t, tc);
 }
+const glided = new WeakMap<AudioParam, { v: number; t: number; v0: number; t0: number; end: number; t1: number }>();
+/**
+ * Pitch that does not depend on the frame rate. The game writes engine state once per drawn frame; `aim` with a 30 ms time constant
+ * then turns a rising note into a staircase when frames are slow and into a hold and a jump across a hitch. `glide` instead draws a
+ * straight line from where the parameter is now to the new value over `span` (a little longer than the measured gap between frames),
+ * aimed slightly ahead along the trend so a late frame finds the note still moving. It keeps its own account of the line it drew, so
+ * "where the parameter is now" is exact and needs no `cancelAndHoldAtTime` (which returned wrong values in Chromium when the hold fell
+ * on a ramp's end: measured 27 Nov, the value dropped to half for a frame).
+ */
+export function glide(p: AudioParam, v: number, t: number, span: number, rel = 0.0015): void {
+  if (typeof p.linearRampToValueAtTime !== 'function' || typeof p.cancelScheduledValues !== 'function') { aim(p, v, t, Math.max(0.03, Math.min(0.09, span * 0.75)), rel); return; }
+  const prev = glided.get(p);
+  const H = Math.max(1 / 60, Math.min(0.15, span)) * 1.25;
+  let end = v;
+  if (prev && t > prev.t && t - prev.t < 0.3) {
+    const slope = (v - prev.v) / (t - prev.t);
+    end = v + Math.max(-Math.abs(v) * 0.04, Math.min(Math.abs(v) * 0.04, slope * H * 0.5));
+  }
+  const same = (x: number, y: number) => Math.abs(x - y) <= Math.max(1e-6, Math.abs(y) * rel);
+  if (prev && same(end, prev.end) && same(v, prev.v)) return;
+  // where the line drawn last time has got to
+  const now = !prev ? v : t >= prev.t1 ? prev.end : t <= prev.t0 ? prev.v0 : prev.v0 + (prev.end - prev.v0) * (t - prev.t0) / (prev.t1 - prev.t0);
+  glided.set(p, { v, t, v0: now, t0: t, end, t1: t + H });
+  aimed.delete(p);
+  p.cancelScheduledValues(t);
+  p.setValueAtTime(now, t);
+  p.linearRampToValueAtTime(end, t + H);
+}
 /** Forget the last aim of a parameter that was written some other way (cancelled, set directly), so the next aim always goes through. */
 export function unaim(p: AudioParam): void { aimed.delete(p); }
 const bump = (x: number, c: number, w: number) => Math.exp(-(((x - c) / w) ** 2));
@@ -102,6 +130,8 @@ export class EngineNodes {
   private st?: { o: OscillatorNode; g: GainNode };
   private rev?: { o: OscillatorNode; g: GainNode };
   private spool = 0;
+  /** when the last frame was applied, and the smoothed gap between frames (audio seconds) */
+  private lastApply = -1; private gap = 1 / 60;
 
   constructor(readonly ctx: BaseAudioContext, readonly voice: EngineVoice, noise: AudioBuffer, dest: AudioNode, t0 = ctx.currentTime) {
     const v = voice;
@@ -179,17 +209,20 @@ export class EngineNodes {
 
   /** Schedule one frame of engine state at time t. `speed` m/s, `reverse` adds the reverse gear whine. */
   apply(f: EngineFrame, t: number, speed = 0, reverse = false): void {
-    const v = this.voice, tc = 0.03;
+    const v = this.voice;
+    if (this.lastApply >= 0 && t > this.lastApply) this.gap += (Math.min(0.25, t - this.lastApply) - this.gap) * 0.3;
+    if (t > this.lastApply) this.lastApply = t;
+    const span = this.gap;
     const rn = clamp(f.rpm / v.red, 0, 1), L = f.load;
     const cents = f.wob;
     const el = f.elec;
-    aim(this.A.frequency, Math.max(5, f.fire), t, tc, 0.0015);
-    aim(this.B.frequency, Math.max(5, f.fire), t, tc, 0.0015);
-    aim(this.A.detune, cents, t, tc, 0.02);
-    aim(this.S.frequency, Math.max(3, f.fire / 2), t, tc, 0.0015);
-    aim(this.lope.frequency, Math.max(1, f.rev / 2), t, tc, 0.0015);
+    glide(this.A.frequency, Math.max(5, f.fire), t, span);
+    glide(this.B.frequency, Math.max(5, f.fire), t, span);
+    aim(this.A.detune, cents, t, 0.03, 0.02);
+    glide(this.S.frequency, Math.max(3, f.fire / 2), t, span);
+    glide(this.lope.frequency, Math.max(1, f.rev / 2), t, span);
     for (const h of this.sh) {
-      aim(h.o.frequency, Math.max(1, f.rev * h.order), t, tc, 0.0015);
+      glide(h.o.frequency, Math.max(1, f.rev * h.order), t, span);
       aim(h.g.gain, h.level * 0.5 * (0.6 + 0.4 * L), t, 0.08);
     }
     const mix = engineMix(v, f);
@@ -208,7 +241,7 @@ export class EngineNodes {
     }
     if (this.clat) {
       const a = (v.clat ?? 0) * ACC.clat * (0.5 + 0.5 * L) * f.level * el;
-      aim(this.clat.sq.frequency, Math.max(5, f.fire), t, tc, 0.0015);
+      glide(this.clat.sq.frequency, Math.max(5, f.fire), t, span);
       aim(this.clat.d.gain, a * 0.5, t, 0.05);
       aim(this.clat.g.gain, a * 0.5, t, 0.05);
     }

@@ -1,4 +1,4 @@
-import './story.css';
+import { ensureStoryStyle } from './storyStyle';
 import { setStoryPanelClass } from './panelClass';
 import type { PanelManager } from '../PanelManager';
 import { BAG_MAX, MARKETS, priceOf, type Garment, type ThriftBag, type ThriftRack } from '@/game/story/thrift';
@@ -45,6 +45,7 @@ export class RackPanel {
 
   constructor(parent: HTMLElement, private readonly store: RackStore, private readonly host: RackHost, private readonly o: RackPanelOptions = {}) {
     this.doc = parent.ownerDocument;
+    ensureStoryStyle(this.doc);
     const d = this.doc;
     const el = (tag: string, cls: string): HTMLElement => { const e = d.createElement(tag); e.className = cls; return e; };
     this.root = el('div', 'rack-root'); this.root.hidden = true; this.root.tabIndex = -1; this.root.setAttribute('role', 'dialog'); this.root.setAttribute('aria-label', 'Thrift rack');
