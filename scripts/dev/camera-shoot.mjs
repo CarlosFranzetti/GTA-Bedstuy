@@ -41,6 +41,10 @@ try {
   };
   await shot('foot-classic', 'classic', 30);
   await shot('foot-modern', 'modern', 30);
+  // walk out into the open (the start spot has a wall close behind) and shoot the unblocked rig
+  await page.evaluate(() => { const d = window.__gtaDebug, b = d.player.body; d.teleport(b.pos.x + Math.sin(b.heading) * 9, b.pos.z + Math.cos(b.heading) * 9); d.step(30); });
+  await shot('foot-open-classic', 'classic', 30);
+  await shot('foot-open-modern', 'modern', 30);
   report.enter = await page.evaluate(() => {
     const d = window.__gtaDebug, list = (d.traffic.vehicles ?? d.traffic.cars ?? []).map((v) => v.vehicle ?? v).filter((v) => v && v.body);
     const pp = d.player.body.pos; list.sort((x, y) => Math.hypot(x.body.pos.x - pp.x, x.body.pos.z - pp.z) - Math.hypot(y.body.pos.x - pp.x, y.body.pos.z - pp.z));

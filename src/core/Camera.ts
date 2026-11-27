@@ -696,6 +696,8 @@ export class ThirdPersonCamera {
           const sc = h / d;
           this.pos.x = targetPos.x + dxp * sc;
           this.pos.z = targetPos.z + dzp * sc;
+          // Classic: the lens comes in along its own line to the look point, so a wall behind does not leave it hanging high and looking down
+          if (this.styleNow === 'classic') this.pos.y = this.lookY + (this.pos.y - this.lookY) * sc;
         }
         this.blockAmt += ((d - h > 0.05 ? 1 : 0) - this.blockAmt) * (1 - Math.exp(-BLOCK_RATE * dt));
         dynBlocked = dyn < d - 0.05 ? 1 : 0;
