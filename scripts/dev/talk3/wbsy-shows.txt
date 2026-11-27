@@ -223,6 +223,10 @@ boards: Nobody touches the lunch, Dana.
 dana: City Hall. [beat] The mayor still wants free buses. [pause 0.4] A caller from Macon blames this for the price of eggs. [breath] A caller from Lewis credits it for her new knee. [beat] Neither is how buses work.
 dana: Markets. [pause 0.4] Stocks went up after a company said A I on a phone call, [breath] and down after another company said it with less confidence.
 dana: Weather. [beat] It is {weather}, [breath] and our weather desk is taking it personally.
+dana: Transit. [beat] The G train arrived on time this morning. [pause 0.5] Officials are looking into it.
+boards: Dana, there was a rumor it was a different train painted green.
+dana: [beat] We cannot confirm that, Boards. [pause 0.4] We can confirm it was green.
+dana: Culture. [beat] A new superhero movie opened this weekend. [pause 0.4] It is the second part of the third part of the first part. [beat] Reviewers recommend bringing notes.
 dana: That is the world, briefly. [beat] Lock your doors, hug your neighbours.
 
 = wbsy-stoop-wisdom | interview | impression | Stoop Wisdom, With an Impression | buffett-impression, stocks, crypto, rent
@@ -237,7 +241,14 @@ lorraine: And the rent?
 vinnie ~ Warren Buffett: I have lived in the same apartment for many, many years. [pause 0.4] The secret is to never call the landlord. [beat] If he does not hear from you, he forgets the lease exists.
 lorraine: That is not investing advice, Vinnie.
 vinnie ~ Warren Buffett: No, Lorraine. [beat] It is stoop advice. Stoop advice has a much better return.
-vinnie: [beat] And that was my impression.
+lorraine: Mister Impression, what about the A I stocks everybody is buying?
+vinnie ~ Warren Buffett: Well, Lorraine, I like to buy things I understand. [beat] I understand a dollar slice. [pause 0.4] I do not understand a computer that writes poems about it.
+lorraine: And the market? Up or down?
+vinnie ~ Warren Buffett: The market goes up, and the market goes down, [breath] and the stoop stays exactly where it is. [beat] Be the stoop, Lorraine.
+lorraine: Be the stoop. [pause 0.4] Vinnie, that is the most profound thing you have ever said, and you said it in a borrowed voice.
+vinnie ~ Warren Buffett: One more thing. [beat] Never buy a sandwich from a man who tells you it is an investment.
+lorraine: Who told you that?
+vinnie: [beat] Nobody, Lorraine. I made it up. That is the impression. And that was my impression.
 lorraine: That was Vinnie Impressions doing his impression of Warren Buffett. [pause 0.4] Not the real one, obviously. The real one has a better accent and a lot more bodegas.
 
 = ad-x-moon | ad | ad | Premium Moon | musk, twitter

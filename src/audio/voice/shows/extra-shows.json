@@ -1013,6 +1013,22 @@
     },
     {
      "who": "dana",
+     "text": "Transit. [beat] The G train arrived on time this morning. [pause 0.5] Officials are looking into it."
+    },
+    {
+     "who": "boards",
+     "text": "Dana, there was a rumor it was a different train painted green."
+    },
+    {
+     "who": "dana",
+     "text": "[beat] We cannot confirm that, Boards. [pause 0.4] We can confirm it was green."
+    },
+    {
+     "who": "dana",
+     "text": "Culture. [beat] A new superhero movie opened this weekend. [pause 0.4] It is the second part of the third part of the first part. [beat] Reviewers recommend bringing notes."
+    },
+    {
+     "who": "dana",
      "text": "That is the world, briefly. [beat] Lock your doors, hug your neighbours."
     }
    ]
@@ -1080,8 +1096,39 @@
      "parodyOf": "Warren Buffett"
     },
     {
+     "who": "lorraine",
+     "text": "Mister Impression, what about the A I stocks everybody is buying?"
+    },
+    {
      "who": "vinnie",
-     "text": "[beat] And that was my impression."
+     "text": "Well, Lorraine, I like to buy things I understand. [beat] I understand a dollar slice. [pause 0.4] I do not understand a computer that writes poems about it.",
+     "parodyOf": "Warren Buffett"
+    },
+    {
+     "who": "lorraine",
+     "text": "And the market? Up or down?"
+    },
+    {
+     "who": "vinnie",
+     "text": "The market goes up, and the market goes down, [breath] and the stoop stays exactly where it is. [beat] Be the stoop, Lorraine.",
+     "parodyOf": "Warren Buffett"
+    },
+    {
+     "who": "lorraine",
+     "text": "Be the stoop. [pause 0.4] Vinnie, that is the most profound thing you have ever said, and you said it in a borrowed voice."
+    },
+    {
+     "who": "vinnie",
+     "text": "One more thing. [beat] Never buy a sandwich from a man who tells you it is an investment.",
+     "parodyOf": "Warren Buffett"
+    },
+    {
+     "who": "lorraine",
+     "text": "Who told you that?"
+    },
+    {
+     "who": "vinnie",
+     "text": "[beat] Nobody, Lorraine. I made it up. That is the impression. And that was my impression."
     },
     {
      "who": "lorraine",

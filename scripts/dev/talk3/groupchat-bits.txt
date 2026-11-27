@@ -167,6 +167,10 @@ D Landlord Calm: Landlord Calm also includes the sound of a radiator working, fo
 D Landlord Calm: Landlord Calm. The broker fee is included. The broker is also included. He lives in the closet now.
 A Pat, the producer: All three advertisers are invented. Please do not send them money. They will not know what to do with it.
 H Odessa Pruitt: Pat, the Patience Brothers would know what to do with it. They would do nothing with it, for sixty years.
+S Linden Aldous: Odessa, I signed up for the Multiverse Pass during the ad.
+H Odessa Pruitt: Linden, you have not finished the first movie of the first phase.
+S Linden Aldous: I am pacing myself. I will be ready for the next one by the time I retire.
+H Odessa Pruitt: By then the Patience Brothers will own the theater, and Landlord Calm will be the landlord.
 
 = gc-mail | listener mail | Letters to the Group Chat | men-women, dating, vegans, hipsters, instagram
 S Linden Aldous: Listener mail. You write, we read it on air, and nobody learns anything.
@@ -285,6 +289,10 @@ N Tiny News: In politics. The president's name was mentioned in a group chat on 
 N Tiny News: The mayor still wants free buses. A caller on Macon says this is why eggs cost money. A caller on Lewis says the mayor fixed her knee. Neither is true. Both called twice.
 N Tiny News: Markets. The stock market went up because a man on television said A I. Then it went down because a different man said it louder.
 N Tiny News: Crypto. Linden's cousin's coin is worth one sandwich today. Yesterday it was worth two sandwiches. Tomorrow, a napkin.
+N Tiny News: Transit. The G train was seen at a platform in Brooklyn this morning. Witnesses describe it as real, and brief.
+N Tiny News: Landmarks. Tourists at the Lady Verdigris asked a pigeon for directions. The pigeon said nothing, and walked away, and was right.
+N Tiny News: Nightlife. A techno party under the expressway ended at nine in the morning. Nobody smiled. Everyone says it was the best night of their lives.
+N Tiny News: Apps. The family WhatsApp on Monroe Street reached one thousand unread messages. The sunflower picture remains undefeated.
 N Tiny News: Weather. Marisol Gale says it is cold, and that she is taking it personally.
 H Odessa Pruitt: Pat, that was tiny and it was news. Thank you.
 A Pat, the producer: Thank you, Odessa. That is the news. I will log a request for more.

@@ -1023,6 +1023,34 @@
      "speaker": "Odessa Pruitt",
      "voice": "host",
      "text": "Pat, the Patience Brothers would know what to do with it. They would do nothing with it, for sixty years."
+    },
+    {
+     "id": "gc-ads-18",
+     "kind": "host",
+     "speaker": "Linden Aldous",
+     "voice": "sidekick",
+     "text": "Odessa, I signed up for the Multiverse Pass during the ad."
+    },
+    {
+     "id": "gc-ads-19",
+     "kind": "host",
+     "speaker": "Odessa Pruitt",
+     "voice": "host",
+     "text": "Linden, you have not finished the first movie of the first phase."
+    },
+    {
+     "id": "gc-ads-20",
+     "kind": "host",
+     "speaker": "Linden Aldous",
+     "voice": "sidekick",
+     "text": "I am pacing myself. I will be ready for the next one by the time I retire."
+    },
+    {
+     "id": "gc-ads-21",
+     "kind": "host",
+     "speaker": "Odessa Pruitt",
+     "voice": "host",
+     "text": "By then the Patience Brothers will own the theater, and Landlord Calm will be the landlord."
     }
    ]
   },
@@ -1863,17 +1891,45 @@
      "kind": "news",
      "speaker": "Tiny News",
      "voice": "announcer",
-     "text": "Weather. Marisol Gale says it is cold, and that she is taking it personally."
+     "text": "Transit. The G train was seen at a platform in Brooklyn this morning. Witnesses describe it as real, and brief."
     },
     {
      "id": "gc-tiny-11",
+     "kind": "news",
+     "speaker": "Tiny News",
+     "voice": "announcer",
+     "text": "Landmarks. Tourists at the Lady Verdigris asked a pigeon for directions. The pigeon said nothing, and walked away, and was right."
+    },
+    {
+     "id": "gc-tiny-12",
+     "kind": "news",
+     "speaker": "Tiny News",
+     "voice": "announcer",
+     "text": "Nightlife. A techno party under the expressway ended at nine in the morning. Nobody smiled. Everyone says it was the best night of their lives."
+    },
+    {
+     "id": "gc-tiny-13",
+     "kind": "news",
+     "speaker": "Tiny News",
+     "voice": "announcer",
+     "text": "Apps. The family WhatsApp on Monroe Street reached one thousand unread messages. The sunflower picture remains undefeated."
+    },
+    {
+     "id": "gc-tiny-14",
+     "kind": "news",
+     "speaker": "Tiny News",
+     "voice": "announcer",
+     "text": "Weather. Marisol Gale says it is cold, and that she is taking it personally."
+    },
+    {
+     "id": "gc-tiny-15",
      "kind": "host",
      "speaker": "Odessa Pruitt",
      "voice": "host",
      "text": "Pat, that was tiny and it was news. Thank you."
     },
     {
-     "id": "gc-tiny-12",
+     "id": "gc-tiny-16",
      "kind": "host",
      "speaker": "Pat, the producer",
      "voice": "announcer",
