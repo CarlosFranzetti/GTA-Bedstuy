@@ -269,3 +269,45 @@ trent: Phase Forty. [beat] Marvel did not make this chair. [punch] It is only he
 noelle: Back to the office? [beat] Try Nerve Pass.
 trent: A recording of your living room, played at your desk, [breath] so you feel home while your boss feels heard.
 noelle: Nerve Pass. [beat] Includes the sound of your own couch.
+
+# Station breaks: one ident and one host link each, played in the ad slots between shows.
+
+= wbsy-break-01 | ad | station break | Station Break | ident
+trent: [sfx sting] WBSY Talk. Bed-Stuy Talk Radio. Where the neighborhood talks back.
+buck: Buck Mercer here. Stay with us. The next segment is already arguing.
+
+= wbsy-break-02 | ad | station break | Station Break | ident
+trent: [sfx sting] You are listening to WBSY Talk. It is {time} on {street}.
+buck: Do not touch that dial. Boards just cleaned it.
+
+= wbsy-break-03 | ad | station break | Station Break | ident
+trent: [sfx sting] WBSY Talk. Invented hosts, invented callers, very real rent.
+buck: Buck here. If you just tuned in, you missed nothing. You will miss it again later.
+
+= wbsy-break-04 | ad | station break | Station Break | ident
+trent: [sfx sting] This is WBSY Talk, Bed-Stuy. If you can hear us, the stoop has signal.
+buck: More WBSY in a moment. Hydrate. Call your landlord. No, do not.
+
+= wbsy-break-05 | ad | station break | Station Break | ident
+trent: [sfx sting] WBSY Talk. Opinions delivered fresh, like a bodega sandwich.
+buck: Buck Mercer. Back after this, because I am right.
+
+= wbsy-break-06 | ad | station break | Station Break | ident
+trent: [sfx sting] WBSY. Bed-Stuy Talk. Never wrong, sometimes loud.
+buck: Stay tuned. Boards says we have content. I say we have opinions.
+
+= wbsy-break-07 | ad | station break | Station Break | ident
+trent: [sfx sting] You are tuned to WBSY Talk. The phones are open. Please do not call.
+buck: That was a show. Here comes another. Nobody here plans ahead.
+
+= wbsy-break-08 | ad | station break | Station Break | ident
+trent: [sfx sting] WBSY Talk. The only station where the weather report is also a rumor.
+buck: Buck here. {weather} out there. Stay inside with us.
+
+= wbsy-break-09 | ad | station break | Station Break | ident
+trent: [sfx sting] WBSY Talk, {daypart} edition. Stay right there.
+buck: Still WBSY. Still talking. Still not sorry.
+
+= wbsy-break-10 | ad | station break | Station Break | ident
+trent: [sfx sting] WBSY. Talk radio for people who talk back to the radio.
+buck: Buck Mercer. The break is short. My patience is shorter.

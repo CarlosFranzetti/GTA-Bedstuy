@@ -1239,6 +1239,206 @@
      "text": "Nerve Pass. [beat] Includes the sound of your own couch."
     }
    ]
+  },
+  {
+   "id": "wbsy-break-01",
+   "title": "Station Break",
+   "kind": "ad",
+   "form": "station break",
+   "host": "buck",
+   "topics": [
+    "ident"
+   ],
+   "lines": [
+    {
+     "who": "trent",
+     "text": "[sfx sting] WBSY Talk. Bed-Stuy Talk Radio. Where the neighborhood talks back."
+    },
+    {
+     "who": "buck",
+     "text": "Buck Mercer here. Stay with us. The next segment is already arguing."
+    }
+   ]
+  },
+  {
+   "id": "wbsy-break-02",
+   "title": "Station Break",
+   "kind": "ad",
+   "form": "station break",
+   "host": "buck",
+   "topics": [
+    "ident"
+   ],
+   "lines": [
+    {
+     "who": "trent",
+     "text": "[sfx sting] You are listening to WBSY Talk. It is {time} on {street}."
+    },
+    {
+     "who": "buck",
+     "text": "Do not touch that dial. Boards just cleaned it."
+    }
+   ]
+  },
+  {
+   "id": "wbsy-break-03",
+   "title": "Station Break",
+   "kind": "ad",
+   "form": "station break",
+   "host": "buck",
+   "topics": [
+    "ident"
+   ],
+   "lines": [
+    {
+     "who": "trent",
+     "text": "[sfx sting] WBSY Talk. Invented hosts, invented callers, very real rent."
+    },
+    {
+     "who": "buck",
+     "text": "Buck here. If you just tuned in, you missed nothing. You will miss it again later."
+    }
+   ]
+  },
+  {
+   "id": "wbsy-break-04",
+   "title": "Station Break",
+   "kind": "ad",
+   "form": "station break",
+   "host": "buck",
+   "topics": [
+    "ident"
+   ],
+   "lines": [
+    {
+     "who": "trent",
+     "text": "[sfx sting] This is WBSY Talk, Bed-Stuy. If you can hear us, the stoop has signal."
+    },
+    {
+     "who": "buck",
+     "text": "More WBSY in a moment. Hydrate. Call your landlord. No, do not."
+    }
+   ]
+  },
+  {
+   "id": "wbsy-break-05",
+   "title": "Station Break",
+   "kind": "ad",
+   "form": "station break",
+   "host": "buck",
+   "topics": [
+    "ident"
+   ],
+   "lines": [
+    {
+     "who": "trent",
+     "text": "[sfx sting] WBSY Talk. Opinions delivered fresh, like a bodega sandwich."
+    },
+    {
+     "who": "buck",
+     "text": "Buck Mercer. Back after this, because I am right."
+    }
+   ]
+  },
+  {
+   "id": "wbsy-break-06",
+   "title": "Station Break",
+   "kind": "ad",
+   "form": "station break",
+   "host": "buck",
+   "topics": [
+    "ident"
+   ],
+   "lines": [
+    {
+     "who": "trent",
+     "text": "[sfx sting] WBSY. Bed-Stuy Talk. Never wrong, sometimes loud."
+    },
+    {
+     "who": "buck",
+     "text": "Stay tuned. Boards says we have content. I say we have opinions."
+    }
+   ]
+  },
+  {
+   "id": "wbsy-break-07",
+   "title": "Station Break",
+   "kind": "ad",
+   "form": "station break",
+   "host": "buck",
+   "topics": [
+    "ident"
+   ],
+   "lines": [
+    {
+     "who": "trent",
+     "text": "[sfx sting] You are tuned to WBSY Talk. The phones are open. Please do not call."
+    },
+    {
+     "who": "buck",
+     "text": "That was a show. Here comes another. Nobody here plans ahead."
+    }
+   ]
+  },
+  {
+   "id": "wbsy-break-08",
+   "title": "Station Break",
+   "kind": "ad",
+   "form": "station break",
+   "host": "buck",
+   "topics": [
+    "ident"
+   ],
+   "lines": [
+    {
+     "who": "trent",
+     "text": "[sfx sting] WBSY Talk. The only station where the weather report is also a rumor."
+    },
+    {
+     "who": "buck",
+     "text": "Buck here. {weather} out there. Stay inside with us."
+    }
+   ]
+  },
+  {
+   "id": "wbsy-break-09",
+   "title": "Station Break",
+   "kind": "ad",
+   "form": "station break",
+   "host": "buck",
+   "topics": [
+    "ident"
+   ],
+   "lines": [
+    {
+     "who": "trent",
+     "text": "[sfx sting] WBSY Talk, {daypart} edition. Stay right there."
+    },
+    {
+     "who": "buck",
+     "text": "Still WBSY. Still talking. Still not sorry."
+    }
+   ]
+  },
+  {
+   "id": "wbsy-break-10",
+   "title": "Station Break",
+   "kind": "ad",
+   "form": "station break",
+   "host": "buck",
+   "topics": [
+    "ident"
+   ],
+   "lines": [
+    {
+     "who": "trent",
+     "text": "[sfx sting] WBSY. Talk radio for people who talk back to the radio."
+    },
+    {
+     "who": "buck",
+     "text": "Buck Mercer. The break is short. My patience is shorter."
+    }
+   ]
   }
  ]
 }

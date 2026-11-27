@@ -22,6 +22,7 @@ import { ScStation, SC_STORAGE_KEY } from './sc/ScStation';
 import { RaFeed, matcherFor } from './sc/RaFeed';
 import { mixesFor } from './sc/mixes';
 import { Announcer, DEFAULT_BROADCAST, speakable, type BroadcastContext } from './announcer/Announcer';
+import { LiveHost } from './announcer/LiveHost';
 import { DjMentionRunner } from './sc/djMentions';
 
 export const CROSSFADE_SECONDS = 0.5;
@@ -127,6 +128,9 @@ export class RadioDirector {
   /** Live internet-radio stations by id. */
   readonly liveStations = new Map<string, LiveStation>();
   readonly announcer: Announcer;
+  /** TALK3: the invented dial host of the live-stream stations (tune-in line, then a link every ten minutes or more). */
+  readonly liveHost: LiveHost;
+  private liveTrack = '';
   /** RADIO4: names the DJ of the mix on air (start, now and then, thanks near the end). */
   readonly djMentions: DjMentionRunner;
   /** Called with a short message when a station is off the air and the dial moves on. */
@@ -204,6 +208,14 @@ export class RadioDirector {
       random: v?.random ?? Math.random,
       dj: v?.dj,
       hub: v?.hub,
+    });
+    this.liveHost = new LiveHost({
+      speech: v?.speech ?? null,
+      makeUtterance: v?.makeUtterance ?? (() => { throw new Error('no speech'); }),
+      volume: v?.volume ?? (() => 1),
+      setDuck: (level) => { for (const l of this.liveStations.values()) l.setDuck(level); },
+      talkBusy: () => this.current.kind === 'talk' || this.talk.isActive || !!this.talk2?.isActive,
+      random: v?.random ?? Math.random,
     });
     this.djMentions = new DjMentionRunner({
       clock: () => (this.on && !this.paused ? this.currentSc?.djClock ?? null : null),
@@ -343,6 +355,7 @@ export class RadioDirector {
     const c = this.current;
     if (this.toastText && this.toastLeft > 0) return this.toastText;
     if (c.kind === 'live') {
+      if (this.on && this.liveHost.speaking) return this.liveHost.name;
       const l = this.currentLive!;
       return l.notice && !l.needsTap ? l.notice : l.trackName;
     }
@@ -357,7 +370,7 @@ export class RadioDirector {
   }
 
   /** Text the announcer is saying right now (a subtitle, and the HUD line on devices with no voices). */
-  get announcerLine(): string { return this.on && this.current.kind === 'sc' ? this.announcer.line : ''; }
+  get announcerLine(): string { return !this.on ? '' : this.current.kind === 'sc' ? this.announcer.line : this.current.kind === 'live' ? this.liveHost.line : ''; }
 
   /** 0..1 through the talk show loop while WBSY Talk is tuned in, otherwise 0. */
   get talkProgress(): number {
@@ -398,6 +411,7 @@ export class RadioDirector {
     this.failWave.clear();
     // Our announcer lets go of the speech queue before WBSY Talk can take it.
     this.announcer.tuneAway();
+    this.liveHost.tuneAway();
     this.djMentions.reset();
     this.idx = target;
     this.lastStore?.set(this.current.id);
@@ -419,6 +433,7 @@ export class RadioDirector {
     this.on = on;
     if (!on) {
       this.announcer.tuneAway();
+      this.liveHost.tuneAway();
       this.djMentions.reset();
       this.retireActive(0.15);
       this.playingKey = null;
@@ -434,6 +449,7 @@ export class RadioDirector {
     this.talk.setPaused(p);
     this.talk2?.setPaused(p);
     this.announcer.setPaused(p);
+    this.liveHost.setPaused(p);
     for (const s of this.scStations) s.setPaused(p);
     for (const l of this.liveStations.values()) l.setPaused(p);
     this.decks?.forEach((d) => { if (p) d.pause(); else d.resume(); });
@@ -448,6 +464,9 @@ export class RadioDirector {
     for (const s of this.scStations) s.update(dt);
     this.announcer.update(dt);
     this.djMentions.update();
+    const cl = this.on ? this.currentLive : null;
+    if (cl) { const t = cl.trackName; if (t && t !== this.liveTrack) { if (this.liveTrack) this.liveHost.songChange(); this.liveTrack = t; } }
+    this.liveHost.update(dt);
     if (this.toastLeft > 0) { this.toastLeft -= dt; if (this.toastLeft <= 0) this.toastText = ''; }
     this.checkFailures();
     this.checkStart(dt);
@@ -464,6 +483,7 @@ export class RadioDirector {
   dispose(): void {
     this.unsubLib();
     this.announcer.dispose();
+    this.liveHost.dispose();
     this.talk.dispose();
     this.talk2?.dispose();
     for (const s of this.scStations) s.dispose();
@@ -558,6 +578,11 @@ export class RadioDirector {
     const c = this.current;
     this.djMentions.reset();
     if (this.on && c.kind === 'sc' && c.sc) this.announcer.tuneIn(c.sc);
+    if (this.on && c.kind === 'live') {
+      const l = this.liveStations.get(c.id);
+      this.liveTrack = l?.trackName ?? '';
+      this.liveHost.tuneIn(c.id, l?.sourceName || c.name, !!(c.info?.nowPlaying || c.info?.pool?.some((x) => x.nowPlaying)));
+    } else this.liveHost.tuneAway();
   }
 
   private reconcile(): void {
