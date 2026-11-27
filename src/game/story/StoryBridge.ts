@@ -40,6 +40,8 @@ export class StoryBridge {
   scene: Scene | null = null;
   /** Called whenever Nightlife state changed in a way worth saving (the host writes the mission save). */
   onPersist?: () => void;
+  /** SCENEUI: set by the host when the rack panel exists. Missions call it to open the rack UI (rack id, budget); without it they fall back to `buyBest`. */
+  openRack?: (rackId: string, budget: number) => void;
   private readonly hooks = new Map<string, MissionHooks>();
   private readonly factories = new Map<string, SceneFactory>();
   private sceneId = '';

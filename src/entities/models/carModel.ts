@@ -29,6 +29,7 @@ import { CARGO_LIVERY_H, CARGO_LIVERY_VARIANTS, CARGO_LIVERY_W, cargoLiveryPaint
 import { assignSkinUV, buildSkinNormal, carSkinMaterial, paintBox, skinLayoutFor, SkinCarPaint, type PaintBox, type PaintCond } from './carSkin';
 import { PALETTES, type CarLook, type WheelDesign } from './carLook';
 import { buildExtras } from './carExtras';
+import { buildCabin, cabinKitFor, LITE_CABIN_TRIS, type CabinKit } from './carCabin';
 import { CAR_COLORWAYS, type SkinLayout, type SkinStyle } from '@/textures/painters/vehicleSkin';
 import {
   Acc, STYLES, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, buildBusParts, wheelRadiusFor, hullSectionCount, isCars14, isCars2, isCars4Passenger, CARS4_TRUCKS,
@@ -486,7 +487,7 @@ function partsFor(style: CarStyle, spec: VehicleSpec, lv: CarLevel = 'full'): Ca
 // ---------------------------------------------------------------- merged near car: details mesh + wheel set
 
 /** `carKind` vertex attribute of the details mesh. */
-const KIND_TRIM = 0, KIND_HEAD = 1, KIND_TAIL = 2, KIND_BAR_A = 3, KIND_BAR_B = 4;
+const KIND_TRIM = 0, KIND_HEAD = 1, KIND_TAIL = 2, KIND_BAR_A = 3, KIND_BAR_B = 4, KIND_CABIN = 5;
 
 const detailsCache = new WeakMap<CarParts, Map<string, THREE.BufferGeometry>>();
 /** Trim triangles kept on the lite near model (the smallest ones go first: handle slits, grille slats, badge relief). */
@@ -514,10 +515,10 @@ export function pruneSmallTriangles(g: THREE.BufferGeometry, max: number): THREE
   return out;
 }
 /** Trim + head lamps + tail lamps + light-bar lenses as ONE geometry: position, normal, uv, colour and a `carKind` tag. */
-function detailsGeo(parts: CarParts, lv: CarLevel = 'full', look?: CarLook, style = ''): THREE.BufferGeometry {
+function detailsGeo(parts: CarParts, lv: CarLevel = 'full', look?: CarLook, style = '', kit?: CabinKit): THREE.BufferGeometry {
   let byLook = detailsCache.get(parts);
   if (!byLook) { byLook = new Map(); detailsCache.set(parts, byLook); }
-  const lk = look ? `${look.roof}|${look.stickers.join('.')}|${look.rideshare}|${look.add ?? 0}` : '';
+  const lk = (look ? `${look.roof}|${look.stickers.join('.')}|${look.rideshare}|${look.add ?? 0}` : '') + (kit ? `#${kit.key}` : '');
   let out = byLook.get(lk);
   if (out) return out;
   const list: THREE.BufferGeometry[] = [];
@@ -534,11 +535,16 @@ function detailsGeo(parts: CarParts, lv: CarLevel = 'full', look?: CarLook, styl
       g.setAttribute('color', new THREE.BufferAttribute(a, 3));
     }
     g.setAttribute('carKind', new THREE.BufferAttribute(new Float32Array(n).fill(kind), 1));
-    list.push(kind === KIND_TRIM && lv === 'lite' ? pruneSmallTriangles(g, cap) : g);
+    list.push((kind === KIND_TRIM || kind === KIND_CABIN) && lv === 'lite' ? pruneSmallTriangles(g, cap) : g);
   };
   prep(parts.trim, KIND_TRIM);
   const ex = look ? buildExtras(parts, look, style, lv === 'full') : (style === 'bus' ? buildExtras(parts, NEUTRAL_LOOK, style, lv === 'full') : null);
   if (ex) prep(ex, KIND_TRIM, undefined, undefined, 150);
+  if (kit && parts.cabin) {
+    // CARCABIN: dash, wheel, seats and props of this car (matte, vertex-coloured); the lite model keeps the largest pieces
+    const cab = buildCabin(parts.cabin, kit, lv === 'full');
+    if (cab) prep(cab, KIND_CABIN, undefined, undefined, LITE_CABIN_TRIS);
+  }
   prep(parts.lampHead, KIND_HEAD, 0xaab4be); // lens glass: grey-clear when dark, lit by the emissive mask at night
   prep(parts.lampTail, KIND_TAIL, 0x7a1010);
   if (parts.lightbar) {
@@ -565,7 +571,7 @@ function detailsMaterial(u: LampUniforms): THREE.MeshStandardMaterial {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvKind = carKind;');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vKind;\nuniform vec3 uHead;\nuniform vec3 uTail;\nuniform vec3 uBarA;\nuniform vec3 uBarB;')
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nif (vKind > 0.5) roughnessFactor = vKind < 1.5 ? 0.2 : vKind < 2.5 ? 0.35 : 0.3;')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nif (vKind > 0.5) roughnessFactor = vKind < 1.5 ? 0.2 : vKind < 2.5 ? 0.35 : vKind < 4.5 ? 0.3 : 0.85;')
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nif (vKind > 0.5) metalnessFactor = vKind < 2.5 ? 0.1 : 0.0;')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vKind < 0.5 ? vec3(0.0) : vKind < 1.5 ? uHead : vKind < 2.5 ? uTail : vKind < 3.5 ? uBarA : vKind < 4.5 ? uBarB : vec3(0.0);');
   };
@@ -629,6 +635,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   group.name = `car:${type}`;
   group.userData.carStyle = st;
   group.userData.carVariant = variant;
+  group.userData.cabin = parts.cabin; // where the seats and wheel are (read by scripts/dev/carcabin-sheet.html)
   group.userData.buildLodModel = (): CarModel => buildCarModel(type, spec, materials, variant, st, true, look, seed);
   const own: THREE.Material[] = [];
   const paintMeshes: THREE.Mesh[] = [];
@@ -751,7 +758,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     const u: LampUniforms = { uHead: { value: new THREE.Color(0, 0, 0) }, uTail: { value: new THREE.Color(0, 0, 0) }, uBarA: { value: new THREE.Color(0, 0, 0) }, uBarB: { value: new THREE.Color(0, 0, 0) } };
     const dm = detailsMaterial(u);
     own.push(dm);
-    const details = mesh(detailsGeo(parts, lv, look, st), dm, 'trim');
+    const details = mesh(detailsGeo(parts, lv, look, st, cabinKitFor(type === 'taxivan' ? 'taxivan' : st, seed)), dm, 'trim');
     const barA = lightbar ? (lightbar.red.material as THREE.MeshStandardMaterial) : null;
     const barB = lightbar ? (lightbar.blue.material as THREE.MeshStandardMaterial) : null;
     const lit = (m: THREE.MeshStandardMaterial, out: THREE.Color): void => {

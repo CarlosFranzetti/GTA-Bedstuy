@@ -16,6 +16,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { VehicleSpec, VehicleType } from '@/world/types';
+import type { CabinSpec } from './carCabin';
 
 export type V2 = [number, number];
 const { lerp, clamp } = THREE.MathUtils;
@@ -602,6 +603,8 @@ export interface CarParts {
   sections: number;
   /** where per-car extras (roof gear, stickers, decals) attach, car space (carExtras.ts) */
   anchors?: CarAnchors;
+  /** where the per-car cabin (carCabin.ts) puts the dash, wheel and seats */
+  cabin?: CabinSpec;
 }
 
 export interface CarAnchors {
@@ -2444,46 +2447,33 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     trim.add(bx(2 * (Wb2 - 0.06), yTop - 0.4, 0.05, 0, (yTop + 0.4) / 2, -(open[1] + 0.02)));
   }
 
-  // ---- interior (seen through the glass): dash with a cluster hood, steering wheel, console, two front seats with
-  // headrests, a rear bench, door cards and parcel shelf. All dark/chrome trim, so the extra detail costs no draw call.
+  // ---- interior (seen through the glass). CARCABIN: the dash, steering wheel, seats, console and rear bench are now built per car by
+  // carCabin.ts from `parts.cabin` (below); only the door cards stay here, as dark trim.
   // the dash must sit under the cowl: on a wedge the belt at the car's middle is well above the hood at the windshield base
   const yBeltC = Math.min(fyBelt(0), ring(ws[0] - 0.2).yT + 0.04);
   // low roofs (sports cars): sink the seats so the headrests stay under the roof; bodies at 1.35 m and above are unchanged
   const seatY = st.sill + 0.5 * ky - (H < 1.35 ? (1.35 - H) * 1.7 : 0);
   const iw = Wb2 * 0.78;
-  if (!st.rails) {
-    trim.add(bx(2 * iw, 0.2, 0.3, 0, yBeltC - 0.13, -(ws[0] - 0.22)));
-    trim.add(bx(0.4, 0.07, 0.16, -0.38, yBeltC - 0.02, -(ws[0] - 0.12))); // cluster hood
-  }
   const seatU = doors[0][1] + 0.3 * kx;
   const wheelU = ws[0] - 0.34;
-  trim.add(new THREE.TorusGeometry(0.17, 0.017, 4, 10).rotateX(-0.9).translate(-0.37, yBeltC - 0.06, -wheelU)); // steering wheel
-  trim.add(cylZ(0.02, 0.22, -0.37, yBeltC - 0.12, -(wheelU + 0.1), 5));
-  for (const s of [-1, 1]) {
-    trim.add(bx(0.46, 0.5, 0.12, s * 0.35, seatY + 0.28, -(seatU - 0.22))); // seat back
-    trim.add(bx(0.46, 0.1, 0.5, s * 0.35, seatY + 0.03, -(seatU + 0.02))); // cushion
-    trim.add(bx(0.2, 0.13, 0.08, s * 0.35, seatY + 0.6, -(seatU - 0.22))); // headrest
-    trim.add(bx(0.06, 0.34, 0.9 * kx, s * (Wb2 - 0.07), yBeltC - 0.22, -(doors[0][0] + doors[0][1]) / 2)); // door card
-  }
-  trim.add(bx(0.16, 0.14, 0.6, 0, seatY + 0.05, -(seatU + 0.12))); // centre console
-  if (!hatchy && rg) {
-    trim.add(bx(2 * Wb2 * 0.72, 0.5, 0.12, 0, seatY + 0.26, -(rg[0] + 0.2)));
-    trim.add(bx(2 * Wb2 * 0.72, 0.1, 0.5, 0, seatY + 0.0, -(rg[0] + 0.45))); // rear cushion
-    for (const s of [-1, 0, 1]) trim.add(bx(0.16, 0.1, 0.07, s * 0.4, seatY + 0.58, -(rg[0] + 0.2))); // rear headrests
-    trim.add(bx(2 * Wb2 * 0.8, 0.03, 0.34, 0, fyBelt(rg[1]) + 0.03, -(rg[1] + 0.2))); // parcel shelf
-  }
+  for (const s of [-1, 1]) trim.add(bx(0.06, 0.34, 0.9 * kx, s * (Wb2 - 0.07), yBeltC - 0.22, -(doors[0][0] + doors[0][1]) / 2)); // door card
+  const cabin: CabinSpec = {
+    hw: iw, dashY: yBeltC, dashZ: -(ws[0] - 0.22),
+    wheelX: -0.37, wheelY: yBeltC - 0.06, wheelZ: -wheelU, wheelTilt: 0.9,
+    seatY, seatZ: -(seatU + 0.02), seatX: 0.35, seatW: 0.46, seatD: 0.5, seatBackH: 0.5,
+  };
+  if (!hatchy && rg) cabin.rear = { backZ: -(rg[0] + 0.2), cushZ: -(rg[0] + 0.45), w: 2 * Wb2 * 0.72, shelf: { y: fyBelt(rg[1]) + 0.03, z: -(rg[1] + 0.2), w: 2 * Wb2 * 0.8 } };
   if (hatchy && st.glassTop === undefined) {
     // tailgate bodies: a bench or captain's chairs under every rear side window
+    const rows: NonNullable<CabinSpec['rows']> = [];
     for (let d = 1; d < doors.length; d++) {
       const uc = (doors[d][0] + doors[d][1]) / 2;
-      for (const s2 of st.rails || st.windowed ? [] : st.doorGlass.length >= 3 && d === 1 ? [-1, 1] : [-1, 0, 1]) {
-        const w2 = st.doorGlass.length >= 3 && d === 1 ? 0.46 : 0.34;
-        trim.add(bx(w2, 0.5, 0.12, s2 * (w2 + 0.04), seatY + 0.26, -(uc + 0.24)));
-        trim.add(bx(w2, 0.1, 0.46, s2 * (w2 + 0.04), seatY, -uc));
-      }
+      const xs = st.rails || st.windowed ? [] : st.doorGlass.length >= 3 && d === 1 ? [-1, 1] : [-1, 0, 1];
+      const w2 = st.doorGlass.length >= 3 && d === 1 ? 0.46 : 0.34;
+      if (xs.length) rows.push({ z: -uc, w: w2, xs: xs.map((q) => q * (w2 + 0.04)) });
     }
+    if (rows.length) cabin.rows = rows;
   }
-
   // ---- roof rails (SUV)
   const iRoofA = hull.at(secs[st.rails ? 3 : 4][0]);
   void iRoofA;
@@ -2653,6 +2643,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     const yB = ambY + 0.085;
     parts.lightbar = { lens: new THREE.BoxGeometry(0.7, 0.1, 0.28), a: v3(-0.38, yB, -ambU), b: v3(0.38, yB, -ambU) };
   }
+  parts.cabin = cabin;
   // ---- anchors for per-car extras (carExtras.ts)
   {
     const top = Math.max(...secs.map((q) => q[1]));
@@ -2936,12 +2927,12 @@ export function buildTruckParts(spec: VehicleSpec, kind: TruckKind = 'box'): Car
   // ---- wheel liners and interior
   const wx = G ? 0.98 : BIG ? 0.94 : 0.86;
   trim.addBoth(wheelLiner(arch, wx - 0.52 * ww - 0.03, Wc2 - 0.01, -axleF));
-  trim.add(bx(2 * Wc2 * 0.8, 0.3, 0.4, 0, 1.28, -(ws[0] - 0.3)));
-  for (const s of [-1, 1]) {
-    trim.add(bx(0.5, 0.8, 0.18, s * 0.4, 1.5, -(uB + 0.6)));
-    trim.add(bx(0.5, 0.12, 0.5, s * 0.4, 1.12, -(uB + 0.85)));
-  }
-  trim.add(new THREE.TorusGeometry(0.19, 0.017, 4, 10).rotateX(-0.6).translate(-0.4, 1.5, -(ws[0] - 0.55)));
+  // CARCABIN: dash, wheel and seats come from carCabin.ts (`parts.cabin`)
+  const cabin: CabinSpec = {
+    hw: Wc2 * 0.8, dashY: 1.45, dashZ: -(ws[0] - 0.3),
+    wheelX: -0.4, wheelY: 1.5, wheelZ: -(ws[0] - 0.55), wheelTilt: 0.6,
+    seatY: 1.09, seatZ: -(uB + 0.85), seatX: 0.4, seatW: 0.5, seatD: 0.5, seatBackH: 0.8,
+  };
 
   // ---- mirrors on stalks (dark housings, chrome rim), a step under each door
   const yMc = 1.85;
@@ -3022,6 +3013,7 @@ export function buildTruckParts(spec: VehicleSpec, kind: TruckKind = 'box'): Car
     wheelR: R,
     wheelW: ww,
     dualRear: !G,
+    cabin,
     sections: TRUCK_CAB_SECS.length,
   };
   for (const s of [-1, 1]) {
@@ -3189,16 +3181,19 @@ export function buildBusParts(spec: VehicleSpec, school = false): CarParts {
   trim.add(cylX(0.09, 2 * wx, 0, R, -axF, 6));
   trim.add(cylX(0.11, 2 * wx, 0, R, -axR, 6));
   trim.add(bx(2 * (wM0 - 0.1), 0.05, L - 1.2, 0, 0.98, 0));
+  // CARCABIN: the wall seats, driver's seat and wheel come from carCabin.ts (`parts.cabin`); the poles stay here
+  const busRows: number[] = [];
   for (let k = 0; k < 7; k++) {
     const u = 3.0 - k * 1.1 - (k > 1 ? 0.6 : 0);
-    for (const s of [-1, 1]) {
-      trim.add(bx(0.8, 0.14, 0.45, s * (wM0 - 0.5), 1.1, -u)); // seat cushion row (the bench along the wall)
-      trim.add(bx(0.8, 0.5, 0.1, s * (wM0 - 0.5), 1.45, -(u + 0.2)));
-    }
+    busRows.push(-u);
     chrome.add(new THREE.CylinderGeometry(0.02, 0.02, 1.9, 5).translate(s0(k) * 0.55, 1.95, -(u + 0.3)));
   }
-  trim.add(bx(0.6, 0.55, 0.5, 0.0 + 0.55, 1.35, -(tipF - 0.9))); // driver's seat
-  trim.add(new THREE.TorusGeometry(0.22, 0.02, 4, 10).rotateX(-0.5).translate(0.55, 1.65, -(tipF - 0.45)));
+  const cabin: CabinSpec = {
+    hw: wM0 - 0.1, dashY: 1.5, dashZ: -(tipF - 0.28),
+    wheelX: -0.55, wheelY: 1.65, wheelZ: -(tipF - 0.45), wheelTilt: 0.5,
+    seatY: 1.1, seatZ: -(tipF - 0.9), seatX: 0.55, seatW: 0.6, seatD: 0.5, seatBackH: 0.55,
+    bus: { wallX: wM0 - 0.5, y: 1.1, rows: busRows, driverX: -0.55, driverZ: -(tipF - 0.9), wheelY: 1.65, wheelZ: -(tipF - 0.45) },
+  };
 
   const parts: CarParts = {
     paint: paint.merge(),
@@ -3211,6 +3206,7 @@ export function buildBusParts(spec: VehicleSpec, school = false): CarParts {
     wheelR: R,
     wheelW: ww,
     dualRear: true,
+    cabin,
     sections: 12,
     anchors: { roof: { y: H, u0: -1, u1: -1.5, hw: 1 }, rear: { z: tipF, y: 0.46, hw: 1 }, wsQuad: null, rgQuad: null, hoodFront: v3(0, 0, 0), exX: 0, sign: v3(0, H - 0.2, -(uScr - 0.02)) },
   };

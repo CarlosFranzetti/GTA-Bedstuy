@@ -32,7 +32,7 @@ export const PICO_HOOKS: Record<string, MissionHooks> = {
   },
   'pico-size-medium': {
     // The rack interaction is objective 3 (index counts objectives skipped by `when`); on the first sale scene buy the pieces.
-    objective: (b, i) => { if (i === 4 && b.nl.bag.items.length === 0) b.buyBest('rack-a', 50, 4); },
+    objective: (b, i) => { if (i === 4 && b.nl.bag.items.length === 0) { if (b.openRack) b.openRack('rack-a', 50); else b.buyBest('rack-a', 50, 4); } },
   },
   'pico-warm-up-slot': {
     // The guest list is whoever was named; it is read when the set starts (objective 2).
