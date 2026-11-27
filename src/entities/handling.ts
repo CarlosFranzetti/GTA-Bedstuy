@@ -158,6 +158,8 @@ const ANALOG_FOLLOW_STICK = 11;
 /** STUCK: while the brake is hard on (and no handbrake), the yaw rate is held to this share of the calm cap: braking with the wheel turned bends the line, it does not spin the car (hot hatch: 91 degrees by the stop, now about half). */
 const BRAKE_YAW_FRAC = 0.8;
 const BRAKE_YAW_FROM = 0.25;
+/** The knobs above that a feel comparison changes (tests/unit/sim/stuck-controls-lib.ts reads and sets them); the defaults are what ships. */
+export const FEEL = { steerRate: 5.6, stickFollow: ANALOG_FOLLOW_STICK, brakeYawFrac: BRAKE_YAW_FRAC };
 const LOW_YAW_CAP = 0.5;
 const HIGH_YAW_CAP = 1.0;
 const LOW_YAW_SPEED = 4;
@@ -259,10 +261,10 @@ export class HandlingModel {
     const s = clamp(input.steer, -1, 1);
     if (s !== 0 && Math.abs(s) !== 1) { this.analog = true; this.analogT = 0.4; } else if ((this.analogT -= h) <= 0) this.analog = false;
     if (this.analog) {
-      this.steerNorm += (s - this.steerNorm) * Math.min(1, ANALOG_FOLLOW_STICK * h);
+      this.steerNorm += (s - this.steerNorm) * Math.min(1, FEEL.stickFollow * h);
     } else {
       const returning = Math.abs(s) < Math.abs(this.steerNorm) && s * this.steerNorm >= 0;
-      const rate = (STEER_RATE * cl.steerRate * this.steerRateScale / (1 + uAbs / STEER_RATE_SPEED)) * (returning ? STEER_RETURN_MULT * (1 + uAbs / 24) : 1);
+      const rate = (FEEL.steerRate * cl.steerRate * this.steerRateScale / (1 + uAbs / STEER_RATE_SPEED)) * (returning ? STEER_RETURN_MULT * (1 + uAbs / 24) : 1);
       this.steerNorm += clamp(s - this.steerNorm, -rate * h, rate * h);
     }
 
@@ -416,7 +418,7 @@ export class HandlingModel {
     if (w < 1) this.rBlend = r;
     // yaw-rate cap: a tank-slapper cannot build
     let rMax = cl.yawMax * (recovering ? 0.8 : 1);
-    if (this.brakeP > BRAKE_YAW_FROM && !input.handbrake && env.calm !== false) rMax = Math.min(rMax, cap * BRAKE_YAW_FRAC);
+    if (this.brakeP > BRAKE_YAW_FROM && !input.handbrake && env.calm !== false) rMax = Math.min(rMax, cap * FEEL.brakeYawFrac);
     if (Math.abs(r) > rMax) r -= (r - Math.sign(r) * rMax) * Math.min(1, 12 * h);
 
     // ---- longitudinal integrate

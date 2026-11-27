@@ -15,7 +15,7 @@ afterAll(() => { World2D.rescueEnabled = true; });
 const quiet = (): void => undefined;
 
 describe('car wedged in a notch (a pole against an areaway fence, a stoop against a wall) always frees', () => {
-  for (const idx of [955, 1955, 2143, 3445, 3651, 2769]) {
+  for (const idx of [955, 1955, 2143, 2150, 2217, 2504, 2734]) {
     it(`soak car trial ${idx}: some input moves it a metre, and it is not left overlapped`, () => {
       const r = replayTrial(w, 'car', 1, idx, quiet)!;
       expect(r.hard).toBe(false);
@@ -25,14 +25,15 @@ describe('car wedged in a notch (a pole against an areaway fence, a stoop agains
   it('the same trial is hard-stuck without the backstops (the test discriminates)', () => {
     World2D.rescueEnabled = false;
     try {
-      const r = replayTrial(w, 'car', 1, 3445, quiet)!;
-      expect(r.hard || r.ovRun >= 0.75).toBe(true);
+      const r = replayTrial(w, 'car', 1, 955, quiet)!;
+      expect(r.hard).toBe(true);
+      expect(replayTrial(w, 'car', 1, 26, quiet)!.ovRun).toBeGreaterThan(1);
     } finally { World2D.rescueEnabled = true; }
   }, 60000);
 });
 
 describe('car held on a body overlapped for seconds is moved clear', () => {
-  for (const idx of [26, 1848, 1689]) {
+  for (const idx of [26, 1689, 2769]) {
     it(`soak car trial ${idx}: overlap ends inside RESCUE_AFTER + a little`, () => {
       const r = replayTrial(w, 'car', 1, idx, quiet)!;
       expect(r.ovRun).toBeLessThan(RESCUE_AFTER + 0.25);

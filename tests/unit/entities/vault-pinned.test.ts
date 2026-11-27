@@ -3,12 +3,18 @@
  * Each pinned scene (vault-scenes.ts) is first shown to hold the player (they cannot leave by walking), then Jump takes them over a
  * hood or a deck onto clear ground, at 30, 60 and 144 frames a second, with the car still and rolling. Refusals: too tall, no landing.
  */
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { World2D } from '@/physics/World2D';
 import { PINNED_AFTER } from '@/entities/Player';
 import { vaultSettings, VAULT_MAX_HEIGHT, topProfile } from '@/entities/vault';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
 import { ALL_SCENES, SEALED_VANS, STOPPED_AGAINST, build, type SceneDef } from './vault-scenes';
 import type { VaultScene } from './vault-harness';
+
+// STUCK (27 Nov): World2D now frees a body overlapped for half a second (a person squeezed between a stopped car and a wall is moved to the
+// nearest free ground). These scenes test the player's OWN way out (Jump), so the backstop is off here; the backstop has its own tests.
+beforeAll(() => { World2D.rescueEnabled = false; });
+afterAll(() => { World2D.rescueEnabled = true; });
 
 const NEUTRAL = { throttle: 0, steer: 0, brake: false, handbrake: false, horn: false };
 
