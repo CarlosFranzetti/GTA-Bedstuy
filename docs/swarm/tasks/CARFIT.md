@@ -40,3 +40,30 @@ SIDE EFFECT, seen and fixed in the tests: the soak is a scripted driver, so the 
 the "hard-stuck without the backstops" discriminator and no longer is. A scan of trials 1 to 1599 (grid cars, backstops off) under the shipped feel finds hard-stuck
 147, 778, 793, 1458, 1491 and overlapped over 1 s 26, 205, 631, 743, 1303, 1346, 1570; with the backstops on NONE of the 12 is stuck or overlapped 0.75 s.
 The discriminating test now uses those. STUCK's before and after table (2,000 cars) was measured under the quick feel and was not re-run here.
+
+## 3. Test folders (one at a time, `--maxWorkers=1 --testTimeout=900000`, after all edits)
+
+core 256 passed; physics 118 passed (1 skipped); entities 1,210 passed (3 skipped); sim 257 passed (7 skipped, 2 todo); render 346; game 622 (7 skipped);
+world 924 (5 skipped). All green, including the grid's seeded traffic sims. `npx tsc --noEmit` clean (it covers `src` and `tests`).
+
+## 4. In the running game (`scripts/dev/carentry-shoot.mjs`, hosted build of this tree, real map, `?q=low`, canvas hidden, the real F key)
+
+The parked cars near the start were an SUV and a hatch (no step van or box truck within reach), so the 12 cases are SUV and hatch, Classic and Modern,
+driver side, passenger side, from behind. Numbers from `carentry-carfit.json`:
+
+- frames with the lens inside the car box: 0 of 12; frames within the near plane of the car: 0 of 12;
+- camera cuts per press, exit and press: 2 in every case (one on each press), `settledAfter` 0.02 s;
+- lens speed outside the cuts: 0 in Classic, 3.3 to 3.6 m/s in Modern (driver and passenger approaches), 0 from behind;
+- press to driving: 0.50 s at a door, 1.13 s (hatch) and 1.23 s (SUV) from behind (round the car).
+
+Strip `docs/swarm/teams/sheets/carfit-entry.jpg` (strip A on top, strip B below, each 4 rows of every 3rd frame, 0.6 s after the press then after the exit; A is the SUV in Classic from its driver side, B the hatch in Modern from its passenger side; my reading of the tool's header). What I see: a clean cut to the car view
+that does not move after the first frame; no lens inside a body. Ugly: on leaving, the hatch's flank (Modern, passenger side) and a police car fill the lower half of the
+frame, and the exiting character is small and half hidden by the car's rear: the "cut behind the character" alternative (CARENTRY choice 4) would help. The driver is not seen
+inside the car in the entry rows (dark cabin through the glass). A white car swings into the lower left corner in the second half of strip A: traffic, not the lens.
+
+Boot check, desktop, real map, `--noframes`: 408,212 triangles, 229 draw calls, 35 pedestrians (15 within 150 m), 980 vehicles, no page errors, no NaN warnings, clean.
+
+## Not done or not verified
+- Nobody has hands on keys: the steering numbers are response times, not feel. The in-between set is the owner's pick by the numbers only.
+- STUCK's 2,000-trial soak table was not re-run under the new feel (only 1,599 grid car trials were scanned for stuck or overlapped cases: none with the backstops on).
+- Medium and high tiers, a real phone, anything heard.
