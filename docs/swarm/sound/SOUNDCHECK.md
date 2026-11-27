@@ -244,3 +244,12 @@ is the gear changes being followed more sharply (less lag), but has not separate
 NOT HEARD by anyone here. If the owner still hears it, the next things to try are listed by cost: record 20 seconds of the game's
 output on his machine; lower the number of engine partials on slow frames; move the engine to an AudioWorklet that runs the
 simulation on the audio thread.
+
+## 6. Environment beds and the music sequencers (27 Nov, AMBIENT)
+
+Full account, table and numbers: `docs/swarm/tasks/AMBIENT.md`. In short: the owner's "environment stutter" was measured source by source
+(`scripts/ambient-render.mjs`, real classes, main thread at 60, 30, 15 and with 150 and 500 ms stalls). No bed has a click or a gap; the always-on beds
+were SHORT LOOPS that repeat (the hum 2 s, the shared noise of the wash, tyres, wind and squeal 1 s, autocorrelation 0.98 to 0.99), now 6 and 8 s with
+crossfaded seams and their own entry points; the weather bed wrote 660 parameters a second (now 9); the crosswalk tick ran 5 to 7 percent slow; trains had a
+cut 2 s loop and wrote about 8 parameters a train a frame. The loading and title themes are main-thread sequencers that drop notes after a stall: loading
+is now silent, the title lookahead is 2.5 s. `?debug=audio` and `?mute=...` let the owner find the culprit. Not heard by anyone.

@@ -421,8 +421,9 @@ export class ThirdPersonCamera {
       this.offX = 0; this.offZ = 0;
       this.idle = 0; this.yawVel = 0; this.pitchIdle = 0;
       this.backBlend = 0; this.backVel = 0; this.sideAmt = 0; this.sideVel = 0; this.cineBlend = 0; this.cineYaw = 0;
-      this.yaw = wrapAngle(targetHeading);
-      this.needReturn = false;
+      // going in: behind the car. Coming out: the yaw stays where it was (behind the way the car pointed) so "walk forward" keeps its meaning
+      // for a player who steps out holding W, and the usual two-second rule returns it behind the player (CAMFIX)
+      if (vehicleMode) this.yaw = wrapAngle(targetHeading);
       this.modeCutT = MODE_CUT_HOLD;
     } else if (this.modeCutT > 0) this.modeCutT = Math.max(0, this.modeCutT - dt);
     if (styleCut && !first) {
@@ -516,7 +517,7 @@ export class ThirdPersonCamera {
     this.pitchIdle = ldy !== 0 ? 0 : this.pitchIdle + dt;
     if (cl && (first || styleCut || modeCut)) {
       this.pitch = vehicleMode ? 0 : (vrig.pitch ?? 0);
-      if (!vehicleMode) this.yaw = targetHeading; // a new game or a switch starts behind the body
+      if (!vehicleMode && !modeCut) this.yaw = targetHeading; // a new game or a switch starts behind the body
     } else if (modeCut) this.pitch = DEFAULT_PITCH;
     this.views.tick(dt, mode);
     const snap = cutNow || this.views.cutThisFrame;
@@ -531,7 +532,7 @@ export class ThirdPersonCamera {
     // player. The spring's stiffness ramps up from zero, so the return starts slowly and gathers pace; while nobody touches
     // the look controls it stays at full pace and the camera simply follows the body round corners.
     // just after a mode cut the followed pose is still the half-interpolated one of the frame the player got in or out: keep the cut's yaw exact
-    if (this.modeCutT > 0 && !lookInput) { this.yaw = wrapAngle(targetHeading); this.yawVel = 0; }
+    if (this.modeCutT > 0 && vehicleMode && !lookInput) { this.yaw = wrapAngle(targetHeading); this.yawVel = 0; }
     const off = angleDiff(targetHeading, this.yaw); // yaw - heading, short arc
     if (cl) this.classicYaw(dt, targetHeading, off, vehicleMode, moveSpeed, vrig.first, vrig.pitch ?? 0);
     const follow = vehicleMode || moveSpeed <= MOVE_EPS ? 1 : footFollow(off);

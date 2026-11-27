@@ -5,6 +5,7 @@
 import { EventBus } from '@/core/Events';
 import { Player, RUN_SPEED, WALK_SPEED } from '@/entities/Player';
 import type { VehicleType } from '@/world/types';
+import { World2D } from '@/physics/World2D';
 import { DT, Sim, input, makeVehicle, slipAngleDeg, stubMaterials } from './harness';
 
 export interface CarRow {
@@ -158,11 +159,43 @@ export function footRow(): FootRow {
   return { t50, t90, run90, stopS, stopM, reverseS: rev, turn90S: t90turn, turn180Walk: t180, setOffM1s: d1 };
 }
 
-export function controlsReport(): { steer: CarRow[]; analog: Array<{ type: string; v0: number; s90: number }>; pedals: PedalRow[]; foot: FootRow } {
+export function controlsReport(): { steer: CarRow[]; analog: Array<{ type: string; v0: number; s90: number }>; pedals: PedalRow[]; foot: FootRow; slide: Array<{ ang: number; run: boolean; share: number }>; brakeSteer: Array<{ type: string; steer: number; headingDeg: number; peakYaw4: number; peakSlip4: number }> } {
   const types: VehicleType[] = ['sedan', 'suv', 'hothatch', 'bus'];
   const steer: CarRow[] = [];
   for (const t of types) for (const v of [0, 4, 10, 18, 28]) steer.push(steerRow(t, v));
   const analog = (['sedan', 'bus'] as VehicleType[]).flatMap((t) => [0, 12].map((v) => ({ type: t, v0: v, s90: analogStep(t, v) })));
   const pedals = (['sedan', 'suv', 'hothatch', 'bus', 'pickup'] as VehicleType[]).map(pedalRow);
-  return { steer, analog, pedals, foot: footRow() };
+  const slide = [10, 25, 45, 70].flatMap((ang) => [false, true].map((run) => ({ ang, run, share: footSlide(ang, run).share })));
+  return { steer, analog, pedals, foot: footRow(), slide, brakeSteer: (['sedan', 'suv', 'hothatch', 'pickup', 'bus'] as VehicleType[]).flatMap((t) => [0.5, 1].map((st) => brakeSteer(t, st))) };
+}
+
+/** On foot into a long wall at `angDeg` off its normal (heading south, wall to the south): metres per second kept along the wall after 2 s, as a share of the ideal (speed times sin(angle)). */
+export function footSlide(angDeg: number, run = false): { along: number; ideal: number; share: number } {
+  
+  const w = new World2D(12);
+  w.addStatic({ kind: 'polygon', points: [{ x: -200, z: 0 }, { x: 200, z: 0 }, { x: 200, z: 5 }, { x: -200, z: 5 }] }, { x: 0, z: 0 }, 'wall');
+  const sim = new Sim(w);
+  const p = new Player('fs', { x: 0, z: -3 }, stubMaterials, new EventBus()); sim.add(p);
+  const a = angDeg * Math.PI / 180;
+  const dir = { x: Math.sin(a), z: Math.cos(a) }; // toward +z (the wall) and along +x
+  // control(): axis forward is -z at camera yaw 0, right is +x
+  for (let t = 0; t < 2; t += DT) { p.control(fakeKeys(-dir.z, dir.x, run), 0); sim.step(DT); }
+  const sp = run ? RUN_SPEED : WALK_SPEED;
+  const along = p.body.vel.x, ideal = sp * Math.sin(a);
+  return { along, ideal, share: ideal > 0 ? along / ideal : 0 };
+}
+
+/** Brake hard from 20 m/s with the wheel held at `st`: heading change by the stop, and the worst yaw rate and slip angle while still above 4 m/s. */
+export function brakeSteer(type: VehicleType, st: number): { type: string; steer: number; headingDeg: number; peakYaw4: number; peakSlip4: number } {
+  const sim = new Sim(); const car = makeVehicle(type, 0, 0, 0); car.driver = 'player'; sim.add(car);
+  car.body.vel.z = -20;
+  for (let i = 0; i < 40; i++) { car.setInput(input({ throttle: cruise(20, car.speed) })); sim.step(DT); }
+  const h0 = car.body.heading; let py = 0, ps = 0;
+  for (let t = 0; t < 6; t += DT) {
+    car.setInput(input({ brake: true, steer: st })); sim.step(DT);
+    if (Math.abs(car.speed) > 4) { py = Math.max(py, Math.abs(car.yawRateRad)); ps = Math.max(ps, slipAngleDeg(car)); }
+    if (Math.abs(car.speed) < 0.05) break;
+  }
+  let d = car.body.heading - h0; d = Math.atan2(Math.sin(d), Math.cos(d));
+  return { type, steer: st, headingDeg: Math.abs(d) * 180 / Math.PI, peakYaw4: py, peakSlip4: ps };
 }

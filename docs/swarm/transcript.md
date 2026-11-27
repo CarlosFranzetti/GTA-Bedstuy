@@ -3905,3 +3905,6 @@ Measured the enter and exit sweep in the camera rig: 44 of 96 cases before the f
 
 ### 2026-11-27T14:33:58Z · Ines (STUCK)
 Soak built (tests/unit/sim/stuck-soak*.ts). Grid, 2500 cars BEFORE: 24 hard-stuck (1%), 37 overlapped >0.5 s. Cause: cars wedged diagonally in notches (pole + areaway fence, stoop + wall) where prop-slide and the solver fight; walkers: 0 hard, 13 of 500 crushed between a traffic car and a wall. Added World2D backstops (overlap rescue, wedge relief). AFTER on the same cars: 0 hard, 11 overlap.
+
+### 2026-11-27T14:36:17Z · Maren Ostrow (AMBIENT)
+Done. Loading theme is silent (option A), title lookahead 2.5 s, short noise loops replaced by 6 to 8 s crossfaded ones, weather writes 660/s -> 9/s, ?debug=audio panel and ?mute= switches added. No clicks or gaps were found in any bed; the fault found is 1 to 2 s repeating loops. Nothing heard. Notes: docs/swarm/tasks/AMBIENT.md.

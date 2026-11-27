@@ -675,6 +675,7 @@ export class Player implements Entity {
     const p = this.body.pos, cx = v.body.pos.x, cz = v.body.pos.z;
     const sa = (p.x - cx) * f.x + (p.z - cz) * f.z, sc = (p.x - cx) * r.x + (p.z - cz) * r.z;
     const hl = v.spec.length / 2 + ROUTE_MARGIN, hw = v.spec.width / 2 + ROUTE_MARGIN, dc = side * (v.spec.width / 2 + 0.3);
+    if (Math.abs(sa) < v.spec.length / 2 && Math.abs(sc) < v.spec.width / 2) return null; // already inside the car's footprint (a test, a carjack through a window): the glide
     let crosses = false;
     for (let i = 1; i < 16 && !crosses; i++) { const u = i / 16, a = sa * (1 - u), c = sc + (dc - sc) * u; if (Math.abs(a) < v.spec.length / 2 + 0.05 && Math.abs(c) < v.spec.width / 2 + 0.05) crosses = true; } // the straight line must clear the car's own box (the door stands 0.3 m outside it)
     if (!crosses) return null;
@@ -968,6 +969,12 @@ export class Player implements Entity {
         const ux = b.vel.x / speedNow, uz = b.vel.z / speedNow;
         for (const d of [0.5, 0.8, 1.1, 1.4, 1.8, 2.2, 2.8]) {
           if (this.blockedAt({ x: b.pos.x + ux * (d + FOOT_RADIUS), z: b.pos.z + uz * (d + FOOT_RADIUS) }, FOOT_RADIUS * 0.8)) {
+            // STUCK: a wall met at a glancing angle is slid along, not braked for (one flank probe blocked, the other free): sprinting along
+            // a wall at 45 degrees kept 79 percent of its speed, at 70 degrees only 52. Head-on walls (both blocked) and posts (both free) still brake.
+            const kf = (d + FOOT_RADIUS) / 0.765, c7 = 0.765, s7 = 0.644;
+            const lb = this.blockedAt({ x: b.pos.x + (ux * c7 - uz * s7) * kf, z: b.pos.z + (ux * s7 + uz * c7) * kf }, FOOT_RADIUS * 0.8);
+            const rb = this.blockedAt({ x: b.pos.x + (ux * c7 + uz * s7) * kf, z: b.pos.z + (-ux * s7 + uz * c7) * kf }, FOOT_RADIUS * 0.8);
+            if (lb !== rb) break;
             const cap = Math.sqrt(WALL_CONTACT_SPEED * WALL_CONTACT_SPEED + 2 * BRAKE_ACCEL * Math.max(0, d - 0.55));
             if (cap < sp) {
               sp = cap;
