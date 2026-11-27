@@ -2,7 +2,7 @@
 
 Read this first. It is the project's standing memory: the owner's rules, how we work, where things are, and what is open.
 Update it when a rule changes or a decision is made. Keep it short; history lives in `docs/swarm/transcript.md` and the PRD.
-Last full update: 23 Nov 2026 (rounds 2 and 3 of the body team are live since about 04:00 UTC, commit `ffdf96a`).
+Last full update: 27 Nov 2026 (see "State on 27 Nov 2026").
 
 ## The project in one paragraph
 
@@ -362,6 +362,36 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   brownstone, limestone, stoop, cornice, roof) are layers of ONE material, `brickSheet:0` (`src/textures/facadeSheet.ts`,
   `docs/swarm/tasks/SURFACES2.md`); low home 269 -> 223 draws. New wall classes join as sheet layers, not as materials.
 - Free image generators reachable from here refuse without a token; a keyless one stamps a watermark. Not used.
+
+## State on 27 Nov 2026
+
+- LIVE: the owner's two commits from another session (`525e2d4`, `4fbfa3d`, fixes to `native/scripts/webcheck.mjs`) had plain
+  messages and deployed the tip on 27 Nov, with the `/radio` page and the TALK3 talk-radio content. A plain message from
+  ANY session deploys: check `git log origin/master` before assuming what is live. The autosave loop now rebases when a
+  push is refused.
+- DEPLOY of 27 Nov (the commit after `6e4e1bd`): the Classic camera and the boombox `/radio` page. Verified by the lead
+  on snapshot `6e4e1bd`: `npx tsc --noEmit` clean; hosted and single-file builds (11,923,551 bytes of 12,000,000: 76 kB
+  left); `checkWeb` of the native web check clean; four clean boots without frames (desktop real 408k triangles, 229 draw
+  calls; desktop grid 389k, 223; phone real 247k, 72; phone grid 187k, 98); every test folder green (core 256, ui 445,
+  audio 655, radio 26, render 346, physics 118, game 616, transit 30, world 924, textures 427, entities 1,156, sim 231,
+  mods 51, assets 117). The lead looked at the camera in the running game (`docs/swarm/teams/sheets/
+  camera-classic-vs-modern.jpg`, tool `scripts/dev/camera-shoot.mjs`) and at the boombox pictures. NOT checked: anything
+  heard, SoundCloud playback on `/radio`, a real phone, the camera in motion (pictures are still frames), medium and high.
+- Camera (CAMERA seat, `docs/swarm/tasks/CAMERA.md`): `Camera: Classic` in Settings, Controls; Classic is the DEFAULT
+  (5.4 m back and 3.4 m up on foot, three chase distances then bumper and cinematic in a car, lazy follow after 2 s).
+  Modern is the old rig, unchanged. Lead's fix: near a wall the Classic lens comes in along its own line (it used to hang
+  3.4 m up at 2 m and look straight down). Not wired: `cam.bodyFade`; keys T, `[`, `]` are raw codes, not in Bindings.
+- Radio page (BOOMBOX, `docs/swarm/tasks/BOOMBOX.md`): a boombox drawn in SVG and CSS, 17 station emblems, tuning strip,
+  captions with PARODY tag, log. Real signal analysis only for WBSY Talk; everything else is labelled SIMULATED.
+- Built, tests green, still OFF and unseen in the game: venues (`VITE_VENUES=1`, `docs/swarm/tasks/STORY-VENUES.md`) and
+  Pedro Act 1 (`VITE_PEDRO=1`, `docs/swarm/tasks/STORY-MISSIONS.md`: needs a scene UI, the flyer key, a rack UI and the
+  bridge lines in `src/main.ts` before it can be turned on). Story pages: `docs/story/` (bible, arc, side jobs, 16
+  missions for Acts 1 and 2; Act 3 outline only; the invented names in BIBLE section 8 are unchecked). WRITER renamed
+  CAST's five placeholders (clem, kyle, margo, remy, hollis): `src/game/story/cast/` still has the old ones.
+- Open assets (INTAKE, `docs/swarm/tasks/ASSETS-INTAKE.md`, `docs/swarm/art/LOWPOLY.md`): 18 cars, 9 props, 11 surfaces,
+  all CC0, in `src/assets/open/`, used by nothing yet; load only by dynamic import behind the hosted check.
+- Not resumed yet: THEME, LOADSCREENS, MODS3 (the texture parser). Not started: car interiors per car, the model viewer.
+- GitHub has an unpublished draft release "GTABS v0.2.0" that the lead did not make.
 
 ## State on 23 Nov 2026
 
