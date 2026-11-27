@@ -3926,3 +3926,6 @@ Fixed camera-smooth (now asserts a cut) and enter-exit (walk-round start spot). 
 
 ### 2026-11-27T15:38:15Z · Marlowe (CARFIT)
 vault-pinned: now also tests rescue ON. FEEL set to 4.5/9.5/0.72. A stuck-regress discriminating test shifted with the feel; scanning for new trial indices.
+
+### 2026-11-27T16:03:25Z · Marlowe (CARFIT)
+All seven folders green. Building hosted and shooting entry.
