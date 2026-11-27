@@ -10,12 +10,12 @@ async function load(): Promise<{ checkWeb(dir: string): string[] }> {
 function good(): string {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'gtaweb-'));
   const put = (f: string, data = 'x') => { fs.mkdirSync(path.dirname(path.join(d, f)), { recursive: true }); fs.writeFileSync(path.join(d, f), data); };
-  for (const f of ['index.html', 'fonts/Anton-Regular.woff2', 'fonts/Barlow-Medium.woff2', 'fonts/BarlowCondensed-Bold.woff2', 'voice/manifest.json', 'voice/banks/dj-a.mp3', 'anim/street.bin', 'anim/core.bin', 'data/brooklyn-overview.json', 'data/realmap-furniture.json', 'assets/index-abc.js', 'assets/three-abc.js', 'assets/realWorld-abc.js']) put(f);
+  for (const f of ['index.html', 'fonts/Anton-Regular.woff2', 'fonts/Barlow-Medium.woff2', 'fonts/BarlowCondensed-Bold.woff2', 'voice/manifest.json', 'voice/banks/dj-a.mp3', 'anim/street.bin', 'anim/core.bin', 'data/brooklyn-overview.json', 'data/realmap-furniture.json', 'assets/main-abc.js', 'assets/three-abc.js', 'assets/realWorld-abc.js']) put(f);
   return d;
 }
 
 describe('checkWeb', () => {
-  it('accepts a complete hosted build', async () => {
+  it('accepts a complete hosted build whose main input emits assets/main-*.js', async () => {
     expect((await load()).checkWeb(good())).toEqual([]);
   });
   it('names every missing piece', async () => {
