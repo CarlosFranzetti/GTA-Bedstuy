@@ -3854,3 +3854,6 @@ Done: scheduler, 162 lines, announcer djMention, director wiring, 30 tests, audi
 
 ### 2026-11-27T00:14:47Z · Nell Barrow (TALK3)
 TALK3 started: new skits for both talk stations (shuffled rotation, owner's new targets), hosts for the live stations, a station-by-station URL check. Notes in docs/swarm/tasks/TALK3.md.
+
+### 2026-11-27T00:20:14Z · Mara Quill (RADIOPAGE)
+Built /radio/ (second hosted entry). Reuses RadioDirector, ScStation widget (visible), LiveStation, Announcer, DJ mentions, WBSY Talk and Group Chat. 17 tests green, audio suite 634 green, tsc clean. Single-file +242 bytes (hook only). Nothing heard. Notes: docs/swarm/tasks/RADIOPAGE.md

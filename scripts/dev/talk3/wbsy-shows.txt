@@ -1,0 +1,271 @@
+# TALK3: new WBSY Talk shows and ads. Source for src/audio/voice/shows/extra-shows.json (scripts/dev/talk3/build.py).
+# "= id | kind | form | title | topics" starts a show; "who: text" is a line (who = a cast id). Directions in square
+# brackets are WBSY's own ([beat], [pause 0.5], [laugh], [sfx buzz] ...): they are performed, never read aloud.
+# "who ~ Real Name: text" marks a parody impression line (parodyOf). No digits: numbers are written as words.
+
+@cast marty | Marty Kessler, Consumer Defender | host | am_adam | 1.06 | host 0.88 1.06 | Consumer advocate who has been on hold since the nineties. Reads fine print like scripture and fees like a list of enemies. | Read the receipt.
+@cast thrum | Dr. Penelope Thrum | guest | bf_isabella | 0.98 | sidekick 1.06 0.96 | Professor of Phone Studies at a college nobody can find. Treats every gadget as an anthropological crisis. | The data is upsetting.
+@cast rico | Rico Valdez, live | host | am_puck | 1.1 | caller 1.02 1.14 | WBSY field reporter who is always live, always outside, and always slightly in the way of a bus. | Rico Valdez, live, back to you.
+@cast vinnie | Vinnie Impressions | guest | bm_george | 0.94 | host 0.74 0.9 | The station impressionist. Does every voice the same way and announces each one first, which is the only way you could tell. | Here is my impression.
+
+= wbsy-billionaire-hour | callin | call-in | The Billionaire Hour | musk, buffett, altman, stocks, crypto, tesla, twitter
+trent: [sfx sting] WBSY Talk. It is {time} on {street}. This is The Billionaire Hour, with Buck Mercer.
+buck: Good {daypart}, Brooklyn! [beat] Today we are talking about the richest men in the world, [breath] and how they are basically just like me, [punch] minus the money.
+boards: And minus the rockets, Buck.
+buck: I have a rocket, Boards. [beat] It is a scooter. [pause 0.4] Line one, you are on the air.
+gus: Buck. Gus. [beat] Think about it. Elon Musk bought Twitter and named it X. [pause 0.5] What else is called X? [beat] The spot on the map. [em] He is hiding something under the internet.
+buck: Gus, that is insane, and I want to hear more.
+gus: He lands rockets on a boat, Buck. [beat] Backwards. [pause 0.4] Who does that? A man with a plan. Or a man who lost the instructions.
+boards: [over] It is called engineering, Gus.
+gus: That is what they want you to call it. [sfx buzz]
+buck: Gus has dropped. [beat] He does that. Line two, Tanya from the laundromat.
+tanya: Buck, I want to talk about Warren Buffett. [beat] The man is one of the richest people on earth, and he lives in the same house in Omaha since the fifties.
+buck: [beat] He never moved?
+tanya: Never moved, Buck. [pause 0.4] I respect that. Every landlord in this neighborhood would have turned that house into nine studios and a wellness room.
+buck: Tanya, what is his secret?
+tanya: He buys good companies and then he waits. [beat] For decades. [punch] I cannot wait for the dryer.
+buck: That is the problem with this country, Boards. Nobody waits. [pause 0.4] I could be rich if I waited.
+boards: Buck, you waited forty minutes for a parking spot yesterday.
+buck: [beat] And it paid off, Boards. [em] Long term investing. Line three, Kiki.
+kiki: Okay, but, like. [beat] Sam Altman. The A I guy. He got fired by his own board, and then he was back within the week.
+buck: Kiki, I have been fired from four radio stations, and none of them called back.
+kiki: That is because you did not make a chatbot, Buck. [beat] If you made a chatbot, they would beg.
+buck: Boards, make a note. [pause 0.4] Buck Mercer chatbot. Never wrong, sometimes loud.
+boards: Nobody would subscribe, Buck.
+kiki: I would subscribe, if it had a mute button.
+buck: [laugh] Everybody wants the mute button. [beat] One more. Kiki, crypto, yes or no?
+kiki: My cousin put his whole birthday money in a coin with a frog on it. [pause 0.4] It is a dollar now. [beat] The frog is still smiling.
+buck: That frog is a businessman, Kiki. [beat] Here is what I learned today. [pause 0.5] The billionaires are not like us. They have rockets, river-cooled computers and the same house for seventy years. [punch] We have the stoop. And the stoop has never lost value.
+boards: The stoop is rented, Buck.
+buck: [beat] Back after the break.
+
+= wbsy-phone-studies | interview | expert interview | Phone Studies with Dr. Penelope Thrum | iphone, android, apple, google, mac, pc, genz
+trent: [sfx sting] WBSY Talk. Block Talk Extra, with Lorraine Static.
+lorraine: Good {daypart}. In the studio, a woman who has studied our phones for twenty years, [beat] and would like us to stop. Doctor Penelope Thrum, Professor of Phone Studies.
+thrum: Thank you, Lorraine. [beat] I want to say first, the data is upsetting.
+lorraine: Start with the big one. iPhone or Android.
+thrum: It is not a phone, Lorraine. It is a tribe. [pause 0.5] The iPhone people speak in blue bubbles. The Android people speak in green bubbles. [beat] They have not shared a group chat peacefully since the bubbles began.
+lorraine: Why does the colour matter?
+thrum: It should not. [beat] But in my research, a man was left out of a birthday party because his text came in green. [pause 0.5] The cake was blue.
+lorraine: What does Apple want, Doctor?
+thrum: Apple wants you to buy a new phone every September that looks like the old phone, [breath] and a new cable for the old charger, [beat] and then a little adapter for the new cable. [punch] It is a cable ecosystem.
+lorraine: And Google?
+thrum: Google wants to know where you are. [beat] Which is fine. Because Google always knows. [pause 0.4] Last week Google asked me to rate a restaurant I only walked past. [beat] It knew I looked at it.
+lorraine: Doctor, Macs or PCs.
+thrum: The Mac person owns one computer and talks about it like a sports car. [beat] The PC person has opened their computer with a screwdriver, [breath] and is proud, [punch] and has one screw left over.
+lorraine: Which are you?
+thrum: I have a Mac at work and a PC at home, [beat] and I do not trust either of them.
+lorraine: Young people. Gen Z. How do they use the phone?
+thrum: They do not call. [pause 0.5] If the phone rings, a Gen Z person puts it face down and waits for it to stop, [beat] like a bear in the woods.
+lorraine: And texting?
+thrum: They text a single letter. K. [beat] That letter can end a friendship. [pause 0.4] A period at the end of a sentence means you are furious.
+lorraine: Doctor, I put a period at the end of every sentence.
+thrum: [beat] Then they think you are furious, Lorraine.
+lorraine: I am furious, Doctor. [beat] It is the rent.
+thrum: [laugh] That is also in the data.
+lorraine: Any advice for our listeners?
+thrum: Put the phone in a drawer for one hour a day. [pause 0.5] It will be fine. [beat] It will miss you. [punch] It will show you an ad about drawers.
+lorraine: Doctor Penelope Thrum, everybody. Next, the weather: {weather}.
+
+= wbsy-defender | callin | consumer desk | The Consumer Defender | streaming, airlines, tickets, tipping, selfcheckout
+trent: [sfx sting] WBSY Talk. The Consumer Defender, with Marty Kessler.
+marty: Hello, Brooklyn. Marty Kessler. [beat] I read the fine print so you do not have to, [breath] and then I yell about it so you do not have to.
+boards: Marty, the phones are lit.
+marty: Of course they are, Boards. Everybody has been charged for something. [pause 0.4] Caller, you are on.
+rosa: Marty, it is Rosa. My streaming went up again. [beat] And now it has ads. [pause 0.4] I am paying to watch ads.
+marty: Rosa, this is the oldest trick there is. [beat] They sold us streaming to get away from cable. [em] Now we have six streaming services, [breath] and together they are cable, but in more apps.
+rosa: And they stopped password sharing. My sister and I have not talked since.
+marty: [beat] They broke up a family, Rosa, to save a few dollars. [pause 0.4] Cancel one a month. Rotate. Make them chase you.
+boards: Next caller, Hakim.
+hakim: Marty, I flew to see my uncle. [beat] The ticket was cheap. Then the bag was money, the seat was money, [breath] the little pillow was money.
+marty: Did they charge you for the window?
+hakim: They charged me for looking at the window, Marty.
+marty: [laugh] One day, Hakim, the seatbelt will be a subscription. [beat] Next!
+dev: Hi! Marty! Dev. [beat] I tried to buy concert tickets. [pause 0.4] It sold out in one minute, [breath] and then the same tickets came back for three times the price, from a man who also does not live here.
+marty: Dev, the ticket has a service fee, a facility fee, [breath] and a convenience fee. [pause 0.5] There is no convenience, Dev. [em] The fee is the convenience. For them.
+dev: Also the coffee shop screen asked me to tip on a muffin I picked up myself.
+marty: The tipping screen! [beat] Boards, cue the music.
+boards: We do not have music, Marty.
+marty: [beat] Then cue the silence. [pause 0.6] Dev, the screen turns around, [breath] the cashier looks at you, [breath] and twenty percent, twenty five, thirty are glowing at you like a slot machine.
+dev: I pressed thirty. [beat] I panicked.
+marty: Everybody panics, Dev. That is the business model. [pause 0.4] Last caller, Mrs. Delacroix.
+delacroix: Marty, the self-checkout at the supermarket told me there was an unexpected item in the bagging area. [beat] It was my purse.
+marty: Mrs. Delacroix, you scanned your own food, bagged your own food, [breath] and the machine accused you of a crime. [punch] You did the job for free and got a warning.
+delacroix: Write that down.
+marty: It is written, Mrs. Delacroix. [beat] Here is today's rule. Read every receipt. Ask for every fee to come off. [pause 0.5] And say the word manager slowly, like you are summoning something.
+boards: That is the Consumer Defender. Back after this.
+
+= wbsy-dear-lorraine | latenight | listener mail | Dear Lorraine, After Dark | men-women, dating, vegans, hipsters, instagram, techno, house
+trent: [sfx sting] WBSY Talk. Dear Lorraine, after dark. It is {time}.
+lorraine: Good evening, night people. [beat] The letters came in, the coffee went cold, [breath] and Boards is pretending not to listen.
+boards: I am working the board, Lorraine.
+lorraine: You are reading over my shoulder, Boards. [pause 0.5] First letter. Dear Lorraine. My boyfriend says he will fix the sink. [beat] He said it in March.
+boards: [beat] It is not March.
+lorraine: No, Boards. It is not March. [pause 0.5] Darling, when a man says he will fix it, it means the sink is now a family heirloom. [beat] Your grandchildren will inherit that drip.
+boards: Lorraine, in fairness, women say I am fine and mean the opposite.
+lorraine: [beat] Boards, that is true, and I am fine. [pause 0.6] Second letter. Dear Lorraine. I am a man. Every woman I date wants to know my plan for five years. [beat] I do not have a plan for Thursday.
+lorraine: Honey, that is your answer. [beat] Make a plan for Thursday. [punch] Then we will talk about five years.
+boards: So both sides lose.
+lorraine: Everybody loses, Boards. That is what makes it romance. [pause 0.5] Next. Rosa from Marcy writes, as always.
+rosa: Dear Lorraine. I matched with a man on a dating app. [beat] His pictures were all from Instagram. In every one, he is holding a fish.
+lorraine: Rosa, the fish is a test. [beat] A man with a fish wants you to know he can wait in silence for hours. [pause 0.4] That is not a hobby. [em] That is a warning.
+rosa: He took me to brunch and photographed the eggs for twenty minutes.
+lorraine: The eggs got the date, Rosa. [beat] You were the plus one.
+boards: Next letter. Dear Lorraine, my new roommate is vegan, and she tells me about it before I have had breakfast.
+lorraine: Here is the deal. [beat] The vegans can tell us about the cows, [breath] and we can tell them about the barbecue, [punch] and everybody eats at the same table and keeps it short.
+boards: That is diplomacy, Lorraine.
+lorraine: That is Thanksgiving, Boards. [pause 0.6] Last letter. Dear Lorraine. A young man with a mustache, a vest and a tiny hat opened a store on my block. [beat] It sells one candle.
+boards: Is it a hipster?
+lorraine: Baby, it is a hipster, and it is lovely. [beat] He will play you a record you never heard of, [breath] and then tell you he liked it before it was a record.
+boards: He also goes to the techno parties under the bridge.
+lorraine: Everybody goes to the techno parties, Boards. [beat] They wear black, they do not smile, [breath] and at six in the morning they hug the house music people, [punch] who smile too much. [pause 0.4] Balance.
+lorraine: That is the mail. [beat] Write in. Lorraine Static, the only show where the weather report is also a rumor.
+
+= wbsy-stoop-quiz | callin | quiz | The Stoop Quiz | genz, genx, facebook, instagram, whatsapp, twitter, underground
+trent: [sfx sting] WBSY Talk. It is time for the Stoop Quiz, with Buck Mercer.
+buck: Good {daypart}, Brooklyn! [beat] Two contestants, two generations, [breath] one prize: [punch] a folding chair.
+boards: The chair is ours, Buck. Please bring it back.
+buck: In the red corner, Kiki, [beat] Gen Z.
+kiki: Okay, but, like, hi.
+buck: In the blue corner, Gerald Pemberton, [beat] Gen X, small businessman.
+gerald: Several buildings. [beat] Small business.
+buck: Question one. [pause 0.4] What is Facebook for?
+gerald: Birthday messages from people I have not seen since high school, [breath] and selling a couch.
+kiki: Facebook is where my aunt posts a minion with a sentence about Mondays.
+buck: [beat] Both correct! [sfx cash] Question two. Instagram. [pause 0.4] What do you post?
+kiki: My food. My outfit. A photo of a sunset where I am not looking at the sunset.
+gerald: The outside of my buildings. [beat] Never the inside.
+boards: [over] Never the inside, Gerald.
+buck: Question three. WhatsApp. [pause 0.4] What is in your family chat?
+gerald: Forty cousins, two uncles, and a good morning picture with a rose, every single day, at five in the morning.
+kiki: A voice note from my grandmother. [beat] It is eleven minutes long. [pause 0.4] The first nine minutes are her trying to find the button.
+buck: [laugh] Correct, both! Question four. [beat] Twitter.
+kiki: You mean X?
+gerald: Nobody calls it X.
+kiki: [beat] Okay, that is the one thing Gen X and Gen Z agree on.
+buck: History, Boards! [pause 0.5] Question five, the tie breaker. [beat] Kiki, what did Gen X do for fun?
+kiki: Um. [beat] Waited by a phone that was attached to a wall?
+gerald: We rode bikes until it was dark and nobody knew where we were. [beat] It was wonderful. [pause 0.4] It was also very dangerous.
+buck: Gerald, what does Gen Z do for fun?
+gerald: [beat] They film themselves doing a dance in a kitchen, [breath] and then do it again, [breath] and then again, [punch] because the first one had bad lighting.
+kiki: That is called content, Gerald.
+buck: Bonus question! [pause 0.4] The underground warehouse party. Where is it?
+kiki: It is a secret. [beat] They text you the address at midnight.
+gerald: I own the warehouse.
+boards: [over] Gerald!
+buck: Gerald wins the chair, [beat] and a visit from the fire marshal. [sfx buzz] Back after the break.
+
+= wbsy-field-desk | news | field report | Rico Valdez, Live | congestion, fare, subway, ebikes, delivery, office, rent, landmarks, weather
+dana: [sfx sting] WBSY News. I am Dana Okafor. [beat] We go live to Rico Valdez, who is outside, as always. Rico?
+rico: Dana! Rico Valdez, live, [breath] at the turnstiles, where a man is trying to pay the fare with his face.
+dana: With his face, Rico?
+rico: The machine takes your phone, your card, your watch. [beat] He thinks it should take his face. [pause 0.4] He is leaning very close. [em] It is not working.
+dana: Rico, the fare went up again.
+rico: It did, Dana. [beat] People are upset. [pause 0.4] But a woman here told me the train is still the best deal in the city, [breath] because where else can you get a concert, a sermon and a man selling churros, for one ride.
+dana: And congestion pricing?
+rico: Driving into lower Manhattan costs money now, Dana. [beat] I asked a driver what he thinks. He said he hates it. [pause 0.4] Then he said the traffic is better. [beat] Then he said he still hates it. [punch] A true New Yorker.
+dana: Rico, watch your back.
+rico: I am watching, Dana. [beat] Delivery bikes everywhere. [pause 0.4] One just went by with four bags, a pizza on the handlebars and a man's soup in a bag around his wrist. [breath] He waved. [beat] He was also on the phone.
+dana: The apps promise thirty minutes.
+rico: The food comes in thirty minutes, Dana. [beat] The man who brings it has been on the road since sunrise, [breath] so tip him like you mean it.
+dana: Where are you headed now?
+rico: Back to the office, Dana. [beat] My company says we all have to return.
+dana: And what is at the office?
+rico: A plant. [pause 0.4] A man named Craig who microwaves fish. [beat] And a meeting about why we should be in the office, [punch] which could have been an email.
+dana: And the rent, Rico?
+rico: I walked by a one bedroom on Gates. [beat] The broker wants a fee for showing me the door. [pause 0.4] The door was a curtain.
+dana: Any landmarks today?
+rico: Tourists at the Lady Verdigris, Dana, [breath] taking pictures of the green lady, [beat] and a pigeon taking pictures of the tourists.
+dana: And the weather?
+rico: [beat] It is {weather}, Dana. I am in it. [pause 0.4] I am always in it.
+dana: Rico Valdez, live. [beat] That is the news. Lock your doors, hug your neighbours.
+
+= wbsy-tech-tuesday | interview | two-host argument | Pivot Hour: Robots, Trucks and Capes | tesla, openai, ai, marvel, kanye, apple
+trent: [sfx sting] WBSY Talk. Pivot Hour. Two hosts, [beat] no agreement.
+declan: Juniper, I want to talk about the future. [beat] Self-driving cars.
+juniper: Declan, let that land. [pause 0.6] And then let it go.
+declan: The Tesla is a computer with wheels. [beat] It updates overnight. [pause 0.4] It is a car that gets better while you sleep.
+juniper: My car is a bicycle, Declan. [beat] It gets better when I fill the tires.
+declan: And the Cybertruck! A truck made of stainless steel! [breath] You cannot dent it.
+juniper: It looks like a fridge that went to law school, Declan.
+declan: [beat] That is a feature, not a bug.
+juniper: And they keep saying it will drive itself next year. [pause 0.5] They have been saying next year for a lot of years. [beat] Next year is a long time.
+declan: Okay. Open A I. You can talk to a computer, and it answers.
+juniper: I talk to my plants, Declan. [beat] They do not answer, [breath] but they do not charge a monthly fee.
+declan: The chatbot wrote my wedding speech.
+juniper: I was at your wedding. [pause 0.4] The speech thanked the guests for their engagement metrics.
+declan: [beat] People were engaged, Juniper.
+juniper: Declan, your uncle cried. [pause 0.4] Not because it was moving. [em] Because it was eleven minutes long.
+declan: Let us pivot. [beat] Marvel movies.
+juniper: Oh, hold space for me. [pause 0.5] There are so many. I have to watch nine films and two shows to understand why a man is sad about a hammer.
+declan: That is the multiverse, Juniper. Every version of the story exists.
+juniper: Then somewhere there is a version where it is ninety minutes long. [beat] I want to live there.
+declan: And you have to stay for the scene after the credits.
+juniper: I stayed. [pause 0.4] The scene was a man eating a sandwich, [breath] promising another movie. [beat] The cleaners asked me to leave.
+declan: Final pivot. [beat] Fashion. The sneaker resale market.
+juniper: You mean the shoes from Kanye, [beat] who now goes by Ye.
+declan: Two letters. [beat] Very efficient. Very lean. I respect the rebrand.
+juniper: The shoes cost as much as rent, Declan. [pause 0.4] You cannot live in a shoe. [beat] I asked.
+declan: Some people live in a shoe, Juniper. [beat] It is a nursery rhyme.
+juniper: It is a warning, Declan. [pause 0.5] Let that land.
+declan: [beat] Pivot Hour. [breath] We will iterate on this after the break.
+
+= wbsy-world-briefly | news | news desk | The World, Briefly | putin, sheen, trump, mamdani, weather, stocks
+dana: [sfx sting] WBSY News. The World, Briefly. I am Dana Okafor, [beat] and I will be brief, because the world is not.
+dana: Abroad. [pause 0.4] Vladimir Putin appeared again at the far end of a very long table. [beat] Our studio table is two feet long. [punch] We sit very close. We do not like it.
+boards: In fairness, Dana, he also has the horse photos.
+dana: [beat] Yes, Boards. The famous photographs on a horse, with no shirt. [pause 0.4] Our weatherman has asked to do the forecast that way. [em] Request denied.
+dana: In television. [beat] A rerun of a Charlie Sheen sitcom is playing right now, on some channel, somewhere. [pause 0.4] Scientists cannot find a moment in the last twenty years when one was not.
+boards: The reruns are a natural resource, Dana.
+dana: They are, Boards. [beat] Like wind, or tides, or the man on Throop who is always washing his car.
+dana: In politics. [pause 0.4] The president signed something with a very large marker. [beat] Our producer has the same marker. [punch] He uses it to label his lunch.
+boards: Nobody touches the lunch, Dana.
+dana: City Hall. [beat] The mayor still wants free buses. [pause 0.4] A caller from Macon blames this for the price of eggs. [breath] A caller from Lewis credits it for her new knee. [beat] Neither is how buses work.
+dana: Markets. [pause 0.4] Stocks went up after a company said A I on a phone call, [breath] and down after another company said it with less confidence.
+dana: Weather. [beat] It is {weather}, [breath] and our weather desk is taking it personally.
+dana: That is the world, briefly. [beat] Lock your doors, hug your neighbours.
+
+= wbsy-stoop-wisdom | interview | impression | Stoop Wisdom, With an Impression | buffett-impression, stocks, crypto, rent
+lorraine: Now, a WBSY bit. Our station impressionist, Vinnie Impressions, does his impression of Warren Buffett. [beat] Not the real one, obviously. Vinnie has never been to Nebraska.
+vinnie: Here is my impression. [pause 0.4] Ahem.
+vinnie ~ Warren Buffett: Well now. [beat] Pull up a stoop. [breath] Here in Bed-Stuy, I like to buy a good bodega and hold it forever.
+lorraine: Vinnie, you cannot buy a bodega forever.
+vinnie ~ Warren Buffett: You can if you never stop buying the chopped cheese, Lorraine. [beat] That is called a moat. [pause 0.4] The moat is the line out the door.
+lorraine: What about crypto, Mister Impression?
+vinnie ~ Warren Buffett: Well, a coin with a frog on it is not a business. [beat] A frog is not a business. [punch] A frog is a frog.
+lorraine: And the rent?
+vinnie ~ Warren Buffett: I have lived in the same apartment for many, many years. [pause 0.4] The secret is to never call the landlord. [beat] If he does not hear from you, he forgets the lease exists.
+lorraine: That is not investing advice, Vinnie.
+vinnie ~ Warren Buffett: No, Lorraine. [beat] It is stoop advice. Stoop advice has a much better return.
+vinnie: [beat] And that was my impression.
+lorraine: That was Vinnie Impressions doing his impression of Warren Buffett. [pause 0.4] Not the real one, obviously. The real one has a better accent and a lot more bodegas.
+
+= ad-x-moon | ad | ad | Premium Moon | musk, twitter
+trent: Introducing Premium Moon. [beat] Get the blue check on your night sky.
+noelle: Verified tides. Priority eclipses. [pause 0.4] Fewer ads in the craters.
+trent: Premium Moon. [beat] Not affiliated with any rocket man. [punch] The moon did not agree to this.
+
+= ad-open-door | ad | ad | Open Door Locksmiths | openai, ai
+noelle: Open Door Locksmiths. [beat] We are called Open, [breath] and we never open anything.
+trent: Our robot locksmith will explain, in a calm voice, why your door is closed. [pause 0.4] For a monthly fee.
+noelle: Open Door. [beat] Unrelated to Open A I, [punch] which we also cannot open.
+
+= ad-cable-family | ad | ad | Cable Family Reunion Kits | apple, iphone, android
+trent: Is your family divided by charger cables? [pause 0.4] Reunite them, with the Cable Family Reunion Kit.
+noelle: Forty seven adapters, [breath] one for every phone your uncle has ever owned. [beat] Including the one that folded.
+trent: Cable Family. [beat] Nobody leaves the cookout at four percent.
+
+= ad-patience | ad | ad | Patience Lessons with Mister Oak | buffett, stocks
+noelle: Want to be rich like the old man in Omaha? [beat] Learn patience, with Mister Oak.
+trent: Mister Oak is a tree. [pause 0.4] He has been sitting in the same spot for eighty years. [breath] He has never once checked the market.
+noelle: Mister Oak. Not affiliated with Warren Buffett, [beat] or with anybody. He is a tree.
+
+= ad-phase-forty | ad | ad | Phase Forty Recliners | marvel
+trent: Phase Forty Recliners. [beat] Built for superhero movies that never end.
+noelle: Heated seat. Snack drawer. [pause 0.4] A little button that tells you which movie this is.
+trent: Phase Forty. [beat] Marvel did not make this chair. [punch] It is only here for the scene after the credits.
+
+= ad-nerve-pass | ad | ad | Nerve Pass Return to Office | office
+noelle: Back to the office? [beat] Try Nerve Pass.
+trent: A recording of your living room, played at your desk, [breath] so you feel home while your boss feels heard.
+noelle: Nerve Pass. [beat] Includes the sound of your own couch.
