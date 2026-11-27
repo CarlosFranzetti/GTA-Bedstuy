@@ -49,6 +49,7 @@ try {
   const pick = (t) => nearby.find((c) => c.type === t);
   const chosen = wantTypes.map(pick).filter(Boolean);
   if (chosen.length < 3) for (const c of [nearby[0], nearby[Math.floor(nearby.length / 2)], nearby[nearby.length - 1]]) if (c && !chosen.includes(c)) chosen.push(c);
+  chosen.splice(Number(arg('maxcars', 2))); // a car or two: every case is 170 frames of the whole game's step
   report.chosen = chosen.map((c) => `${c.type} ${c.len}m`);
   const cases = [];
   for (const c of chosen) for (const style of ['classic', 'modern']) for (const approach of ['driver', 'passenger', 'behind']) cases.push({ car: c, style, approach });
@@ -77,7 +78,7 @@ try {
       return { lens: [p.x, p.y, p.z], cut: !!d.cam.snappedThisFrame, inVehicle: !!d.player.vehicle, entering: !!d.player.isEntering, camVeh: d.player.camVehicle ? true : null, body: [d.player.body.pos.x, d.player.body.pos.z], car: c, url };
     }, { render });
     await page.evaluate((id) => { window.__ceCar = id; }, cs.car.id);
-    const step = async (n, phase) => { for (let i = 0; i < n; i++) { const idx = frames.length; const render = pics && !noFrames && (phase === 'enter' || phase === 'exit') && i < 36 && i % 3 === 0; // every 3rd frame for the first 0.6 s after each press const f = await grab(phase, render); f.phase = phase; f.idx = idx; frames.push(f); if (f.url) shots.push({ idx, phase, url: f.url }); delete f.url; } };
+    const step = async (n, phase) => { for (let i = 0; i < n; i++) { const idx = frames.length; const render = pics && !noFrames && (phase === 'enter' || phase === 'exit') && i < 36 && i % 3 === 0; /* every 3rd frame for the first 0.6 s after each press */  const f = await grab(phase, render); f.phase = phase; f.idx = idx; frames.push(f); if (f.url) shots.push({ idx, phase, url: f.url }); delete f.url; } };
     await step(6, 'pre');
     await page.keyboard.press('KeyF'); await step(75, 'enter');
     await step(25, 'drive');

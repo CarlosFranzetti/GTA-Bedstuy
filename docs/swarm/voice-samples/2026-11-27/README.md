@@ -79,7 +79,7 @@ Nothing here needs a key or an account. Everything ran locally; the only outboun
 | blend | 9 | -17.0 | -2.3 | 4291.7 | 3.9 | 3.5 | 2.8 | 3.2 | 1.19 | 0.29 to 0.62 |
 | piper | 9 | -17.3 | -2.8 | 2427.1 | 1.8 | 3.5 | 0 | 4.1 | 0.83 | 0.10 to 0.19 |
 | parler | 3 | -17.2 | -3.2 | 851.7 | 0.2 | 4.2 | 0 | 2.6 | 1.09 | 30.66 to 48.24 |
-| chatterbox | 8 | -16.7 | -2.9 | 2595.8 | 1.3 | 4.8 | 1.2 | 3.8 | 0.94 | 11.08 to 70.89 |
+| chatterbox | 9 | -16.7 | -2.9 | 2614.7 | 1.2 | 4.9 | 1.7 | 3.8 | 0.93 | 11.08 to 71.29 |
 
 Reading it plainly: `studio` and `blend` carry more top end than the dry `current`; `piper` has no inner pauses at all (pause structure comes from the game's gaps instead); `parler` is dull above 1 kHz in this sample (rolloff95 about 850 Hz) and slow; `chatterbox` has the widest pitch movement. These are signal numbers, not quality. A wider pitch range can sound lively or unstable; only listening tells.
 
@@ -96,7 +96,7 @@ Format and bit rate decide size, not the model: 48 kbit/s mono is 6,000 bytes pe
 
 ## Not verified, plainly
 
-Nothing was heard. Voice choices for Piper were made by measured pitch, not by listening. No in-game test, no browser run of any option, no phone. Parler has only line a; Chatterbox line c for Mr. Abernathy may be missing (see index). Compute figures come from a shared 4-core box under load from other work, so they vary by 2 to 5 times. Licences are from Hugging Face metadata and Piper model cards read through the Hub tools; I did not read the full text of any licence.
+Nothing was heard. Voice choices for Piper were made by measured pitch, not by listening. No in-game test, no browser run of any option, no phone. Parler has only line a; Compute figures come from a shared 4-core box under load from other work, so they vary by 2 to 5 times. Licences are from Hugging Face metadata and Piper model cards read through the Hub tools; I did not read the full text of any licence.
 
 ## Files
 
