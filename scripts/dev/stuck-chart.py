@@ -33,6 +33,6 @@ html = f'<!doctype html><meta charset=utf-8><style>{css}</style><h1>STUCK soak: 
 for actor in ('car',):
     for m in ('grid', 'real'):
         for tag, name in (('before', 'before'), ('after', 'after')):
-            html += panel(bdir if tag == 'before' else adir, tag, m, f'{m} map, cars, {name}')
+            html += panel(bdir if tag == 'before' else adir, tag, m, f'{m} map, cars and walkers, {name}')
 html += '</div>'
 open(out, 'w').write(html)

@@ -411,11 +411,7 @@ export class World2D implements IWorld2D {
           const x = x0 + Math.cos(a) * r, z = z0 + Math.sin(a) * r, h = h0 + dh;
           b.pos.x = x; b.pos.z = z; b.heading = h;
           if (this.deepestOverlap(b).depth > 0) continue;
-          let clear = true;
-          for (let k = 1; k <= 4 && clear; k++) {
-            b.pos.x = x0 + (x - x0) * k / 5; b.pos.z = z0 + (z - z0) * k / 5; b.heading = h0 + dh * k / 5;
-            if (this.deepestOverlap(b, true).depth > Math.max(0.1, startDepth + 0.05)) clear = false;
-          }
+          const clear = this.pathClear(b, x0, z0, h0, x, z, h, Math.max(0.1, startDepth + 0.05));
           if (clear) { found = { x, z, h }; break; }
         }
       }
@@ -437,27 +433,48 @@ export class World2D implements IWorld2D {
     if (g.left <= 1e-6) e.glide = null;
   }
 
-  /** Nearest free spot, rings outward, starting on the side away from what it overlaps. The body keeps its heading and loses its velocity. */
+  /** True when `b`, moved in 4 steps from (x0, z0, h0) to its current pose (x, z, h), never overlaps a static by more than `tol`. */
+  private pathClear(b: Body2D, x0: number, z0: number, h0: number, x: number, z: number, h: number, tol: number): boolean {
+    for (let k = 1; k <= 4; k++) {
+      b.pos.x = x0 + (x - x0) * k / 5; b.pos.z = z0 + (z - z0) * k / 5; b.heading = h0 + (h - h0) * k / 5;
+      if (this.deepestOverlap(b, true).depth > tol) return false;
+    }
+    b.pos.x = x; b.pos.z = z; b.heading = h;
+    return true;
+  }
+
+  /**
+   * Nearest free spot, rings outward, starting on the side away from what it overlaps. The body keeps its heading and loses its velocity.
+   * First pass: only spots reachable without crossing a wall (a thin wall must not be the nearest way out); second pass (a body that is
+   * wholly inside something, e.g. teleported there): the nearest free spot at all. A car overlapping a person leaves it to the person.
+   */
   private rescue(e: Entry, other: Body2D | null): void {
     const b = e.body;
-    const x0 = b.pos.x, z0 = b.pos.z;
+    const x0 = b.pos.x, z0 = b.pos.z, h0 = b.heading;
     const car = b.kind === 'vehicle' || b.kind === 'cop';
+    if (car && other && (other.kind === 'ped' || other.kind === 'player')) return;
+    const startDepth = this.deepestOverlap(b, true).depth;
     const away = other ? Math.atan2(z0 - other.pos.z, x0 - other.pos.x) : 0;
     const maxR = car ? 8 : 4, step = car ? 0.4 : 0.25, n = 24;
-    for (let r = step; r <= maxR + 1e-6; r += step) {
-      for (let i = 0; i < n; i++) {
-        const a = away + (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * (2 * Math.PI / n);
-        b.pos.x = x0 + Math.cos(a) * r; b.pos.z = z0 + Math.sin(a) * r;
-        if (this.deepestOverlap(b).depth > 0) continue;
-        b.vel.x = 0; b.vel.z = 0;
-        e.calm = 0; e.sx = b.pos.x; e.sz = b.pos.z;
-        this.dynHash.update(e, b.pos.x - e.r, b.pos.z - e.r, b.pos.x + e.r, b.pos.z + e.r);
-        this.rescues++;
-        this.onRescue?.(b, x0, z0);
-        return;
+    for (let pass = 0; pass < 2; pass++) {
+      for (let r = step; r <= maxR + 1e-6; r += step) {
+        for (let i = 0; i < n; i++) {
+          const a = away + (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * (2 * Math.PI / n);
+          b.pos.x = x0 + Math.cos(a) * r; b.pos.z = z0 + Math.sin(a) * r; b.heading = h0;
+          if (this.deepestOverlap(b).depth > 0) continue;
+          const x = b.pos.x, z = b.pos.z;
+          if (pass === 0 && !this.pathClear(b, x0, z0, h0, x, z, h0, Math.max(0.1, startDepth + 0.05))) continue;
+          b.pos.x = x; b.pos.z = z; b.heading = h0;
+          b.vel.x = 0; b.vel.z = 0;
+          e.calm = 0; e.sx = b.pos.x; e.sz = b.pos.z;
+          this.dynHash.update(e, b.pos.x - e.r, b.pos.z - e.r, b.pos.x + e.r, b.pos.z + e.r);
+          this.rescues++;
+          this.onRescue?.(b, x0, z0);
+          return;
+        }
       }
     }
-    b.pos.x = x0; b.pos.z = z0;
+    b.pos.x = x0; b.pos.z = z0; b.heading = h0;
   }
 
   private processDynamic(e: Entry, dt: number): void {

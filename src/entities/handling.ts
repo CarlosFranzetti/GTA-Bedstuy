@@ -159,7 +159,7 @@ const ANALOG_FOLLOW_STICK = 11;
 const BRAKE_YAW_FRAC = 0.8;
 const BRAKE_YAW_FROM = 0.25;
 /** The knobs above that a feel comparison changes (tests/unit/sim/stuck-controls-lib.ts reads and sets them); the defaults are what ships. */
-export const FEEL = { steerRate: 5.6, stickFollow: ANALOG_FOLLOW_STICK, brakeYawFrac: BRAKE_YAW_FRAC };
+export const FEEL = { steerRate: STEER_RATE, stickFollow: ANALOG_FOLLOW_STICK, brakeYawFrac: BRAKE_YAW_FRAC };
 const LOW_YAW_CAP = 0.5;
 const HIGH_YAW_CAP = 1.0;
 const LOW_YAW_SPEED = 4;

@@ -32,9 +32,8 @@ export function miscChecks(w: SoakWorld, seed: number, n = 150): MiscReport {
     let passed = false;
     for (let t = 0; t < 4 && !passed; t += DT) {
       car.setInput(input({ throttle: 1 })); sim.step(DT);
+      // tunnelled = the body is more than a metre inside something static (a car going round the end of a short wall is not tunnelling)
       if (w.physics.deepestOverlap(car.body, true).depth > 1.0) passed = true;
-      // far side of the anchor's wall line, beyond the car's own half length
-      if ((car.body.pos.x - a.x) * a.nx + (car.body.pos.z - a.z) * a.nz < -3.5) passed = true;
     }
     rep.tunnelTrials++;
     if (passed) { rep.tunnelled++; if (rep.tunnelCases.length < 8) rep.tunnelCases.push(`${a.id} v${v0} ang${Math.round(ang * 57.3)} at ${a.x.toFixed(0)},${a.z.toFixed(0)}`); }
@@ -50,9 +49,13 @@ export function miscChecks(w: SoakWorld, seed: number, n = 150): MiscReport {
     const cars = [] as ReturnType<typeof makeVehicle>[];
     const h = Math.atan2(side.x, -side.z);
     const cx = a.x + a.nx * (1 + gap), cz = a.z + a.nz * (1 + gap);
-    const slack = rng.range(-0.3, 0.4);
+    const slack = rng.range(-0.05, 0.3);
+    let off = 0, prevHl = 0;
     for (let k = 0; k < 3; k++) {
-      const c = makeVehicle(rng.pick(TYPES), cx + side.x * k * (4.7 + slack), cz + side.z * k * (4.7 + slack), h, ev, `jt${i}-${k}`);
+      const type = rng.pick(TYPES);
+      const hl = makeVehicle(type, 0, 0, 0, ev, `jt-probe`).spec.length / 2;
+      off += k === 0 ? 0 : prevHl + hl + slack; prevHl = hl;
+      const c = makeVehicle(type, cx + side.x * off, cz + side.z * off, h, ev, `jt${i}-${k}`);
       c.driver = null;
       if (w.physics.deepestOverlap(c.body, true).depth > 0.0) continue;
       sim.add(c); cars.push(c);
