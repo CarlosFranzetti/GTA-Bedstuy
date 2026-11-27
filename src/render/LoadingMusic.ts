@@ -12,6 +12,7 @@
  * start() quietly does nothing. The theme is imported lazily, so it never delays the first paint.
  */
 import { storedMusicGain } from '@/audio/Mixer';
+import { makeMusicContext } from '@/audio/ambient/context';
 
 export interface ThemeApi {
   start(): void;
@@ -49,7 +50,7 @@ function defaultContext(): AudioContext | null {
   try {
     const w = globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
     const Ctor = w.AudioContext ?? w.webkitAudioContext;
-    return Ctor ? new Ctor() : null;
+    return Ctor ? makeMusicContext(Ctor) : null;
   } catch { return null; }
 }
 

@@ -5,14 +5,14 @@
   "freq": "ninety point nine"
  },
  {
+  "id": "hiphop",
+  "name": "Stoop Hip Hop Radio",
+  "freq": "ninety three point five"
+ },
+ {
   "id": "dublab",
   "name": "Dekmantel Podcast",
   "freq": "ninety one point seven"
- },
- {
-  "id": "stoop",
-  "name": "Universal Hip Hop Radio",
-  "freq": "ninety three point five"
  },
  {
   "id": "boogie",

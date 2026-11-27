@@ -245,6 +245,8 @@ export interface Body2D {
   height?: number;
   /** a person who is knocked down and flying: vehicles pass over the body instead of ploughing it along (set by Pedestrian / Player) */
   vehiclePass?: boolean;
+  /** a car a person is steering with the throttle held (signed, -1..1; 0 or absent otherwise): World2D frees it when it is wedged (see World2D `RELIEF_AFTER`) */
+  driveIn?: number;
 }
 
 export interface Contact {

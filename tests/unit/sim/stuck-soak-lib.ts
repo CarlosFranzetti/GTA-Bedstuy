@@ -42,7 +42,7 @@ export interface TrialResult {
   pinned: boolean; hard: boolean; freedBy: string; overlap: boolean; tunnel: boolean;
   maxDepth: number; bodies: string[]; pinX: number; pinZ: number; note: string;
   /** reproduce this trial alone with `replayTrial(world, actor, tseed, index)` */
-  tseed: number; index: number; rescues: number;
+  tseed: number; index: number; rescues: number; reliefs: number; ovRun: number;
   /** for hard and overlap cases: the body and the statics within 5 m, for offline drawing */
   snap?: { body: { x: number; z: number; h: number; hw: number; hl: number; r: number }; near: Array<{ id: string; kind: string; pts?: number[][]; r?: number; x?: number; z?: number }>; vel: number[]; spec?: Record<string, unknown> };
 }
@@ -169,12 +169,12 @@ function snapOf(w: SoakWorld, body: import('@/world/types').Body2D): NonNullable
 }
 
 class OverlapWatch {
-  run = 0; max = 0; hit = false; who = new Set<string>();
+  run = 0; max = 0; hit = false; maxRun = 0; who = new Set<string>();
   constructor(private w: SoakWorld) {}
   check(body: import('@/world/types').Body2D, dt: number): void {
     const o = this.w.physics.deepestOverlap(body);
     if (o.depth > this.max) this.max = o.depth;
-    if (o.depth > OVERLAP_DEPTH) { this.run += dt; if (this.run >= OVERLAP_HOLD && o.other) { this.hit = true; this.who.add(cleanId(o.other.id)); } } else this.run = 0;
+    if (o.depth > OVERLAP_DEPTH) { this.run += dt; if (this.run > this.maxRun) this.maxRun = this.run; if (this.run >= OVERLAP_HOLD && o.other) { this.hit = true; this.who.add(cleanId(o.other.id)); } } else this.run = 0;
   }
 }
 
@@ -214,9 +214,9 @@ export function carTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceM
   const vdir = forwardFromHeading(heading);
   car.body.vel.x = vdir.x * v0 * (mode === 'rev' ? 0.3 : 1); car.body.vel.z = vdir.z * v0 * (mode === 'rev' ? 0.3 : 1);
 
-  const res: TrialResult = { map: w.name, actor: 'car', kind: `${a.kind}/${mode}`, type, seed, x, z, anchor: cleanId(a.id), pinned: false, hard: false, freedBy: '', overlap: false, tunnel: false, maxDepth: 0, bodies: [], pinX: 0, pinZ: 0, tseed: 0, index: seed, rescues: 0, note: `d${d.toFixed(1)} ang${Math.round(ang * 57.3)} v${v0} park${added.length - 1}` };
+  const res: TrialResult = { map: w.name, actor: 'car', kind: `${a.kind}/${mode}`, type, seed, x, z, anchor: cleanId(a.id), pinned: false, hard: false, freedBy: '', overlap: false, tunnel: false, maxDepth: 0, bodies: [], pinX: 0, pinZ: 0, tseed: 0, index: seed, rescues: 0, reliefs: 0, ovRun: 0, note: `d${d.toFixed(1)} ang${Math.round(ang * 57.3)} v${v0} park${added.length - 1}` };
   const watch = new OverlapWatch(w);
-  const rescues0 = w.physics.rescues;
+  const rescues0 = w.physics.rescues, reliefs0 = w.physics.reliefs;
   const hist: Array<{ x: number; z: number; thr: number }> = [];
   let weaveSteer = 1, weaveT = 0;
   const drive = (t: number): { thr: number; steer: number } => {
@@ -261,7 +261,7 @@ export function carTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, forceM
     }
     if (!Number.isFinite(car.body.pos.x)) { res.note += ' NaN'; break; }
   }
-  res.rescues = w.physics.rescues - rescues0;
+  res.rescues = w.physics.rescues - rescues0; res.reliefs = w.physics.reliefs - reliefs0; res.ovRun = watch.maxRun;
   res.overlap = watch.hit; if (watch.hit) for (const b of watch.who) if (!res.bodies.includes(b)) res.bodies.push(b);
   res.maxDepth = Math.max(res.maxDepth, watch.max);
   if (res.hard || res.overlap) { res.snap = snapOf(w, car.body); res.snap.spec = { x, z, heading, type, v0, mode, ang, d, parks: added.slice(1).map((v) => ({ x: v.body.pos.x, z: v.body.pos.z, h: v.body.heading, type: v.spec.type })) }; }
@@ -327,9 +327,9 @@ export function walkerTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, for
     dir = { x: 0, z: 0 };
   }
   if (w.physics.deepestOverlap(player.body).depth > 0.02) { for (const id of added) w.physics.removeBody(id); return null; }
-  const res: TrialResult = { map: w.name, actor: 'walker', kind: `${a.kind}/${mode}`, type: 'player', seed, x, z, anchor: cleanId(a.id), pinned: false, hard: false, freedBy: '', overlap: false, tunnel: false, maxDepth: 0, bodies: [], pinX: 0, pinZ: 0, tseed: 0, index: seed, rescues: 0, note };
+  const res: TrialResult = { map: w.name, actor: 'walker', kind: `${a.kind}/${mode}`, type: 'player', seed, x, z, anchor: cleanId(a.id), pinned: false, hard: false, freedBy: '', overlap: false, tunnel: false, maxDepth: 0, bodies: [], pinX: 0, pinZ: 0, tseed: 0, index: seed, rescues: 0, reliefs: 0, ovRun: 0, note };
   const watch = new OverlapWatch(w);
-  const rescues0 = w.physics.rescues;
+  const rescues0 = w.physics.rescues, reliefs0 = w.physics.reliefs;
   const run = mode === 'run' || rng.chance(0.3);
   const hist: Array<{ x: number; z: number }> = [];
   let escape: { idx: number; t: number; x0: number; z0: number } | null = null;
@@ -368,7 +368,7 @@ export function walkerTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, for
     }
     if (!Number.isFinite(player.body.pos.x)) { res.note += ' NaN'; break; }
   }
-  res.rescues = w.physics.rescues - rescues0;
+  res.rescues = w.physics.rescues - rescues0; res.reliefs = w.physics.reliefs - reliefs0; res.ovRun = watch.maxRun;
   res.overlap = watch.hit; if (watch.hit) for (const b of watch.who) if (!res.bodies.includes(b)) res.bodies.push(b);
   res.maxDepth = Math.max(res.maxDepth, watch.max);
   if (res.hard || res.overlap) res.snap = snapOf(w, player.body);
@@ -376,10 +376,10 @@ export function walkerTrial(w: SoakWorld, rng: Rng, seed: number, a: Anchor, for
   return res;
 }
 
-export interface Summary { map: MapName; actor: string; trials: number; pinned: number; hard: number; overlap: number; tunnel: number; byKind: Record<string, { n: number; pinned: number; hard: number; overlap: number }>; hardCases: TrialResult[]; overlapCases: TrialResult[]; }
+export interface Summary { map: MapName; actor: string; episodes: number; trials: number; pinned: number; hard: number; overlap: number; tunnel: number; byKind: Record<string, { n: number; pinned: number; hard: number; overlap: number }>; hardCases: TrialResult[]; overlapCases: TrialResult[]; }
 
 export function summarize(rs: TrialResult[], map: MapName, actor: string): Summary {
-  const s: Summary = { map, actor, trials: 0, pinned: 0, hard: 0, overlap: 0, tunnel: 0, byKind: {}, hardCases: [], overlapCases: [] };
+  const s: Summary = { map, actor, episodes: 0, trials: 0, pinned: 0, hard: 0, overlap: 0, tunnel: 0, byKind: {}, hardCases: [], overlapCases: [] };
   for (const r of rs) {
     if (r.map !== map || r.actor !== actor) continue;
     s.trials++;
@@ -387,7 +387,8 @@ export function summarize(rs: TrialResult[], map: MapName, actor: string): Summa
     k.n++;
     if (r.pinned) { s.pinned++; k.pinned++; }
     if (r.hard) { s.hard++; k.hard++; s.hardCases.push(r); }
-    if (r.overlap) { s.overlap++; k.overlap++; s.overlapCases.push(r); }
+    if (r.ovRun >= OVERLAP_HOLD + 0.25) { s.overlap++; k.overlap++; s.overlapCases.push(r); }
+    if (r.overlap) s.episodes++;
     if (r.tunnel) s.tunnel++;
   }
   return s;

@@ -28,6 +28,7 @@ import { PedVoicePlayer } from './voice/peds/PedVoicePlayer';
 import { CityBed } from './ambient/CityBed';
 import { NOISE_LOOP_SECONDS, loopOffset, seamlessWhite } from './ambient/noise';
 import { sourceMutes } from './ambient/mutes';
+import { AudioDebug, audioDebugWanted, patchAudioForDebug } from './ambient/AudioDebug';
 import { Mixer, engineBusGain, type MixKey } from './Mixer';
 import type { Surface } from './vehicle/fx';
 import type { Listener, TrafficCar } from './vehicle/nodes';
@@ -289,7 +290,10 @@ export class AudioSystem {
   /** Creates the AudioContext once and resumes it. Safe to call repeatedly. */
   async start(): Promise<void> {
     if (!this.g) {
-      this.g = this.build(this.createContext());
+      const ctx = this.createContext();
+      // `?debug=audio`: count nodes and parameter writes from the first node on, and show the panel (ambient/AudioDebug.ts)
+      if (typeof location !== 'undefined' && audioDebugWanted(location.search)) { this.debug = new AudioDebug(sourceMutes); patchAudioForDebug(); this.debug.attach(ctx); }
+      this.g = this.build(ctx);
       this.hub.onGesture();
       // Built while paused (menu open, tab hidden): keep it quiet until every reason is released.
       if (this.pauseReasons.size > 0 && typeof this.g.ctx.suspend === 'function') void Promise.resolve(this.g.ctx.suspend()).catch(() => undefined);
@@ -485,6 +489,7 @@ export class AudioSystem {
       if (ctx.rain !== undefined) this.rainNow = ctx.rain;
     }
   }
+  private debug: AudioDebug | null = null;
   private weatherState: BroadcastContext['weather'] = 'dry';
   private rainNow = 0;
   /** SFX2: hour of day (0..24) for the city bed; call when it changes (or every frame). */
@@ -545,6 +550,7 @@ export class AudioSystem {
   /** Unsubscribes from events and closes the context. */
   dispose(): void {
     this.unsubs.splice(0).forEach((fn) => fn());
+    this.debug?.dispose(); this.debug = null;
     this.peds.cancelAll();
     this.radio.dispose();
     this.vehicle.dispose();

@@ -6,7 +6,7 @@
  * frame, then calls `step(dt)`; read `pos`/`vel` back afterwards. Anti-tunnelling reconstructs each body's
  * motion this frame as `pos - vel*dt -> pos` and probes along it (see `processDynamic`).
  */
-import { hyp } from '@/core/Math2';
+import { angleDiff, hyp } from '@/core/Math2';
 import type { Vec2 } from '@/core/Math2';
 import type { Body2D, Circle, Contact, IWorld2D, Polygon, Segment } from '@/world/types';
 import { overlapRaw, rayShape, SEGMENT_HALF_THICKNESS } from './Collider2D';
@@ -60,6 +60,15 @@ const PARKED_SPEED2 = 0.6 * 0.6;
  */
 export const RESCUE_DEPTH = 0.04;
 export const RESCUE_AFTER = 0.5;
+/**
+ * Wedge relief for a car a person is driving (`body.driveIn`): throttle held, touching something, and less than RELIEF_PROGRESS metres of
+ * progress in RELIEF_AFTER seconds, with no way to back off by RELIEF_BACK metres: the car glides (RELIEF_GLIDE s) to the nearest free pose.
+ * A car merely pressed against a wall can still reverse, so it is left alone.
+ */
+export const RELIEF_AFTER = 1;
+export const RELIEF_PROGRESS = 0.35;
+export const RELIEF_BACK = 0.35;
+const RELIEF_GLIDE = 0.35;
 /** Dynamic hash is rebuilt once per step; bodies move after that, so queries between steps are padded. */
 const DYN_QUERY_PAD = 2;
 const RAY_LINEAR_FALLBACK_CELLS = 400;
@@ -94,6 +103,9 @@ interface Entry {
   sx: number; sz: number; calm: number; touched: boolean;
   /** seconds in a row this body has stayed overlapped by more than RESCUE_DEPTH after resolution */
   ovT: number;
+  /** wedge relief: where the car started its last progress window, how long ago, how long since it last touched anything, and a glide in progress */
+  px: number; pz: number; pT: number; touchAge: number;
+  glide: { x: number; z: number; h: number; left: number } | null;
 }
 
 class SpatialHash {
@@ -171,7 +183,7 @@ function newEntry(body: Body2D, idx: number, isStatic: boolean): Entry {
     body, idx, isStatic, stamp: 0, r: 0,
     minX: 0, minZ: 0, maxX: 0, maxZ: 0,
     cx0: 0, cz0: 0, cx1: 0, cz1: 0, hashed: false, processed: false, soft: false, low: false, yields: false, yielded: null,
-    sx: NaN, sz: NaN, calm: 0, touched: false, ovT: 0,
+    sx: NaN, sz: NaN, calm: 0, touched: false, ovT: 0, px: NaN, pz: NaN, pT: 0, touchAge: 9, glide: null,
   };
 }
 
@@ -323,6 +335,7 @@ export class World2D implements IWorld2D {
       const e = dyn[i];
       const b = e.body;
       e.processed = false;
+      if (e.glide !== null) this.stepGlide(e, dt);
       this.dynHash.update(e, b.pos.x - e.r, b.pos.z - e.r, b.pos.x + e.r, b.pos.z + e.r);
     }
     // A body that has not moved, has no velocity and was not touched for SLEEP_AFTER steps skips its own collision pass
@@ -337,7 +350,8 @@ export class World2D implements IWorld2D {
     }
     for (let i = 0; i < dyn.length; i++) {
       const e = dyn[i];
-      if (e.touched) { e.calm = 0; e.touched = false; this.watchOverlap(e, dt); } else e.ovT = 0;
+      if (e.touched) { e.calm = 0; e.touched = false; e.touchAge = 0; this.watchOverlap(e, dt); } else { e.ovT = 0; e.touchAge += dt; }
+      if (e.body.driveIn !== undefined) this.watchProgress(e, dt);
       e.sx = e.body.pos.x; e.sz = e.body.pos.z;
     }
     return this.contacts;
@@ -345,6 +359,8 @@ export class World2D implements IWorld2D {
 
   /** Bodies moved by the rescue backstop since construction, and a hook that sees each one (soak tests, debug). */
   rescues = 0;
+  /** Wedged driven cars freed by gliding to a free pose. */
+  reliefs = 0;
   /** The rescue backstop switch (tests compare with and without it). */
   static rescueEnabled = true;
   onRescue: ((body: Body2D, fromX: number, fromZ: number) => void) | null = null;
@@ -356,6 +372,69 @@ export class World2D implements IWorld2D {
     if (o.depth <= RESCUE_DEPTH) { e.ovT = 0; return; }
     e.ovT += dt;
     if (e.ovT >= RESCUE_AFTER) { e.ovT = 0; this.rescue(e, o.other); }
+  }
+
+  /** Wedge relief bookkeeping for a driven car (see RELIEF_AFTER). */
+  private watchProgress(e: Entry, dt: number): void {
+    const b = e.body;
+    const di = b.driveIn ?? 0;
+    if (!World2D.rescueEnabled || Math.abs(di) < 0.3 || e.glide !== null) { e.px = NaN; e.pT = 0; return; }
+    if (!(e.px === e.px) || hyp(b.pos.x - e.px, b.pos.z - e.pz) > RELIEF_PROGRESS) { e.px = b.pos.x; e.pz = b.pos.z; e.pT = 0; return; }
+    e.pT += dt;
+    if (e.pT < RELIEF_AFTER || e.touchAge > 0.3) return;
+    e.pT = 0; e.px = b.pos.x; e.pz = b.pos.z;
+    // can it back off? then it is only pressed against something
+    const f = { x: Math.sin(b.heading), z: -Math.cos(b.heading) };
+    const sgn = di > 0 ? -1 : 1;
+    const x0 = b.pos.x, z0 = b.pos.z;
+    b.pos.x = x0 + f.x * sgn * RELIEF_BACK; b.pos.z = z0 + f.z * sgn * RELIEF_BACK;
+    const back = this.deepestOverlap(b).depth;
+    b.pos.x = x0; b.pos.z = z0;
+    if (back <= 0.01) return;
+    this.relieve(e);
+  }
+
+  /** The nearest pose (rings out to 3.2 m, three headings) that is free with a hand of clearance, reachable without crossing a wall. */
+  private relieve(e: Entry): void {
+    const b = e.body;
+    const x0 = b.pos.x, z0 = b.pos.z, h0 = b.heading;
+    const shape = b.shape;
+    if (shape.kind !== 'obb') return;
+    const startDepth = this.deepestOverlap(b, true).depth;
+    const hw = shape.halfW, hl = shape.halfL;
+    let found: { x: number; z: number; h: number } | null = null;
+    shape.halfW = hw + 0.08; shape.halfL = hl + 0.08;
+    for (let r = 0.4; r <= 3.2 && !found; r += r < 1.4 ? 0.3 : 0.6) {
+      for (let i = 0; i < 24 && !found; i++) {
+        const a = (i / 24) * Math.PI * 2;
+        for (const dh of [0, 0.22, -0.22]) {
+          const x = x0 + Math.cos(a) * r, z = z0 + Math.sin(a) * r, h = h0 + dh;
+          b.pos.x = x; b.pos.z = z; b.heading = h;
+          if (this.deepestOverlap(b).depth > 0) continue;
+          let clear = true;
+          for (let k = 1; k <= 4 && clear; k++) {
+            b.pos.x = x0 + (x - x0) * k / 5; b.pos.z = z0 + (z - z0) * k / 5; b.heading = h0 + dh * k / 5;
+            if (this.deepestOverlap(b, true).depth > Math.max(0.1, startDepth + 0.05)) clear = false;
+          }
+          if (clear) { found = { x, z, h }; break; }
+        }
+      }
+    }
+    shape.halfW = hw; shape.halfL = hl;
+    b.pos.x = x0; b.pos.z = z0; b.heading = h0;
+    if (!found) return;
+    e.glide = { x: found.x, z: found.z, h: found.h, left: RELIEF_GLIDE };
+    this.reliefs++;
+  }
+
+  private stepGlide(e: Entry, dt: number): void {
+    const g = e.glide!, b = e.body;
+    const f = Math.min(1, dt / Math.max(g.left, dt));
+    b.pos.x += (g.x - b.pos.x) * f; b.pos.z += (g.z - b.pos.z) * f;
+    b.heading += angleDiff(b.heading, g.h) * f;
+    b.vel.x = 0; b.vel.z = 0;
+    g.left -= dt;
+    if (g.left <= 1e-6) e.glide = null;
   }
 
   /** Nearest free spot, rings outward, starting on the side away from what it overlaps. The body keeps its heading and loses its velocity. */

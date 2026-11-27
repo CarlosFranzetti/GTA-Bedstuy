@@ -50,7 +50,7 @@ export class WeatherAudio implements WeatherAudioSink {
   update(dt: number, s: WeatherAudioState): void {
     const m = weatherMix(s, this.mix);
     if (sourceMutes.muted('weather')) { m.rainGain = 0; m.windGain = 0; m.thunderGain = 0; }
-    const audible = m.rainGain > 0.004 || m.windGain > 0.004 || s.storm > 0.5;
+    const audible = !sourceMutes.muted('weather') && (m.rainGain > 0.004 || m.windGain > 0.004 || s.storm > 0.5);
     if (!this.n) {
       if (!audible) return;
       const h = this.host();

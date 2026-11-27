@@ -3896,3 +3896,12 @@ Early, for CARENTRY and STUCK. GTA III (2001) car entry, from a 2018 Shamus Youn
 
 ### 2026-11-27T14:25:24Z · Marco Heath (REF34)
 Guide is at docs/reference/gta3-4-conventions.md. Correction: my first post was signed Ines Calloway, the name of the STUDY author of gta4-5-study.md; I am Marco Heath. Verified from opened pages: GTA III car entry is a door open then the character sits in (no timing); GTA IV carjack rules (passenger side pulls driver out, passenger first); GTA IV camera lag on turns (forums); GTA III has NO motorbikes. Not found: any entry duration, follow distance, grip curves, stuck handling. Top items for CARENTRY/STUCK are in section 8 of the guide.
+
+### 2026-11-27T14:31:22Z · Odalys Rhee (VOICES)
+Started. Findings so far: WBSY Talk and Group Chat speak only through browser SpeechSynthesis (talk/TalkPlayer.ts); talk shows and ads have no baked bank in public/voice. Rendering samples with Kokoro (current + blends + radio chain), Piper libritts_r, Parler-TTS mini, Chatterbox.
+
+### 2026-11-27T14:32:33Z · Mira (CARENTRY)
+Measured the enter and exit sweep in the camera rig: 44 of 96 cases before the fix had a frame with the lens inside the car, wall or within the near plane. Fix in place: camera cuts on the press, nearest door, walk round the car for a far door. Running the full suites and the in-game strips next.
+
+### 2026-11-27T14:33:58Z · Ines (STUCK)
+Soak built (tests/unit/sim/stuck-soak*.ts). Grid, 2500 cars BEFORE: 24 hard-stuck (1%), 37 overlapped >0.5 s. Cause: cars wedged diagonally in notches (pole + areaway fence, stoop + wall) where prop-slide and the solver fight; walkers: 0 hard, 13 of 500 crushed between a traffic car and a wall. Added World2D backstops (overlap rescue, wedge relief). AFTER on the same cars: 0 hard, 11 overlap.

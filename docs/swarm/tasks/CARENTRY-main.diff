@@ -1,0 +1,24 @@
+--- a/src/main.ts  (CARENTRY: hand-back for the lead; only the lead edits src/main.ts)
++++ b/src/main.ts
+@@ updateCamera (about line 613)
+-    camCtx.vehicle = player.vehicle;
+-    camCtx.ignoreId = player.enteringId; // the lens does not shy from the car being entered
++    camCtx.vehicle = player.camVehicle; // the car being driven, or the one being entered once the camera has cut to it
++    camCtx.ignoreId = player.cameraIgnoreId; // only a car being vaulted: the lens now stays outside the car being entered
+@@ (about line 617)
+-    cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input, camCtx);
++    cam.update(dt, camTarget, camHeading, player.camVehicle ? 'vehicle' : 'foot', input, camCtx);
+@@ interpolateAll, the vehicle loop (about line 639): the car being entered is released from the level-of-detail swap at once
+-    if (v === veh) { carLod.release(v); ...
++    if (v === veh || v === camVeh) { carLod.release(v); ...
+   (and add `const camVeh = player.camVehicle;` next to `const veh = player.vehicle;` at the top of the function)
+@@ interpolateAll, after the `if (veh) {...} else {...}` that sets camTarget and camHeading (about line 658): the camera follows the car being entered
++  if (camVeh && camVeh !== veh) { const b = poses.blend(camVeh.body, alpha, blended); camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h; }
+@@ the F key in the fixed step (about lines 880 and 882): the render pose of the player starts at the new spot, not half way from the car's centre
+-        else if (player.inVehicle) player.exit();
++        else if (player.inVehicle) { player.exit(); poses.capture(player.body); }
+-        else if (!away) player.tryEnter(allVehicles());
++        else if (!away) { player.tryEnter(allVehicles()); poses.capture(player.body); }
+@@ __gtaDebug.settle (about line 1033)
+-    const veh = player.vehicle;
++    const veh = player.camVehicle;

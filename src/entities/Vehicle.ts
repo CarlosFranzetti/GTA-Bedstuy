@@ -508,8 +508,9 @@ export class Vehicle implements IVehicle {
     const s = this.spec;
     const driven = this.driver !== null;
 
-    if (!driven) { this.integrateParked(h); return; }
+    if (!driven) { if (b.driveIn) b.driveIn = 0; this.integrateParked(h); return; }
     const input = this.input;
+    b.driveIn = this.driver === 'player' && !input.brake ? input.throttle : 0;
     const unstick = this.driver === 'player' && Vehicle.wedgeAssist ? this.updateWedge(h) : null;
     if (this.useProfile()) { this.integrateProfile(h, unstick); return; }
 

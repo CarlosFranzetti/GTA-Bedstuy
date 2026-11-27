@@ -280,7 +280,8 @@ export class VehicleAudio {
     const g = signalGain(c.d);
     if (g < 0.02) return;
     if ((this.crossIn -= dt) <= 0) {
-      this.crossIn = SIGNAL_PERIOD[c.state];
+      // carry the remainder so the tick rate is exact at any frame rate (it reset to the full period: 0.131 s instead of 0.125 s at 60 fps)
+      this.crossIn = Math.max(SIGNAL_PERIOD[c.state] * 0.5, this.crossIn + SIGNAL_PERIOD[c.state]);
       this.fx(crosswalkLayers(c.state, this.crossBeat++), 0.3 * g);
     }
   }

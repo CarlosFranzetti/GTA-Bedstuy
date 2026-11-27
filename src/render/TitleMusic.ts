@@ -7,6 +7,7 @@
  * while suspended) and a one-time pointer/key listener resumes it on the first gesture. The theme is imported lazily.
  */
 import { storedMusicGain } from '@/audio/Mixer';
+import { makeMusicContext } from '@/audio/ambient/context';
 
 export interface TitleThemeApi { start(): void; stop(fadeSec?: number): void; setVolume(v: number): void; readonly playing: boolean }
 export type TitleThemeFactory = (ctx: BaseAudioContext, dest: AudioNode, opts?: { volume?: number; lookAhead?: number }) => TitleThemeApi;
@@ -40,7 +41,7 @@ type Hook = Pick<EventTarget, 'addEventListener' | 'removeEventListener'> | null
 export function createTitleMusic(opts: TitleMusicOptions = {}): TitleMusic {
   const load = opts.load ?? (() => import('@/audio/titleTheme'));
   const makeContext = opts.makeContext ?? ((): AudioContext | null => {
-    try { const w = globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }; const C = w.AudioContext ?? w.webkitAudioContext; return C ? new C() : null; } catch { return null; }
+    try { const w = globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }; const C = w.AudioContext ?? w.webkitAudioContext; return C ? makeMusicContext(C) : null; } catch { return null; }
   });
   const volume = opts.volume ?? 0.8; let ctx: AudioContext | null = null, theme: TitleThemeApi | null = null, gen = 0, busy = false, unlock: (() => void) | null = null;
   const target = (): Hook => (opts.unlockTarget !== undefined ? opts.unlockTarget : typeof (globalThis as { addEventListener?: unknown }).addEventListener === 'function' ? (globalThis as unknown as Hook) : null);
