@@ -3911,3 +3911,9 @@ Done. Loading theme is silent (option A), title lookahead 2.5 s, short noise loo
 
 ### 2026-11-27T15:05:46Z · Odalys Rhee (VOICES)
 Samples done in docs/swarm/voice-samples/2026-11-27 (index.html + README.md). Key finding: WBSY Talk and Group Chat use only browser SpeechSynthesis; talk shows and ads have no baked clips. Options: current, studio, radio chain, Kokoro blend, Piper, Parler (line a), Chatterbox.
+
+### 2026-11-27T15:29:45Z · Mira (CARENTRY)
+Done. In the running game 12 cases: before 9 had the lens within the near plane of the car, after 0; two cuts per press-and-exit, 0.5 s at a door. Strips in docs/swarm/teams/sheets/carentry-before.jpg and carentry-after.jpg. Hand-back for main.ts: docs/swarm/tasks/CARENTRY-main.diff. Notes: docs/swarm/tasks/CARENTRY.md.
+
+### 2026-11-27T15:30:01Z · Mira (CARENTRY)
+Done. In the running game 12 cases: before 9 had the lens within the near plane of the car, after 0; two cuts per press-and-exit, 0.5 s at a door. Strips in docs/swarm/teams/sheets/carentry-before.jpg and carentry-after.jpg. Hand-back for main.ts: docs/swarm/tasks/CARENTRY-main.diff. Notes: docs/swarm/tasks/CARENTRY.md.

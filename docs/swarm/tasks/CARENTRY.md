@@ -28,8 +28,8 @@ itself near or inside it.
 
 ## What changed
 
-1. `src/core/Camera.ts`: a change of mode (on foot to car, car to on foot) is ONE CUT in both styles. Pivot, rig, yaw (behind the car going in,
-   behind the player coming out), pitch, wall reach, look-behind and side looks all start at their goals on that frame. For 0.1 s after
+1. `src/core/Camera.ts`: a change of mode (on foot to car, car to on foot) is ONE CUT in both styles. Pivot, rig, yaw (behind the car going in;
+   coming out it stays where the car's heading left it, the CAMFIX "walk forward keeps its meaning" rule, whose tests still pass), pitch, wall reach, look-behind and side looks all start at their goals on that frame. For 0.1 s after
    (`MODE_CUT_HOLD`) the yaw and pivot follow the target exactly (the render pose of the press frame is half way between the two bodies) and
    the wall reach is re-measured every frame, so the lens is on the wall side of the line from the first frame, not glided in.
 2. `src/entities/Player.ts` (entry and exit only):
@@ -59,6 +59,22 @@ itself near or inside it.
 | lens settled after leaving | 0.6 to 1.0 s | 0.02 s |
 | biggest lens step relative to its subject outside a cut (m per frame) | 1.4 to 2.0 | under 0.03 |
 
+In the running game (`scripts/dev/carentry-shoot.mjs`, hosted build, real map, SUV and step van, both styles, three approaches = 12 cases, the real F key):
+
+| | before (13:59 tree) | after |
+|---|---|---|
+| cases with a frame of the lens inside the car box | 3 of 12 | 0 |
+| cases with a frame within the near plane of the car | 9 of 12 (4 to 13 frames each, Modern) | 0 |
+| camera cuts in a press, exit and press | 0 (blends) | 2 (one per press) |
+| lens speed outside the cuts | 11 to 29 m/s | 0 to 3.6 m/s |
+| press to driving at a door / from behind | 0.40 to 0.55 s | 0.50 s / 1.2 to 1.4 s |
+
+Strips (every 3rd frame, 0.6 s after each press; top two rows the press, bottom two the exit; the SUV in Classic from its driver side, then the step van in Modern from its
+passenger side): `docs/swarm/teams/sheets/carentry-before.jpg` and `carentry-after.jpg`. Before: the lens slides along and into the van's side (the frame fills with the
+van's texture) and rushes through its rear on leaving. After: a clean cut to the car view; on leaving, the on-foot view with the character beside the door.
+STILL SEEN AFTER, Modern only: on leaving the passenger side of a long van the lens runs along the flank 0.4 m away (outside the box, past the near plane, but the
+van's side fills half the frame). The tests do not call that a failure. Choice 4's alternative (a cut behind the character) cures it.
+
 ## Things the owner may see as "glitching" (checked)
 
 - The character model visible inside the car body during the move: yes before (far door, whole crossing); now never crosses the box. During
@@ -79,12 +95,17 @@ itself near or inside it.
 3. Camera on a long walk (door farther than 1.5 m): used = it cuts on the press when the walk goes round the car (an on-foot lens beside a bus
    runs along its flank and touched the near plane), and stays on the player on a short straight walk until within 0.6 m of the door.
    Alternative (the lead's brief): stay on foot until the door is reached in every case: the lens then sits on the flank of a long car for up to 1 s.
-4. Exit: the character appears beside the door on the side the existing rule picks, the camera cuts BEHIND THE CHARACTER (it faces the car, so the lens
-   is on the outside and the car is in front: the lens cannot be inside the car by construction). Alternative: the camera stays behind the car's
-   heading (as before and as the old games did), the lens then looks at the character from the car's rear quarter.
+4. Exit: the character appears beside the door on the side the existing rule picks and the camera cuts to the on-foot rig with its yaw where the
+   car's heading left it (used: keeps "walk forward" as it was). Alternative: cut BEHIND THE CHARACTER (it faces the car, so the lens is on the
+   outside and the car is in front: a clean lens by construction, and in Modern it gets the lens off the van's flank, see below), at the price that
+   W then walks into the car for a player who steps out holding W. I tried it first: it broke the three CAMFIX "stepping out" tests by design.
 
 ## Not done / not seen
 
+- `tests/unit/entities/vault-pinned.test.ts` "pinned by a car that has stopped against them (dead-end lane)" fails (4 tests). NOT from this lane: it fails the
+  same with Camera.ts, Player.ts and camfix-harness.ts put back to the 13:59 versions; the STUCK lane's physics and Vehicle edits of 14:21 to 14:34 are the cause.
+- Existing tests changed for the new behaviour (all say CARENTRY): camera.test.ts (mode change is a cut), camfix.test.ts (getting in is one cut), player.test.ts (0.5 s),
+  player-edge.test.ts (1.4 s of wall clock allowed: 100 ms frames are clamped), exit-unstick.test.ts (the player there stands behind the car: 1.5 s).
 - Not seen: pictures of the real game on the real phone; medium and high tiers; anything heard (the door sound is unchanged).
 - The exit hold (0.1 s) covers one render frame of half-interpolated pose; callers other than the F key (a mission ejecting the player, `ejectPlayer`,
   teleports) do not re-capture the pose: they get a one-frame step of the target at most, never a blend.
