@@ -75,9 +75,13 @@ const BRAKE_ACCEL = 8;
 /** Walk to the car door before getting in: the time scales with the distance, between these (s). */
 /** Ranking penalty (m) for a car reached by its body box only (its door is beyond ENTER_RANGE). */
 const FAR_DOOR_PENALTY = 1.5;
-const ENTER_TIME = 0.4;
-const ENTER_TIME_MAX = 0.55;
+/** CARENTRY: the whole move from the press to driving takes about half a second at a door (owner, 27 Nov: "instant like GTA", a short animation). */
+const ENTER_TIME = 0.5;
+const ENTER_TIME_MAX = 0.7;
 const ENTER_WALK_SPEED = 5;
+/** The camera cuts to the car's view on the press when the door is within this many metres; from further it stays on foot until the walk is within CAM_CUT_REACH of the door. */
+const CAM_CUT_DOOR = 1.5;
+const CAM_CUT_REACH = 0.6;
 /** Leaving a moving car: above LEAVE_STEP m/s the player steps out carrying part of its speed, above LEAVE_ROLL they roll out and get up. */
 const LEAVE_STEP = 2.5;
 const LEAVE_ROLL = 9;
@@ -173,7 +177,7 @@ export class Player implements Entity {
    * first free spot. Without it, exit() falls back to the side the player got in from.
    */
   blockedAt: ((p: Vec2, r: number, ignoreId?: string) => boolean) | null = null;
-  private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver']; time: number; v0: Vec2 } | null = null;
+  private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver']; time: number; v0: Vec2; camCut: boolean } | null = null;
   /**
    * Called when the walk to a car door begins. The integrator must take `body` out of the physics world here:
    * the door is often on the far side of the car, so the glide crosses the car's own box and, left in World2D,
@@ -183,6 +187,14 @@ export class Player implements Entity {
   /** Fires when the player runs into something hard at speed (a wall, a person): strength 0..1. Hook a small camera kick and a grunt here. */
   onBump: ((strength: number) => void) | null = null;
   /** Id of the vehicle being walked to (null otherwise): the camera should not pull in for the car the player is stepping into. */
+  /**
+   * The vehicle the camera should show: the one being driven, or the one being entered once the camera has cut to it (at the press when the
+   * door is close, else when the walk has reached the door). Null on foot. main.ts passes it as the camera's vehicle, its mode and its target.
+   */
+  get camVehicle(): IVehicle | null {
+    if (this.vehicle) return this.vehicle;
+    return this.entering && this.entering.camCut ? this.entering.vehicle : null;
+  }
   get enteringId(): string | null {
     if (this.entering) return this.entering.vehicle.id;
     // MOVE2: while vaulting a car (and for a moment after) the lens does not shy from it either: the camera follows the ground position and
@@ -621,6 +633,7 @@ export class Player implements Entity {
       vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver,
       time: clamp(walkTo / ENTER_WALK_SPEED, ENTER_TIME, ENTER_TIME_MAX),
       v0: this.entryVelocity(best),
+      camCut: walkTo <= CAM_CUT_DOOR,
     };
     this.braceT = 0;
     this.pinT = 0; this.pinTarget = null;
@@ -965,6 +978,7 @@ export class Player implements Entity {
     const b = this.body;
     e.t = Math.min(1, e.t + dt / e.time);
     const door = e.vehicle.doorPos(); // tracks the car if it is still rolling
+    if (!e.camCut && Math.hypot(door.x - b.pos.x, door.z - b.pos.z) <= CAM_CUT_REACH) e.camCut = true; // a long walk: the camera cuts when the door is reached
     // a Hermite path from where the player was, leaving at the speed they had (no stop dead at the first frame), arriving at rest at the door
     const u = e.t, u2 = u * u, u3 = u2 * u;
     const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2;

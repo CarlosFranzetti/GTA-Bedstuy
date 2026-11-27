@@ -7,7 +7,7 @@
  */
 import type { EventBus } from '@/core/Events';
 import { Rng } from '@/core/Rng';
-import { engineFrequency, gearForSpeed, gearShiftFactor, hornFrequencies, impactGain, pinkNoise, squealLevel, scJingle, stationJingle, stingDuration, talkSting, TALK_BED_FREQS, type StingNote, type TalkStingKind } from './synth';
+import { engineFrequency, gearForSpeed, gearShiftFactor, hornFrequencies, impactGain, squealLevel, scJingle, stationJingle, stingDuration, talkSting, TALK_BED_FREQS, type StingNote, type TalkStingKind } from './synth';
 import { patternAt, stepSeconds, type Note } from './radio';
 import { Library, localLibraryStorage, type LibraryStorage } from './library/Library';
 import { LibraryController, type ControllerDeps } from './library/LibraryController';
@@ -25,6 +25,9 @@ import type { PersistentStore } from './voice/ClipCache';
 import { VehicleAudio } from './vehicle/VehicleAudio';
 import { BarkDirector, normalizeBark, type SpeechEventName } from './voice/peds/BarkDirector';
 import { PedVoicePlayer } from './voice/peds/PedVoicePlayer';
+import { CityBed } from './ambient/CityBed';
+import { NOISE_LOOP_SECONDS, loopOffset, seamlessWhite } from './ambient/noise';
+import { sourceMutes } from './ambient/mutes';
 import { Mixer, engineBusGain, type MixKey } from './Mixer';
 import type { Surface } from './vehicle/fx';
 import type { Listener, TrafficCar } from './vehicle/nodes';
@@ -68,8 +71,7 @@ interface Graph {
   engineGain: GainNode;
   radioBus: GainNode;
   musicBus: GainNode;
-  dayGain: GainNode;
-  nightGain: GainNode;
+  city: CityBed;
   squealGain: GainNode;
   squealFilter: BiquadFilterNode;
   /** 1 s of white noise, shared by all noise voices. */
@@ -582,10 +584,10 @@ export class AudioSystem {
     const ambBus = bus(master, this.mixer.gain('ambience'));
     const engineBus = bus(sfxBus, engineBusGain(this.mixer.get('engine')));
 
-    // White noise for drums, impacts and radio mumble.
-    const noise = ctx.createBuffer(1, sr, sr);
-    const nd = noise.getChannelData(0);
-    for (let i = 0; i < nd.length; i++) nd[i] = this.rng.range(-1, 1);
+    // White noise for drums, impacts, radio mumble and every noise bed of the vehicle layer. AMBIENT: 6 s with a crossfaded loop
+    // point (it was 1 s of cut white noise, so every looped bed repeated each second).
+    const noise = ctx.createBuffer(1, Math.floor(sr * NOISE_LOOP_SECONDS), sr);
+    noise.getChannelData(0).set(seamlessWhite(NOISE_LOOP_SECONDS, sr, () => this.rng.next()).subarray(0, noise.length));
 
     // Engine: sawtooth plus an octave-lower square, through a lowpass.
     const engineFilter = ctx.createBiquadFilter();
@@ -607,56 +609,8 @@ export class AudioSystem {
     saw.start(now);
     sq.start(now);
 
-    // City hum: looping pink-ish noise through a lowpass (always on, the base of both ambience beds).
-    const humBuf = ctx.createBuffer(1, sr * 2, sr);
-    humBuf.getChannelData(0).set(pinkNoise(sr * 2, () => this.rng.next()));
-    const hum = ctx.createBufferSource();
-    hum.buffer = humBuf;
-    hum.loop = true;
-    const humFilter = ctx.createBiquadFilter();
-    humFilter.type = 'lowpass';
-    humFilter.frequency.value = 500;
-    const humGain = ctx.createGain();
-    humGain.gain.value = HUM_GAIN;
-    hum.connect(humFilter);
-    humFilter.connect(humGain);
-    humGain.connect(ambBus);
-    hum.start(now);
-
-    // Day bed: brighter traffic hiss. Night bed: darker rumble plus faint crickets.
-    const dayFilter = ctx.createBiquadFilter();
-    dayFilter.type = 'bandpass';
-    dayFilter.frequency.value = 1100;
-    const dayGain = ctx.createGain();
-    dayGain.gain.value = this.night ? 0 : DAY_BED_GAIN;
-    hum.connect(dayFilter);
-    dayFilter.connect(dayGain);
-    dayGain.connect(ambBus);
-
-    const nightFilter = ctx.createBiquadFilter();
-    nightFilter.type = 'lowpass';
-    nightFilter.frequency.value = 220;
-    const nightGain = ctx.createGain();
-    nightGain.gain.value = this.night ? NIGHT_BED_GAIN : 0;
-    hum.connect(nightFilter);
-    nightFilter.connect(nightGain);
-    nightGain.connect(ambBus);
-    const cricket = ctx.createOscillator();
-    cricket.type = 'sine';
-    cricket.frequency.value = 4300;
-    const cricketAmp = ctx.createGain();
-    cricketAmp.gain.value = CRICKET_GAIN;
-    const chirp = ctx.createOscillator();
-    chirp.type = 'square';
-    chirp.frequency.value = 11;
-    const chirpDepth = ctx.createGain();
-    chirpDepth.gain.value = CRICKET_GAIN;
-    chirp.connect(chirpDepth);
-    chirpDepth.connect(cricketAmp.gain);
-    cricket.connect(cricketAmp);
-    cricketAmp.connect(nightGain);
-    cricket.start(now);
-    chirp.start(now);
+    // City hum, day and night beds and crickets (CityBed): a crossfaded 8 s pink loop.
+    const city = new CityBed(ctx, ambBus, { night: this.night, random: () => this.rng.next(), mutes: sourceMutes });
 
     // Tyre squeal: looping noise through a bandpass, silent until slip is reported.
     const squealSrc = ctx.createBufferSource();
@@ -671,7 +625,7 @@ export class AudioSystem {
     squealSrc.connect(squealFilter);
     squealFilter.connect(squealGain);
     squealGain.connect(sfxBus);
-    squealSrc.start(now);
+    squealSrc.start(now, loopOffset(noise.duration, this.rng.next()));
 
     // Radio bus: sequencer output, faded in and out with the vehicle state.
     const radioBus = ctx.createGain();
@@ -682,7 +636,7 @@ export class AudioSystem {
     musicBus.gain.value = this.radioOn ? MUSIC_GAIN * this.radioVolume : 0;
     musicBus.connect(master);
 
-    const g: Graph = { ctx, master, sfxBus, voiceBus, hubBus, ambBus, engineBus, saw, sq, engineFilter, engineGain, radioBus, musicBus, dayGain, nightGain, squealGain, squealFilter, noise };
+    const g: Graph = { ctx, master, sfxBus, voiceBus, hubBus, ambBus, engineBus, saw, sq, engineFilter, engineGain, radioBus, musicBus, city, squealGain, squealFilter, noise, city };
     this.vehicle.setEngineEnabled(this.mixer.get('engine') > 0);
     this.vehicle.attach(ctx, sfxBus, noise, ambBus, engineBus);
     this.applyEngine(g);
@@ -716,8 +670,7 @@ export class AudioSystem {
 
   private applyAmbience(g: Graph): void {
     const now = g.ctx.currentTime;
-    g.dayGain.gain.setTargetAtTime(this.night ? 0 : DAY_BED_GAIN, now, AMBIENCE_TC);
-    g.nightGain.gain.setTargetAtTime(this.night ? NIGHT_BED_GAIN : 0, now, AMBIENCE_TC);
+    g.city.setNight(this.night);
   }
 
   /* ---------- one-shots ---------- */

@@ -529,6 +529,33 @@ export class World2D implements IWorld2D {
     return out;
   }
 
+  /**
+   * The deepest overlap (m) between `body` and anything it collides with right now (statics, and other dynamics unless `staticsOnly`),
+   * with that other body. Read only: nothing moves. For soak tests, spawn checks and the depenetration backstop.
+   */
+  deepestOverlap(body: Body2D, staticsOnly = false): { depth: number; other: Body2D | null } {
+    const cand = this.cand;
+    cand.length = 0;
+    const r = (this.entries.get(body.id)?.r ?? boundRadius(body)) + 0.5;
+    const stamp = ++this.stamp;
+    this.staticHash.query(body.pos.x - r, body.pos.z - r, body.pos.x + r, body.pos.z + r, stamp, cand);
+    if (!staticsOnly) this.dynHash.query(body.pos.x - r, body.pos.z - r, body.pos.x + r, body.pos.z + r, stamp, cand);
+    let best = 0, other: Body2D | null = null;
+    for (let i = 0; i < cand.length; i++) {
+      const c = cand[i];
+      if (c.body === body) continue;
+      if (c.isStatic) {
+        if (c.soft && (body.kind === 'vehicle' || body.kind === 'cop')) continue;
+        if (c.yields && (body.kind === 'vehicle' || body.kind === 'cop')) continue;
+        if (c.low && body.height !== undefined && body.height >= LOW_CLEAR_HEIGHT) continue;
+      } else if ((body.vehiclePass && (c.body.kind === 'vehicle' || c.body.kind === 'cop')) || (c.body.vehiclePass && (body.kind === 'vehicle' || body.kind === 'cop'))) continue;
+      const h = overlapRaw(body, c.body);
+      if (h && h.depth > best) { best = h.depth; other = c.body; }
+    }
+    cand.length = 0;
+    return { depth: best, other };
+  }
+
   /** True when a circle at `center` overlaps any STATIC body (wall, tree, pole). For spawn / exit spot checks. */
   overlapsStatic(center: Vec2, r: number): boolean {
     const cand = this.cand;

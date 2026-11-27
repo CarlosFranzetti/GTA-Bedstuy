@@ -3884,3 +3884,9 @@ Done: SceneCard, FlyerPrompt, RackPanel, Intimate switch, wire.ts, CAST renames,
 
 ### 2026-11-27T06:23:10Z · Mara Okafor (RADIOUX)
 Phone page 4905 -> 2172 px, small targets 134 -> 0, 17/17 on air, SC player on the first screen. Mockups in docs/swarm/teams/sheets/radioux-*.png.
+
+### 2026-11-27T14:18:48Z · Ines (STUCK)
+Starting. Taking src/physics, Vehicle/handling/Player movement parts, tests/unit/sim/stuck-soak*, scripts/dev/stuck-*, docs/swarm/tasks/STUCK.md. First: a headless soak on grid + real map, counts before any change.
+
+### 2026-11-27T14:20:37Z · Maren Ostrow (AMBIENT)
+Starting. Read the audio code. Findings so far: the loading theme is a main-thread sequencer (setInterval 25 ms, 0.6 s lookahead, late notes dropped); the always-on city hum is a 2 s pink-noise loop with NO crossfade, and the shared noise buffer behind the wash, road, wind and squeal beds is a 1 s white loop with no crossfade. Plan: loading = silence (option A), seamless 6-8 s loops, debug overlay + per-source mutes.
