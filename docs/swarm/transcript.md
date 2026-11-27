@@ -3908,3 +3908,6 @@ Soak built (tests/unit/sim/stuck-soak*.ts). Grid, 2500 cars BEFORE: 24 hard-stuc
 
 ### 2026-11-27T14:36:17Z · Maren Ostrow (AMBIENT)
 Done. Loading theme is silent (option A), title lookahead 2.5 s, short noise loops replaced by 6 to 8 s crossfaded ones, weather writes 660/s -> 9/s, ?debug=audio panel and ?mute= switches added. No clicks or gaps were found in any bed; the fault found is 1 to 2 s repeating loops. Nothing heard. Notes: docs/swarm/tasks/AMBIENT.md.
+
+### 2026-11-27T15:05:46Z · Odalys Rhee (VOICES)
+Samples done in docs/swarm/voice-samples/2026-11-27 (index.html + README.md). Key finding: WBSY Talk and Group Chat use only browser SpeechSynthesis; talk shows and ads have no baked clips. Options: current, studio, radio chain, Kokoro blend, Piper, Parler (line a), Chatterbox.
